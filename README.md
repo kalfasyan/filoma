@@ -1,7 +1,7 @@
 
-# Filo
+# Filoma
 
-Filo is a modular Python tool for profiling files, analyzing directory structures, and inspecting image data (e.g., .tif, .png, .npy, .zarr). It provides detailed reports on filename patterns, inconsistencies, file counts, empty folders, file system metadata, and image data statistics. The project is designed for easy expansion, testing, CI/CD, Dockerization, and database integration.
+Filoma is a modular Python tool for profiling files, analyzing directory structures, and inspecting image data (e.g., .tif, .png, .npy, .zarr). It provides detailed reports on filename patterns, inconsistencies, file counts, empty folders, file system metadata, and image data statistics. The project is designed for easy expansion, testing, CI/CD, Dockerization, and database integration.
 
 ## Features
 - **Directory analysis**: Filename pattern extraction, reporting, statistics, empty folder detection
@@ -16,7 +16,7 @@ Filo is a modular Python tool for profiling files, analyzing directory structure
 
 ### File Profiling
 ```python
-from filo.fileinfo import FileProfiler
+from filoma.fileinfo import FileProfiler
 profiler = FileProfiler()
 report = profiler.profile("/path/to/file.txt")
 profiler.print_report(report)  # Rich table output in your terminal
@@ -25,7 +25,7 @@ profiler.print_report(report)  # Rich table output in your terminal
 
 ### Image Analysis
 ```python
-from filo.img import PngChecker
+from filoma.img import PngChecker
 checker = PngChecker()
 report = checker.check("/path/to/image.png")
 print(report)
@@ -33,8 +33,8 @@ print(report)
 ```
 
 ## Project Structure
-- `src/filo/img/` — Image checkers and analysis
-- `src/filo/fileprof/` — File profiling (system metadata)
+- `src/filoma/img/` — Image checkers and analysis
+- `src/filoma/fileprof/` — File profiling (system metadata)
 - `tests/` — Unit tests for all modules
 
 ## Future TODO
@@ -46,4 +46,4 @@ print(report)
 - CI/CD workflows and badges
 
 ---
-Filo is under active development. Contributions and suggestions are welcome!
+Filoma is under active development. Contributions and suggestions are welcome!

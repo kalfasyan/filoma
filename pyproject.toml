@@ -1,5 +1,5 @@
 [project]
-name = "filo"
+name = "filoma"
 dynamic = ["version"]
 description = "tmux session manager"
 readme = "README.md"
@@ -25,7 +25,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
-path = "src/filo/_version.py"
+path = "src/filoma/_version.py"
 
 [tool.ruff]
 line-length = 150  # Increased to handle long UI strings and f-strings

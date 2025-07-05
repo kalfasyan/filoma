@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Version bumping utility for filo package."""
+"""Version bumping utility for filoma package."""
 
 import argparse
 import re
@@ -9,7 +9,7 @@ from pathlib import Path
 
 def get_current_version():
     """Get the current version from _version.py."""
-    version_file = Path("src/filo/_version.py")
+    version_file = Path("src/filoma/_version.py")
     if not version_file.exists():
         raise FileNotFoundError("_version.py not found")
 
@@ -53,7 +53,7 @@ def bump_version(current_version, bump_type):
 
 def update_version_file(new_version):
     """Update the _version.py file with new version."""
-    version_file = Path("src/filo/_version.py")
+    version_file = Path("src/filoma/_version.py")
     content = version_file.read_text()
 
     new_content = re.sub(
@@ -66,7 +66,7 @@ def update_version_file(new_version):
 
 def main():
     """Main function."""
-    parser = argparse.ArgumentParser(description="Bump filo package version")
+    parser = argparse.ArgumentParser(description="Bump filoma package version")
     parser.add_argument(
         "bump_type", choices=["major", "minor", "patch"], help="Type of version bump"
     )

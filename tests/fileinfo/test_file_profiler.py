@@ -1,4 +1,4 @@
-from filo.fileinfo import FileProfiler
+from filoma.fileinfo import FileProfiler
 
 
 def test_file_profiler_basic(tmp_path):

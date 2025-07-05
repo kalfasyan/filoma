@@ -1,5 +1,5 @@
 #!/bin/bash
-# Release script for filo
+# Release script for filoma
 
 if [ $# -eq 0 ]; then
     echo "Usage: $0 [major|minor|patch]"
@@ -27,7 +27,7 @@ python scripts/bump_version.py $BUMP_TYPE
 
 # Get new version
 echo "🔍 Getting new version..."
-NEW_VERSION=$(python -c "import sys; sys.path.insert(0, 'src'); from filo._version import __version__; print(__version__)")
+NEW_VERSION=$(python -c "import sys; sys.path.insert(0, 'src'); from filoma._version import __version__; print(__version__)")
 
 # Validate version was captured
 if [ -z "$NEW_VERSION" ]; then
@@ -51,7 +51,7 @@ uv build
 
 # Git operations
 echo "📝 Committing changes..."
-git add src/filo/_version.py
+git add src/filoma/_version.py
 git commit -m "Bump version to $NEW_VERSION"
 
 echo "🏷️ Creating tag..."
@@ -68,4 +68,4 @@ git push && git push --tags
 echo "✅ Release $NEW_VERSION complete!"
 echo ""
 echo "🎉 GitHub Actions will automatically publish to PyPI!"
-echo "👀 Check the progress at: https://github.com/kalfasyan/filo/actions"
+echo "👀 Check the progress at: https://github.com/kalfasyan/filoma/actions"

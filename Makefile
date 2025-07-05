@@ -1,4 +1,4 @@
-# Makefile for filo package management
+# Makefile for filoma package management
 
 .PHONY: help bump-patch bump-minor bump-major release-patch release-minor release-major build test lint clean
 
@@ -52,8 +52,8 @@ publish:  ## Publish to PyPI (manual - normally done by GitHub Actions)
 
 # Show current version
 version:  ## Show current version
-	@python -c "import sys; sys.path.insert(0, 'src'); from filo._version import __version__; print(f'Current version: {__version__}')"
+	@python -c "import sys; sys.path.insert(0, 'src'); from filoma._version import __version__; print(f'Current version: {__version__}')"
 
 # Check release status
 check-release:  ## Check if current version is published
-	@python -c "import sys, requests; sys.path.insert(0, 'src'); from filo._version import __version__; r=requests.get(f'https://pypi.org/pypi/filo/{__version__}/json'); print(f'✅ Version {__version__} is published' if r.status_code==200 else f'❌ Version {__version__} not found on PyPI')"
+	@python -c "import sys, requests; sys.path.insert(0, 'src'); from filoma._version import __version__; r=requests.get(f'https://pypi.org/pypi/filoma/{__version__}/json'); print(f'✅ Version {__version__} is published' if r.status_code==200 else f'❌ Version {__version__} not found on PyPI')"

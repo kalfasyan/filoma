@@ -1,7 +1,7 @@
 import numpy as np
 from PIL import Image
 
-from filo.img.png_checker import PngChecker
+from filoma.img.png_checker import PngChecker
 
 
 def test_png_checker(tmp_path):
