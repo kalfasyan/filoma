@@ -1,7 +1,7 @@
 
-# Filoma
+# filoma
 
-Filoma is a modular Python tool for profiling files, analyzing directory structures, and inspecting image data (e.g., .tif, .png, .npy, .zarr). It provides detailed reports on filename patterns, inconsistencies, file counts, empty folders, file system metadata, and image data statistics. The project is designed for easy expansion, testing, CI/CD, Dockerization, and database integration.
+`filoma` is a modular Python tool for profiling files, analyzing directory structures, and inspecting image data (e.g., .tif, .png, .npy, .zarr). It provides detailed reports on filename patterns, inconsistencies, file counts, empty folders, file system metadata, and image data statistics. The project is designed for easy expansion, testing, CI/CD, Dockerization, and database integration.
 
 ## Features
 - **Directory analysis**: Filename pattern extraction, reporting, statistics, empty folder detection
@@ -46,4 +46,4 @@ print(report)
 - CI/CD workflows and badges
 
 ---
-Filoma is under active development. Contributions and suggestions are welcome!
+`filoma` is under active development. Contributions and suggestions are welcome!
