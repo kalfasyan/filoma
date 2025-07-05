@@ -36,7 +36,7 @@ print(report)
 
 ## Project Structure
 - `src/filoma/img/` — Image checkers and analysis
-- `src/filoma/fileprof/` — File profiling (system metadata)
+- `src/filoma/fileinfo/` — File profiling (system metadata)
 - `tests/` — Unit tests for all modules
 
 ## Future TODO
