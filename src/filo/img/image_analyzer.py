@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class ImageAnalyzer:
     """
     Provides common analysis methods for image data loaded as numpy arrays.

@@ -1,8 +1,8 @@
-import tempfile
 import numpy as np
-import pytest
-from filo.img.png_checker import PngChecker
 from PIL import Image
+
+from filo.img.png_checker import PngChecker
+
 
 def test_png_checker(tmp_path):
     # Create a simple PNG file

@@ -1,7 +1,9 @@
-from .base import BaseImageChecker
-from .image_analyzer import ImageAnalyzer
 import numpy as np
 from PIL import Image
+
+from .base import BaseImageChecker
+from .image_analyzer import ImageAnalyzer
+
 
 class PngChecker(BaseImageChecker):
     def check(self, path):

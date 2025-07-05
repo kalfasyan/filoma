@@ -1,11 +1,12 @@
-import os
-import stat
-import pwd
-import grp
 import datetime
+import grp
+import os
+import pwd
+import stat
 
 from rich.console import Console
 from rich.table import Table
+
 
 class FileProfiler:
     """

@@ -1,6 +1,7 @@
 import numpy as np
-import pytest
+
 from filo.img.image_analyzer import ImageAnalyzer
+
 
 def test_analyze_basic_stats():
     arr = np.array([[1, 2, 3], [4, 5, 6]])

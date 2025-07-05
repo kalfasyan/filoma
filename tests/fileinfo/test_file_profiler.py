@@ -1,10 +1,5 @@
-import os
-import tempfile
-import stat
-import pwd
-import grp
-import pytest
 from filo.fileinfo import FileProfiler
+
 
 def test_file_profiler_basic(tmp_path):
     # Create a temporary file

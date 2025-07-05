@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+
 class BaseImageChecker(ABC):
     @abstractmethod
     def check(self, path):
