@@ -1,7 +1,7 @@
 [project]
 name = "filoma"
 dynamic = ["version"]
-description = "tmux session manager"
+description = "Modular Python tool for profiling files, analyzing directory structures, and inspecting image data"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
