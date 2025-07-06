@@ -51,7 +51,7 @@ uv build
 
 # Git operations
 echo "📝 Committing changes..."
-git add src/filoma/_version.py pyproject.toml
+git add src/filoma/_version.py pyproject.toml uv.lock
 git commit -m "Bump version to $NEW_VERSION"
 
 echo "🏷️ Creating tag..."

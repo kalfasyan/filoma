@@ -71,6 +71,21 @@ def update_version_files(new_version):
     else:
         print(f"Warning: {pyproject_file} not found")
 
+    # Update uv.lock to reflect the new version
+    import subprocess
+
+    try:
+        print("Updating uv.lock...")
+        subprocess.run(["uv", "sync", "--locked"], check=True, capture_output=True)
+        print("Updated uv.lock")
+    except subprocess.CalledProcessError:
+        # If --locked fails, try without it to update the lock file
+        try:
+            subprocess.run(["uv", "sync"], check=True, capture_output=True)
+            print("Updated uv.lock")
+        except subprocess.CalledProcessError as e:
+            print(f"Warning: Failed to update uv.lock: {e}")
+
 
 def main():
     """Main function."""
@@ -96,6 +111,10 @@ def main():
         else:
             update_version_files(new_version)
             print(f"\n✅ Version bumped from {current_version} to {new_version}")
+            print("\nFiles updated:")
+            print("- src/filoma/_version.py")
+            print("- pyproject.toml")
+            print("- uv.lock")
             print("\nNext steps:")
             print("1. Review the changes")
             print("2. Run: uv build --wheel")
