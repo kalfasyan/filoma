@@ -76,7 +76,7 @@ if [ $? -eq 0 ]; then
     echo "🎉 You can now use the accelerated directory analyzer!"
     echo ""
     echo "Test it with:"
-    echo "python -c \"from filoma.dir import DirectoryAnalyzer; analyzer = DirectoryAnalyzer(); print('Rust available:', analyzer.use_rust)\""
+    echo "python -c \"from filoma.dir import DirectoryProfiler; analyzer = DirectoryProfiler(); print('Rust available:', analyzer.use_rust)\""
 else
     echo "❌ Failed to build Rust extension"
     echo "You can still use the pure Python implementation"

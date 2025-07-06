@@ -1,7 +1,7 @@
 import numpy as np
 from PIL import Image
 
-from filoma.img.png_checker import PngChecker
+from filoma.img.png_profiler import PngProfiler
 
 
 def test_png_checker(tmp_path):
@@ -11,8 +11,8 @@ def test_png_checker(tmp_path):
     png_path = tmp_path / "test.png"
     img.save(png_path)
 
-    checker = PngChecker()
-    report = checker.check(png_path)
+    checker = PngProfiler()
+    report = checker.analyze(png_path)
     assert report["file_type"] == "png"
     assert report["shape"] == (2, 2)
     assert report["min"] == 0

@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class ImageAnalyzer:
+class ImageProfiler:
     """
     Provides common analysis methods for image data loaded as numpy arrays.
     """

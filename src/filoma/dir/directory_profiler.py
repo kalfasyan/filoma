@@ -15,7 +15,7 @@ except ImportError:
     RUST_AVAILABLE = False
 
 
-class DirectoryAnalyzer:
+class DirectoryProfiler:
     """
     Analyzes directory structures for basic statistics and patterns.
     Provides file counts, folder patterns, empty directories, and extension analysis.
@@ -262,7 +262,7 @@ class DirectoryAnalyzer:
         self.console.print(table)
         self.console.print()
 
-    def print_full_report(self, analysis: Dict):
+    def print_report(self, analysis: Dict):
         """Print a comprehensive report of the directory analysis."""
         self.print_summary(analysis)
         self.print_file_extensions(analysis)

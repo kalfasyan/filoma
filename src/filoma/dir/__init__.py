@@ -1,3 +1,3 @@
-from .directory_analyzer import DirectoryAnalyzer
+from .directory_profiler import DirectoryProfiler
 
-__all__ = ["DirectoryAnalyzer"]
+__all__ = ["DirectoryProfiler"]

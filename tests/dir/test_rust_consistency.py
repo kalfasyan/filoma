@@ -1,7 +1,7 @@
 import tempfile
 from pathlib import Path
 
-from filoma.dir import DirectoryAnalyzer
+from filoma.dir import DirectoryProfiler
 
 
 def test_rust_python_consistency():
@@ -16,8 +16,8 @@ def test_rust_python_consistency():
         (tmp_path / "level1" / "level2" / "level3" / "file3.txt").write_text("test")
 
         # Test both implementations
-        python_analyzer = DirectoryAnalyzer(use_rust=False)
-        rust_analyzer = DirectoryAnalyzer(use_rust=True)
+        python_analyzer = DirectoryProfiler(use_rust=False)
+        rust_analyzer = DirectoryProfiler(use_rust=True)
 
         # Test without max_depth
         result_py = python_analyzer.analyze(str(tmp_path))

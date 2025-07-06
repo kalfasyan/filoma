@@ -1,13 +1,13 @@
-"""Tests for DirectoryAnalyzer."""
+"""Tests for DirectoryProfiler."""
 
 import tempfile
 from pathlib import Path
 
-from filoma.dir import DirectoryAnalyzer
+from filoma.dir import DirectoryProfiler
 
 
 def test_directory_analyzer_basic():
-    """Test basic functionality of DirectoryAnalyzer."""
+    """Test basic functionality of DirectoryProfiler."""
     # Create a temporary directory structure for testing
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = Path(tmp_dir)
@@ -25,7 +25,7 @@ def test_directory_analyzer_basic():
         (tmp_path / "nested" / "image.png").write_text("fake png")
 
         # Test the analyzer
-        analyzer = DirectoryAnalyzer()
+        analyzer = DirectoryProfiler()
         result = analyzer.analyze(str(tmp_path))
 
         # Verify results
@@ -48,7 +48,7 @@ def test_directory_analyzer_max_depth():
         (tmp_path / "level1" / "level2" / "file2.txt").write_text("test")
         (tmp_path / "level1" / "level2" / "level3" / "file3.txt").write_text("test")
 
-        analyzer = DirectoryAnalyzer()
+        analyzer = DirectoryProfiler()
 
         # Test with max_depth=2
         result = analyzer.analyze(str(tmp_path), max_depth=2)

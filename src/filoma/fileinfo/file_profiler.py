@@ -14,7 +14,7 @@ class FileProfiler:
     Uses lstat to correctly identify symlinks, and also checks the target type if symlink.
     Also reports current user's access rights.
     """
-    def profile(self, path: str) -> dict:
+    def analyze(self, path: str) -> dict:
         st = os.lstat(path)
         is_symlink = stat.S_ISLNK(st.st_mode)
         is_file = stat.S_ISREG(st.st_mode)

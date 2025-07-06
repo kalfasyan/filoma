@@ -46,9 +46,9 @@ def benchmark_implementation(analyzer, test_path: str, name: str):
 def main():
     # Import after potential building
     try:
-        from filoma.dir import DirectoryAnalyzer
+        from filoma.dir import DirectoryProfiler
     except ImportError:
-        print("❌ Could not import DirectoryAnalyzer. Make sure filoma is installed.")
+        print("❌ Could not import DirectoryProfiler. Make sure filoma is installed.")
         return
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -62,11 +62,11 @@ def main():
         print("=" * 60)
 
         # Test Python implementation
-        python_analyzer = DirectoryAnalyzer(use_rust=False)
+        python_analyzer = DirectoryProfiler(use_rust=False)
         python_time, file_count = benchmark_implementation(python_analyzer, str(test_path), "Python")
 
         # Test Rust implementation (if available)
-        rust_analyzer = DirectoryAnalyzer(use_rust=True)
+        rust_analyzer = DirectoryProfiler(use_rust=True)
         if rust_analyzer.use_rust:
             rust_time, _ = benchmark_implementation(rust_analyzer, str(test_path), "Rust")
 

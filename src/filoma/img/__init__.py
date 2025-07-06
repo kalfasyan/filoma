@@ -1,13 +1,13 @@
-from .base import BaseImageChecker as BaseImageChecker
-from .npy_checker import NpyChecker as NpyChecker
-from .png_checker import PngChecker as PngChecker
-from .tif_checker import TifChecker as TifChecker
-from .zarr_checker import ZarrChecker as ZarrChecker
+from .base import BaseImageProfiler as BaseImageProfiler
+from .npy_profiler import NpyProfiler as NpyProfiler
+from .png_profiler import PngProfiler as PngProfiler
+from .tif_profiler import TifProfiler as TifProfiler
+from .zarr_profiler import ZarrProfiler as ZarrProfiler
 
 __all__ = [
-    "BaseImageChecker",
-    "NpyChecker",
-    "PngChecker",
-    "TifChecker",
-    "ZarrChecker",
+    "BaseImageProfiler",
+    "NpyProfiler",
+    "PngProfiler",
+    "TifProfiler",
+    "ZarrProfiler",
 ]
