@@ -1,7 +1,7 @@
 import tempfile
 from pathlib import Path
 
-from filoma.dir import DirectoryProfiler
+from filoma.directories import DirectoryProfiler
 
 
 def test_rust_python_consistency():

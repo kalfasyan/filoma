@@ -9,7 +9,7 @@ Features:
 """
 
 # Make main modules easily accessible
-from . import dir, fileinfo, img
+from . import directories, files, images
 from ._version import __version__
 
-__all__ = ["__version__", "dir", "img", "fileinfo"]
+__all__ = ["__version__", "directories", "images", "files"]

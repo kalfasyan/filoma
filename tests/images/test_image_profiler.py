@@ -1,6 +1,6 @@
 import numpy as np
 
-from filoma.img.image_profiler import ImageProfiler
+from filoma.images.image_profiler import ImageProfiler
 
 
 def test_analyze_basic_stats():

@@ -73,7 +73,7 @@ If you prefer manual setup:
 
 2. Test the installation:
    ```python
-   from filoma.dir import DirectoryProfiler
+   from filoma.directories import DirectoryProfiler
    profiler = DirectoryProfiler()
    print("Rust acceleration:", "✅ Available" if profiler.use_rust else "❌ Not available")
    ```
@@ -83,7 +83,7 @@ If you prefer manual setup:
 The hybrid profiler automatically uses Rust when available, falling back to Python otherwise:
 
 ```python
-from filoma.dir import DirectoryProfiler
+from filoma.directories import DirectoryProfiler
 
 # Uses Rust by default (if available)
 profiler = DirectoryProfiler()

@@ -70,7 +70,7 @@ uv add filoma          # For uv projects (recommended)
 ### Performance Examples
 
 ```python
-from filoma.dir import DirectoryProfiler
+from filoma.directories import DirectoryProfiler
 
 profiler = DirectoryProfiler()
 # The output shows which backend is used:
@@ -88,7 +88,7 @@ result = profiler.analyze("/large/directory")
 ### Quick Check: Is Rust Working?
 
 ```python
-from filoma.dir import DirectoryProfiler
+from filoma.directories import DirectoryProfiler
 
 profiler = DirectoryProfiler()
 result = profiler.analyze(".")
@@ -105,7 +105,7 @@ print(f"Rust acceleration: {'✅ Active' if profiler.use_rust else '❌ Not avai
 
 ```python
 import filoma
-from filoma.dir import DirectoryProfiler
+from filoma.directories import DirectoryProfiler
 
 # Check version and basic functionality
 print(f"filoma version: {filoma.__version__}")
@@ -124,7 +124,7 @@ print(f"Rust acceleration: {'✅ Active' if profiler.use_rust else '❌ Not avai
 
 ### Directory Analysis
 ```python
-from filoma.dir import DirectoryProfiler
+from filoma.directories import DirectoryProfiler
 
 # Automatically uses Rust acceleration when available (🦀 Rust)
 # Falls back to Python implementation when needed (🐍 Python)
@@ -145,7 +145,7 @@ print(f"Common folder names: {result['common_folder_names']}")
 
 ### File Profiling
 ```python
-from filoma.fileinfo import FileProfiler
+from filoma.files import FileProfiler
 profiler = FileProfiler()
 report = profiler.profile("/path/to/file.txt")
 profiler.print_report(report)  # Rich table output in your terminal
@@ -154,7 +154,7 @@ profiler.print_report(report)  # Rich table output in your terminal
 
 ### Image Analysis
 ```python
-from filoma.img import PngProfiler
+from filoma.images import PngProfiler
 profiler = PngProfiler()
 report = profiler.analyze("/path/to/image.png")
 print(report)
@@ -194,9 +194,9 @@ The `DirectoryProfiler` provides comprehensive analysis of directory structures:
 ```
 
 ## Project Structure
-- `src/filoma/dir/` — Directory analysis and structure profiling
-- `src/filoma/img/` — Image profilers and analysis
-- `src/filoma/fileinfo/` — File profiling (system metadata)
+- `src/filoma/directories/` — Directory analysis and structure profiling
+- `src/filoma/images/` — Image profilers and analysis
+- `src/filoma/files/` — File profiling (system metadata)
 - `tests/` — Unit tests for all modules
 
 ## 🔧 Advanced: Rust Acceleration Details
