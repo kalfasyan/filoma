@@ -7,7 +7,7 @@ on:
   workflow_dispatch:  # Allows manual triggering
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -28,28 +28,72 @@ jobs:
           uv sync --extra dev
           uv run pytest tests/
           uv run ruff check .
-          
-      - name: Build package
-        run: uv build
+
+  build:
+    needs: test
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
         
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          args: --release --out dist --find-interpreter
+          sccache: 'true'
+          manylinux: auto
+          
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: dist
+          name: wheels-${{ matrix.os }}
+          path: dist/
+
+  build-sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+          
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdist
           path: dist/
 
   publish:
-    needs: build
+    needs: [test, build, build-sdist]
     runs-on: ubuntu-latest
     permissions:
       id-token: write  # Required for trusted publishing
       
     steps:
-      - name: Download build artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          name: dist
+          pattern: "*"
           path: dist/
+          merge-multiple: true
           
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

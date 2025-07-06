@@ -51,25 +51,30 @@ def bump_version(current_version, bump_type):
     return f"{major}.{minor}.{patch}"
 
 
-def update_version_file(new_version):
-    """Update the _version.py file with new version."""
+def update_version_files(new_version):
+    """Update the _version.py and pyproject.toml files with new version."""
+    # Update _version.py
     version_file = Path("src/filoma/_version.py")
     content = version_file.read_text()
-
-    new_content = re.sub(
-        r'__version__ = ["\'][^"\']+["\']', f'__version__ = "{new_version}"', content
-    )
-
+    new_content = re.sub(r'__version__ = ["\'][^"\']+["\']', f'__version__ = "{new_version}"', content)
     version_file.write_text(new_content)
     print(f"Updated {version_file} to version {new_version}")
+
+    # Update pyproject.toml
+    pyproject_file = Path("pyproject.toml")
+    if pyproject_file.exists():
+        content = pyproject_file.read_text()
+        new_content = re.sub(r'version = ["\'][^"\']+["\']', f'version = "{new_version}"', content)
+        pyproject_file.write_text(new_content)
+        print(f"Updated {pyproject_file} to version {new_version}")
+    else:
+        print(f"Warning: {pyproject_file} not found")
 
 
 def main():
     """Main function."""
     parser = argparse.ArgumentParser(description="Bump filoma package version")
-    parser.add_argument(
-        "bump_type", choices=["major", "minor", "patch"], help="Type of version bump"
-    )
+    parser.add_argument("bump_type", choices=["major", "minor", "patch"], help="Type of version bump")
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -88,16 +93,12 @@ def main():
         if args.dry_run:
             print("(Dry run - no changes made)")
         else:
-            update_version_file(new_version)
+            update_version_files(new_version)
             print(f"\n✅ Version bumped from {current_version} to {new_version}")
             print("\nNext steps:")
             print("1. Review the changes")
             print("2. Run: uv build --wheel")
-            print(
-                "3. Run: git add . && git commit -m 'Bump version to {}'".format(
-                    new_version
-                )
-            )
+            print("3. Run: git add . && git commit -m 'Bump version to {}'".format(new_version))
             print("4. Run: git tag v{}".format(new_version))
 
     except Exception as e:
