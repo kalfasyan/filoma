@@ -49,13 +49,16 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         
+      - name: Update Rust dependencies
+        run: cargo update
+        
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           command: build
-          args: --release --out dist --find-interpreter
-          sccache: 'true'
+          args: --release --out dist --interpreter python3.11
           manylinux: auto
+          rust-toolchain: stable
           
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

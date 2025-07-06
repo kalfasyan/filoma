@@ -1,5 +1,6 @@
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyDict, PyModule};
+use pyo3::Bound;
 use std::collections::HashMap;
 use std::path::Path;
 use walkdir::{DirEntry, WalkDir};
@@ -185,7 +186,7 @@ fn analyze_directory_rust(root_path: &str, max_depth: Option<u32>) -> PyResult<P
 }
 
 #[pymodule]
-fn filoma_core(_py: Python, m: &PyModule) -> PyResult<()> {
+fn filoma_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(analyze_directory_rust, m)?)?;
     Ok(())
 }

@@ -36,7 +36,33 @@ class DirectoryAnalyzer:
         self.use_rust = use_rust and RUST_AVAILABLE
 
         if use_rust and not RUST_AVAILABLE:
-            self.console.print("[yellow]Warning: Rust implementation not available, falling back to Python[/yellow]")
+            self.console.print(
+                "[yellow]Warning: Rust implementation not available, falling back to Python[/yellow]"
+            )
+
+    def is_rust_available(self) -> bool:
+        """
+        Check if Rust implementation is available and being used.
+
+        Returns:
+            True if Rust implementation is available and enabled, False otherwise
+        """
+        return self.use_rust and RUST_AVAILABLE
+
+    def analyze_directory(
+        self, root_path: str, max_depth: Optional[int] = None
+    ) -> Dict:
+        """
+        Alias for analyze() method for backward compatibility.
+
+        Args:
+            root_path: Path to the root directory to analyze
+            max_depth: Maximum depth to traverse (None for unlimited)
+
+        Returns:
+            Dictionary containing analysis results
+        """
+        return self.analyze(root_path, max_depth)
 
     def analyze(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
         """
@@ -129,7 +155,9 @@ class DirectoryAnalyzer:
         avg_files_per_folder = file_count / max(1, folder_count)
 
         # Find folders with most files
-        top_folders_by_file_count = sorted(files_per_folder.items(), key=lambda x: x[1], reverse=True)[:10]
+        top_folders_by_file_count = sorted(
+            files_per_folder.items(), key=lambda x: x[1], reverse=True
+        )[:10]
 
         return {
             "root_path": str(root_path),
@@ -157,7 +185,9 @@ class DirectoryAnalyzer:
         impl_type = "🦀 Rust" if self.use_rust else "🐍 Python"
 
         # Main summary table
-        table = Table(title=f"Directory Analysis: {analysis['root_path']} ({impl_type})")
+        table = Table(
+            title=f"Directory Analysis: {analysis['root_path']} ({impl_type})"
+        )
         table.add_column("Metric", style="bold cyan")
         table.add_column("Value", style="white")
 
@@ -218,7 +248,9 @@ class DirectoryAnalyzer:
             self.console.print("[green]✓ No empty folders found![/green]")
             return
 
-        table = Table(title=f"Empty Folders (showing {min(len(empty_folders), max_show)} of {len(empty_folders)})")
+        table = Table(
+            title=f"Empty Folders (showing {min(len(empty_folders), max_show)} of {len(empty_folders)})"
+        )
         table.add_column("Path", style="yellow")
 
         for folder in empty_folders[:max_show]:

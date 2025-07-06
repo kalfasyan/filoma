@@ -64,7 +64,8 @@ def update_version_files(new_version):
     pyproject_file = Path("pyproject.toml")
     if pyproject_file.exists():
         content = pyproject_file.read_text()
-        new_content = re.sub(r'version = ["\'][^"\']+["\']', f'version = "{new_version}"', content)
+        # More specific regex to only match the project version, not other version fields
+        new_content = re.sub(r'^version = ["\'][^"\']+["\']', f'version = "{new_version}"', content, flags=re.MULTILINE)
         pyproject_file.write_text(new_content)
         print(f"Updated {pyproject_file} to version {new_version}")
     else:
