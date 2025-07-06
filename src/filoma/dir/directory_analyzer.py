@@ -1,22 +1,44 @@
 import os
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 from rich.console import Console
 from rich.table import Table
+
+# Try to import the Rust implementation
+try:
+    from filoma.filoma_core import analyze_directory_rust
+
+    RUST_AVAILABLE = True
+except ImportError:
+    RUST_AVAILABLE = False
 
 
 class DirectoryAnalyzer:
     """
     Analyzes directory structures for basic statistics and patterns.
     Provides file counts, folder patterns, empty directories, and extension analysis.
+
+    Can use either a pure Python implementation or a faster Rust implementation
+    when available.
     """
 
-    def __init__(self):
-        self.console = Console()
+    def __init__(self, use_rust: bool = True):
+        """
+        Initialize the directory analyzer.
 
-    def analyze(self, root_path: str, max_depth: int = None) -> Dict:
+        Args:
+            use_rust: Whether to use the Rust implementation when available.
+                     Falls back to Python if Rust is not available.
+        """
+        self.console = Console()
+        self.use_rust = use_rust and RUST_AVAILABLE
+
+        if use_rust and not RUST_AVAILABLE:
+            self.console.print("[yellow]Warning: Rust implementation not available, falling back to Python[/yellow]")
+
+    def analyze(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
         """
         Analyze a directory tree and return comprehensive statistics.
 
@@ -26,6 +48,19 @@ class DirectoryAnalyzer:
 
         Returns:
             Dictionary containing analysis results
+        """
+        if self.use_rust:
+            return self._analyze_rust(root_path, max_depth)
+        else:
+            return self._analyze_python(root_path, max_depth)
+
+    def _analyze_rust(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
+        """Use the Rust implementation for analysis."""
+        return analyze_directory_rust(root_path, max_depth)
+
+    def _analyze_python(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
+        """
+        Pure Python implementation (original code).
         """
         root_path = Path(root_path)
         if not root_path.exists():
@@ -118,8 +153,11 @@ class DirectoryAnalyzer:
         """Print a summary of the directory analysis."""
         summary = analysis["summary"]
 
+        # Show which implementation was used
+        impl_type = "🦀 Rust" if self.use_rust else "🐍 Python"
+
         # Main summary table
-        table = Table(title=f"Directory Analysis: {analysis['root_path']}")
+        table = Table(title=f"Directory Analysis: {analysis['root_path']} ({impl_type})")
         table.add_column("Metric", style="bold cyan")
         table.add_column("Value", style="white")
 
@@ -133,6 +171,7 @@ class DirectoryAnalyzer:
         self.console.print(table)
         self.console.print()
 
+    # ... rest of the existing methods remain the same ...
     def print_file_extensions(self, analysis: Dict, top_n: int = 10):
         """Print the most common file extensions."""
         extensions = analysis["file_extensions"]

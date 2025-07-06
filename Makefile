@@ -1,6 +1,6 @@
 # Makefile for filoma package management
 
-.PHONY: help bump-patch bump-minor bump-major release-patch release-minor release-major build test lint clean
+.PHONY: help bump-patch bump-minor bump-major release-patch release-minor release-major build test lint clean benchmark
 
 help:  ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -42,6 +42,9 @@ clean:  ## Clean build artifacts
 dev-install:  ## Install package in development mode with dev dependencies
 	uv sync --extra dev
 
+benchmark:  ## Run performance benchmark (Python vs Rust)
+	python scripts/benchmark.py
+
 publish:  ## Publish to PyPI (manual - normally done by GitHub Actions)
 	@echo "⚠️  Note: Publishing is normally automated via GitHub Actions"
 	@echo "🚀 To publish: git tag vX.Y.Z && git push --tags"
@@ -52,8 +55,8 @@ publish:  ## Publish to PyPI (manual - normally done by GitHub Actions)
 
 # Show current version
 version:  ## Show current version
-	@python -c "import sys; sys.path.insert(0, 'src'); from filoma._version import __version__; print(f'Current version: {__version__}')"
+	@python -c "import filoma; print(f'Current version: {filoma.__version__}')"
 
 # Check release status
 check-release:  ## Check if current version is published
-	@python -c "import sys, requests; sys.path.insert(0, 'src'); from filoma._version import __version__; r=requests.get(f'https://pypi.org/pypi/filoma/{__version__}/json'); print(f'✅ Version {__version__} is published' if r.status_code==200 else f'❌ Version {__version__} not found on PyPI')"
+	@python -c "import filoma, requests; r=requests.get(f'https://pypi.org/pypi/filoma/{filoma.__version__}/json'); print(f'✅ Version {filoma.__version__} is published' if r.status_code==200 else f'❌ Version {filoma.__version__} not found on PyPI')"

@@ -1,0 +1,17 @@
+[package]
+name = "filoma-core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "filoma_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.20", features = ["extension-module"] }
+walkdir = "2.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[build-dependencies]
+pyo3-build-config = "0.20"

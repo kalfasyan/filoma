@@ -22,8 +22,8 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
 
 [tool.hatch.version]
 path = "src/filoma/_version.py"
@@ -44,3 +44,8 @@ ignore = []
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.maturin]
+python-source = "src"
+module-name = "filoma.filoma_core"
+features = ["pyo3/extension-module"]
