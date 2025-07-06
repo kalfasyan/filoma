@@ -16,19 +16,19 @@ def test_rust_python_consistency():
         (tmp_path / "level1" / "level2" / "level3" / "file3.txt").write_text("test")
 
         # Test both implementations
-        python_analyzer = DirectoryProfiler(use_rust=False)
-        rust_analyzer = DirectoryProfiler(use_rust=True)
+        python_profiler = DirectoryProfiler(use_rust=False)
+        rust_profiler = DirectoryProfiler(use_rust=True)
 
         # Test without max_depth
-        result_py = python_analyzer.analyze(str(tmp_path))
-        result_rust = rust_analyzer.analyze(str(tmp_path))
+        result_py = python_profiler.analyze(str(tmp_path))
+        result_rust = rust_profiler.analyze(str(tmp_path))
 
         assert result_py["summary"]["total_files"] == result_rust["summary"]["total_files"]
         assert result_py["summary"]["total_folders"] == result_rust["summary"]["total_folders"]
 
         # Test with max_depth=2
-        result_py_depth = python_analyzer.analyze(str(tmp_path), max_depth=2)
-        result_rust_depth = rust_analyzer.analyze(str(tmp_path), max_depth=2)
+        result_py_depth = python_profiler.analyze(str(tmp_path), max_depth=2)
+        result_rust_depth = rust_profiler.analyze(str(tmp_path), max_depth=2)
 
         assert result_py_depth["summary"]["total_files"] == result_rust_depth["summary"]["total_files"]
         assert result_py_depth["summary"]["max_depth"] == result_rust_depth["summary"]["max_depth"]

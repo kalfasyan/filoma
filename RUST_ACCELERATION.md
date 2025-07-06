@@ -1,6 +1,6 @@
 # Rust Acceleration for filoma
 
-This document explains how to set up and use the Rust-accelerated directory analyzer in filoma.
+This document explains how to set up and use the Rust-accelerated directory profiler in filoma.
 
 ## Why Rust?
 
@@ -73,28 +73,28 @@ If you prefer manual setup:
 
 2. Test the installation:
    ```python
-   from filoma.dir import DirectoryAnalyzer
-   analyzer = DirectoryAnalyzer()
-   print("Rust acceleration:", "✅ Available" if analyzer.use_rust else "❌ Not available")
+   from filoma.dir import DirectoryProfiler
+   profiler = DirectoryProfiler()
+   print("Rust acceleration:", "✅ Available" if profiler.use_rust else "❌ Not available")
    ```
 
 ## Usage
 
-The hybrid analyzer automatically uses Rust when available, falling back to Python otherwise:
+The hybrid profiler automatically uses Rust when available, falling back to Python otherwise:
 
 ```python
-from filoma.dir import DirectoryAnalyzer
+from filoma.dir import DirectoryProfiler
 
 # Uses Rust by default (if available)
-analyzer = DirectoryAnalyzer()
-result = analyzer.analyze("/path/to/directory")
+profiler = DirectoryProfiler()
+result = profiler.analyze("/path/to/directory")
 
 # Force Python implementation
-python_analyzer = DirectoryAnalyzer(use_rust=False)
-result = python_analyzer.analyze("/path/to/directory")
+python_profiler = DirectoryProfiler(use_rust=False)
+result = python_profiler.analyze("/path/to/directory")
 
 # The API is identical - all existing code works unchanged!
-analyzer.print_full_report(result)
+profiler.print_report(result)
 ```
 
 ## Benchmarking

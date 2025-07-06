@@ -24,12 +24,12 @@ def create_test_structure(base_path: Path, num_dirs: int = 100, num_files_per_di
     print(f"✅ Created {num_dirs} directories with {num_dirs * num_files_per_dir} total files")
 
 
-def benchmark_implementation(analyzer, test_path: str, name: str):
+def benchmark_implementation(profiler, test_path: str, name: str):
     """Benchmark a single implementation."""
     print(f"\n🔥 Benchmarking {name} implementation...")
 
     start_time = time.time()
-    result = analyzer.analyze(test_path)
+    result = profiler.analyze(test_path)
     end_time = time.time()
 
     elapsed = end_time - start_time
@@ -62,13 +62,13 @@ def main():
         print("=" * 60)
 
         # Test Python implementation
-        python_analyzer = DirectoryProfiler(use_rust=False)
-        python_time, file_count = benchmark_implementation(python_analyzer, str(test_path), "Python")
+        python_profiler = DirectoryProfiler(use_rust=False)
+        python_time, file_count = benchmark_implementation(python_profiler, str(test_path), "Python")
 
         # Test Rust implementation (if available)
-        rust_analyzer = DirectoryProfiler(use_rust=True)
-        if rust_analyzer.use_rust:
-            rust_time, _ = benchmark_implementation(rust_analyzer, str(test_path), "Rust")
+        rust_profiler = DirectoryProfiler(use_rust=True)
+        if rust_profiler.use_rust:
+            rust_time, _ = benchmark_implementation(rust_profiler, str(test_path), "Rust")
 
             speedup = python_time / rust_time
             print("\n🎯 Results:")

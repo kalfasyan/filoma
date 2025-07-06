@@ -26,7 +26,7 @@ class DirectoryProfiler:
 
     def __init__(self, use_rust: bool = True):
         """
-        Initialize the directory analyzer.
+        Initialize the directory profiler.
 
         Args:
             use_rust: Whether to use the Rust implementation when available.

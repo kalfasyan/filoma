@@ -70,13 +70,13 @@ uv add filoma          # For uv projects (recommended)
 ### Performance Examples
 
 ```python
-from filoma.dir import DirectoryAnalyzer
+from filoma.dir import DirectoryProfiler
 
-analyzer = DirectoryAnalyzer()
+profiler = DirectoryProfiler()
 # The output shows which backend is used:
 # "Directory Analysis: /path (🦀 Rust)" or "Directory Analysis: /path (🐍 Python)"
 
-result = analyzer.analyze("/large/directory")
+result = profiler.analyze("/large/directory")
 # Typical speedups:
 # - Small dirs (<1K files): 2-5x faster
 # - Medium dirs (1K-10K files): 5-10x faster  
@@ -88,30 +88,30 @@ result = analyzer.analyze("/large/directory")
 ### Quick Check: Is Rust Working?
 
 ```python
-from filoma.dir import DirectoryAnalyzer
+from filoma.dir import DirectoryProfiler
 
-analyzer = DirectoryAnalyzer()
-result = analyzer.analyze(".")
+profiler = DirectoryProfiler()
+result = profiler.analyze(".")
 
 # Look for the 🦀 Rust emoji in the report title:
-analyzer.print_summary(result)
+profiler.print_summary(result)
 # Output shows: "Directory Analysis: . (🦀 Rust)" or "Directory Analysis: . (🐍 Python)"
 
 # Or check programmatically:
-print(f"Rust acceleration: {'✅ Active' if analyzer.use_rust else '❌ Not available'}")
+print(f"Rust acceleration: {'✅ Active' if profiler.use_rust else '❌ Not available'}")
 ```
 
 ### Quick Installation Verification
 
 ```python
 import filoma
-from filoma.dir import DirectoryAnalyzer
+from filoma.dir import DirectoryProfiler
 
 # Check version and basic functionality
 print(f"filoma version: {filoma.__version__}")
 
-analyzer = DirectoryAnalyzer()
-print(f"Rust acceleration: {'✅ Active' if analyzer.use_rust else '❌ Not available'}")
+profiler = DirectoryProfiler()
+print(f"Rust acceleration: {'✅ Active' if profiler.use_rust else '❌ Not available'}")
 ```
 
 > **Pro tip**: 
@@ -124,16 +124,16 @@ print(f"Rust acceleration: {'✅ Active' if analyzer.use_rust else '❌ Not avai
 
 ### Directory Analysis
 ```python
-from filoma.dir import DirectoryAnalyzer
+from filoma.dir import DirectoryProfiler
 
 # Automatically uses Rust acceleration when available (🦀 Rust)
 # Falls back to Python implementation when needed (🐍 Python)
-analyzer = DirectoryAnalyzer()
-result = analyzer.analyze("/path/to/directory", max_depth=3)
+profiler = DirectoryProfiler()
+result = profiler.analyze("/path/to/directory", max_depth=3)
 
 # Print comprehensive report with rich formatting
 # The report title shows which backend was used!
-analyzer.print_full_report(result)
+profiler.print_report(result)
 
 # Or access specific data
 print(f"Total files: {result['summary']['total_files']}")
@@ -154,16 +154,16 @@ profiler.print_report(report)  # Rich table output in your terminal
 
 ### Image Analysis
 ```python
-from filoma.img import PngChecker
-checker = PngChecker()
-report = checker.check("/path/to/image.png")
+from filoma.img import PngProfiler
+profiler = PngProfiler()
+report = profiler.analyze("/path/to/image.png")
 print(report)
 # Output: {'shape': ..., 'dtype': ..., 'min': ..., 'max': ..., 'nans': ..., ...}
 ```
 
 ## Directory Analysis Features
 
-The `DirectoryAnalyzer` provides comprehensive analysis of directory structures:
+The `DirectoryProfiler` provides comprehensive analysis of directory structures:
 
 - **Statistics**: Total files, folders, size calculations, and depth distribution
 - **File Extension Analysis**: Count and percentage breakdown of file types
@@ -195,7 +195,7 @@ The `DirectoryAnalyzer` provides comprehensive analysis of directory structures:
 
 ## Project Structure
 - `src/filoma/dir/` — Directory analysis and structure profiling
-- `src/filoma/img/` — Image checkers and analysis
+- `src/filoma/img/` — Image profilers and analysis
 - `src/filoma/fileinfo/` — File profiling (system metadata)
 - `tests/` — Unit tests for all modules
 
@@ -213,15 +213,15 @@ For users who want to understand or customize the Rust acceleration:
 
 ```python
 # Force Python implementation (useful for debugging)
-analyzer = DirectoryAnalyzer(use_rust=False)
+profiler = DirectoryProfiler(use_rust=False)
 
 # Check which backend is being used
-print(f"Using Rust: {analyzer.use_rust}")
+print(f"Using Rust: {profiler.use_rust}")
 
 # Compare performance
 import time
 start = time.time()
-result = analyzer.analyze("/path/to/directory")
+result = profiler.analyze("/path/to/directory")
 print(f"Analysis took {time.time() - start:.3f}s")
 ```
 

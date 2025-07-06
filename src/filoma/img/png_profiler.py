@@ -13,8 +13,8 @@ class PngProfiler(BaseImageProfiler):
         # Load PNG as numpy array
         img = Image.open(path)
         arr = np.array(img)
-        analyzer = ImageProfiler()
-        report = analyzer.analyze(arr)
+        profiler = ImageProfiler()
+        report = profiler.analyze(arr)
         report["file_type"] = "png"
         report["path"] = str(path)
         return report

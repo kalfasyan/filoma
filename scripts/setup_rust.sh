@@ -73,10 +73,10 @@ maturin develop
 
 if [ $? -eq 0 ]; then
     echo "✅ Rust extension built successfully!"
-    echo "🎉 You can now use the accelerated directory analyzer!"
+    echo "🎉 You can now use the accelerated directory profiler!"
     echo ""
     echo "Test it with:"
-    echo "python -c \"from filoma.dir import DirectoryProfiler; analyzer = DirectoryProfiler(); print('Rust available:', analyzer.use_rust)\""
+    echo "python -c \"from filoma.dir import DirectoryProfiler; profiler = DirectoryProfiler(); print('Rust available:', profiler.use_rust)\""
 else
     echo "❌ Failed to build Rust extension"
     echo "You can still use the pure Python implementation"

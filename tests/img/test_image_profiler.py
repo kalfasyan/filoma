@@ -5,8 +5,8 @@ from filoma.img.image_profiler import ImageProfiler
 
 def test_analyze_basic_stats():
     arr = np.array([[1, 2, 3], [4, 5, 6]])
-    analyzer = ImageProfiler()
-    report = analyzer.analyze(arr)
+    profiler = ImageProfiler()
+    report = profiler.analyze(arr)
     assert report["shape"] == (2, 3)
     assert report["dtype"] == "int64"
     assert report["min"] == 1
@@ -18,15 +18,15 @@ def test_analyze_basic_stats():
 
 def test_analyze_with_nans_and_infs():
     arr = np.array([[np.nan, np.inf, 1], [2, 2, 3]])
-    analyzer = ImageProfiler()
-    report = analyzer.analyze(arr)
+    profiler = ImageProfiler()
+    report = profiler.analyze(arr)
     assert report["nans"] == 1
     assert report["infs"] == 1
     assert report["unique"] >= 3
 
 def test_analyze_empty_array():
     arr = np.array([])
-    analyzer = ImageProfiler()
-    report = analyzer.analyze(arr)
+    profiler = ImageProfiler()
+    report = profiler.analyze(arr)
     assert report["shape"] == (0,)
     assert report["unique"] == 0

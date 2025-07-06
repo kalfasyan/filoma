@@ -82,13 +82,13 @@ Binary wheel 'filoma-0.1.0-cp311-cp311-linux_x86_64.whl' has an unsupported plat
 - Updated `Cargo.toml` with explicit version pinning (0.25.1)
 - Added `cargo update` step in CI workflow to ensure latest dependencies
 - Removed sccache to avoid cache conflicts
-- Fixed missing `is_rust_available()` method in DirectoryAnalyzer class
+- Fixed missing `is_rust_available()` method in DirectoryProfiler class
 - Added `analyze_directory()` alias for backward compatibility
 
 **Verification**:
 - ✅ All tests pass (9/9)
 - ✅ Rust acceleration working (2.1x speedup)
-- ✅ DirectoryAnalyzer working correctly with both Rust and Python backends
+- ✅ DirectoryProfiler working correctly with both Rust and Python backends
 - ✅ Linting passes (`make lint`)
 - ✅ All tests pass (`make test`)
 - ✅ Benchmark confirms optimal performance (2.1x Rust speedup)
