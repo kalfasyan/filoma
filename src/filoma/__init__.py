@@ -8,9 +8,8 @@ Features:
 - Modular, extensible codebase
 """
 
-from ._version import __version__
-
 # Make main modules easily accessible
 from . import dir, fileinfo, img
+from ._version import __version__
 
 __all__ = ["__version__", "dir", "img", "fileinfo"]
