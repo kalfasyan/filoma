@@ -8,11 +8,18 @@ from rich.table import Table
 
 # Try to import the Rust implementation
 try:
-    from filoma.filoma_core import analyze_directory_rust
+    from filoma.filoma_core import analyze_directory_rust, analyze_directory_rust_parallel
 
     RUST_AVAILABLE = True
+    RUST_PARALLEL_AVAILABLE = True
 except ImportError:
-    RUST_AVAILABLE = False
+    try:
+        from filoma.filoma_core import analyze_directory_rust
+        RUST_AVAILABLE = True
+        RUST_PARALLEL_AVAILABLE = False
+    except ImportError:
+        RUST_AVAILABLE = False
+        RUST_PARALLEL_AVAILABLE = False
 
 
 class DirectoryProfiler:
@@ -21,23 +28,38 @@ class DirectoryProfiler:
     Provides file counts, folder patterns, empty directories, and extension analysis.
 
     Can use either a pure Python implementation or a faster Rust implementation
-    when available.
+    when available. Supports both sequential and parallel Rust processing.
     """
 
-    def __init__(self, use_rust: bool = True):
+    def __init__(
+        self,
+        use_rust: bool = True,
+        use_parallel: bool = True,
+        parallel_threshold: int = 1000
+    ):
         """
         Initialize the directory profiler.
 
         Args:
             use_rust: Whether to use the Rust implementation when available.
                      Falls back to Python if Rust is not available.
+            use_parallel: Whether to use parallel processing in Rust (when available).
+                         Only effective when use_rust=True.
+            parallel_threshold: Minimum estimated directory size to trigger parallel processing.
+                              Larger values = less likely to use parallel processing.
         """
         self.console = Console()
         self.use_rust = use_rust and RUST_AVAILABLE
+        self.use_parallel = use_parallel and RUST_PARALLEL_AVAILABLE and self.use_rust
+        self.parallel_threshold = parallel_threshold
 
         if use_rust and not RUST_AVAILABLE:
             self.console.print(
                 "[yellow]Warning: Rust implementation not available, falling back to Python[/yellow]"
+            )
+        elif use_parallel and self.use_rust and not RUST_PARALLEL_AVAILABLE:
+            self.console.print(
+                "[yellow]Warning: Rust parallel implementation not available, using sequential Rust[/yellow]"
             )
 
     def is_rust_available(self) -> bool:
@@ -48,6 +70,30 @@ class DirectoryProfiler:
             True if Rust implementation is available and enabled, False otherwise
         """
         return self.use_rust and RUST_AVAILABLE
+
+    def is_parallel_available(self) -> bool:
+        """
+        Check if parallel Rust implementation is available and being used.
+
+        Returns:
+            True if parallel Rust implementation is available and enabled, False otherwise
+        """
+        return self.use_parallel and RUST_PARALLEL_AVAILABLE
+
+    def get_implementation_info(self) -> Dict[str, bool]:
+        """
+        Get information about which implementations are available and being used.
+
+        Returns:
+            Dictionary with implementation availability status
+        """
+        return {
+            "rust_available": RUST_AVAILABLE,
+            "rust_parallel_available": RUST_PARALLEL_AVAILABLE,
+            "using_rust": self.use_rust,
+            "using_parallel": self.use_parallel,
+            "python_fallback": not self.use_rust,
+        }
 
     def analyze_directory(
         self, root_path: str, max_depth: Optional[int] = None
@@ -82,7 +128,14 @@ class DirectoryProfiler:
 
     def _analyze_rust(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
         """Use the Rust implementation for analysis."""
-        return analyze_directory_rust(root_path, max_depth)
+        if self.use_parallel and RUST_PARALLEL_AVAILABLE:
+            return analyze_directory_rust_parallel(
+                root_path,
+                max_depth,
+                self.parallel_threshold
+            )
+        else:
+            return analyze_directory_rust(root_path, max_depth)
 
     def _analyze_python(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
         """
@@ -181,8 +234,14 @@ class DirectoryProfiler:
         """Print a summary of the directory analysis."""
         summary = analysis["summary"]
 
-        # Show which implementation was used
-        impl_type = "🦀 Rust" if self.use_rust else "🐍 Python"
+        # Show which implementation was used with more detail
+        if self.use_rust:
+            if self.use_parallel and RUST_PARALLEL_AVAILABLE:
+                impl_type = "🦀 Rust (Parallel)"
+            else:
+                impl_type = "🦀 Rust (Sequential)"
+        else:
+            impl_type = "🐍 Python"
 
         # Main summary table
         table = Table(

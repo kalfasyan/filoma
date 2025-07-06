@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 """
-Benchmark script to compare Python vs Rust implementation performance
+Test script for the new parallel implementation
 """
-
 import tempfile
 import time
 from pathlib import Path
 
 
-# Create a test directory structure
-def create_test_structure(base_path: Path, num_dirs: int = 100, num_files_per_dir: int = 50):
-    """Create a test directory structure for benchmarking."""
+def create_test_structure(base_path: Path, num_dirs: int = 50, num_files_per_dir: int = 20):
+    """Create a test directory structure."""
     print(f"Creating test structure with {num_dirs} directories and {num_files_per_dir} files each...")
 
     for i in range(num_dirs):
@@ -23,59 +21,65 @@ def create_test_structure(base_path: Path, num_dirs: int = 100, num_files_per_di
 
     print(f"✅ Created {num_dirs} directories with {num_dirs * num_files_per_dir} total files")
 
-
-def benchmark_implementation(profiler, test_path: str, name: str):
-    """Benchmark a single implementation."""
-    print(f"\n🔥 Benchmarking {name} implementation...")
+def test_implementation(profiler, test_path: str, name: str):
+    """Test a single implementation."""
+    print(f"\n🔥 Testing {name} implementation...")
 
     start_time = time.time()
-    result = profiler.analyze(test_path)
-    end_time = time.time()
+    try:
+        result = profiler.analyze(test_path)
+        end_time = time.time()
 
-    elapsed = end_time - start_time
-    total_files = result["summary"]["total_files"]
-    total_folders = result["summary"]["total_folders"]
+        elapsed = end_time - start_time
+        total_files = result["summary"]["total_files"]
+        total_folders = result["summary"]["total_folders"]
 
-    print(f"⏱️  {name}: {elapsed:.3f}s")
-    print(f"📁 Found {total_folders} folders, {total_files} files")
-    print(f"🚀 Performance: {total_files / elapsed:.0f} files/second")
+        print(f"⏱️  {name}: {elapsed:.3f}s")
+        print(f"📁 Found {total_folders} folders, {total_files} files")
+        print(f"🚀 Performance: {total_files / elapsed:.0f} files/second")
 
-    return elapsed, total_files
-
+        return elapsed, total_files
+    except Exception as e:
+        print(f"❌ Error with {name}: {e}")
+        return None, None
 
 def main():
-    # Import after potential building
     try:
         from filoma.directories import DirectoryProfiler
-    except ImportError:
-        print("❌ Could not import DirectoryProfiler. Make sure filoma is installed.")
+        print("✅ Successfully imported DirectoryProfiler")
+    except ImportError as e:
+        print(f"❌ Could not import DirectoryProfiler: {e}")
         return
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        test_path = Path(temp_dir) / "benchmark_test"
+        test_path = Path(temp_dir) / "parallel_test"
         test_path.mkdir()
 
-        # Create test structure - larger for better parallel testing
-        create_test_structure(test_path, num_dirs=1000, num_files_per_dir=100)
+        # Create test structure
+        create_test_structure(test_path, num_dirs=100, num_files_per_dir=50)
 
-        print(f"\n📊 Starting benchmark on {test_path}")
+        print(f"\n📊 Starting tests on {test_path}")
         print("=" * 80)
 
         # Test Python implementation
         python_profiler = DirectoryProfiler(use_rust=False)
-        python_time, file_count = benchmark_implementation(python_profiler, str(test_path), "Python")
+        python_time, file_count = test_implementation(python_profiler, str(test_path), "Python")
 
         # Test Sequential Rust implementation
         rust_sequential_profiler = DirectoryProfiler(use_rust=True, use_parallel=False)
+        print(f"\nRust available: {rust_sequential_profiler.is_rust_available()}")
+
         if rust_sequential_profiler.is_rust_available():
-            rust_seq_time, _ = benchmark_implementation(rust_sequential_profiler, str(test_path), "Rust Sequential")
+            rust_seq_time, _ = test_implementation(rust_sequential_profiler, str(test_path), "Rust Sequential")
         else:
             rust_seq_time = None
 
         # Test Parallel Rust implementation
-        rust_parallel_profiler = DirectoryProfiler(use_rust=True, use_parallel=True, parallel_threshold=500)
+        rust_parallel_profiler = DirectoryProfiler(use_rust=True, use_parallel=True, parallel_threshold=100)
+        print(f"Parallel available: {rust_parallel_profiler.is_parallel_available()}")
+
         if rust_parallel_profiler.is_parallel_available():
-            rust_par_time, _ = benchmark_implementation(rust_parallel_profiler, str(test_path), "Rust Parallel")
+            rust_par_time, _ = test_implementation(rust_parallel_profiler, str(test_path), "Rust Parallel")
         else:
             rust_par_time = None
             print("\n⚠️  Rust parallel implementation not available")
@@ -83,13 +87,14 @@ def main():
         # Show comparison results
         print("\n🎯 Performance Comparison:")
         print("=" * 50)
-        print(f"   Python:           {python_time:.3f}s")
+        if python_time:
+            print(f"   Python:           {python_time:.3f}s")
 
-        if rust_seq_time:
+        if rust_seq_time and python_time:
             seq_speedup = python_time / rust_seq_time
             print(f"   Rust Sequential:  {rust_seq_time:.3f}s ({seq_speedup:.1f}x faster)")
 
-        if rust_par_time:
+        if rust_par_time and python_time:
             par_speedup = python_time / rust_par_time
             print(f"   Rust Parallel:    {rust_par_time:.3f}s ({par_speedup:.1f}x faster)")
 
@@ -103,7 +108,6 @@ def main():
             print("\n📋 Implementation Status:")
             print(f"   Rust Available: {'✅' if impl_info['rust_available'] else '❌'}")
             print(f"   Parallel Available: {'✅' if impl_info['rust_parallel_available'] else '❌'}")
-
 
 if __name__ == "__main__":
     main()
