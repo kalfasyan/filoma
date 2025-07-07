@@ -36,6 +36,7 @@ Most scripts are intended to be run from the project root directory:
 ```bash
 # From project root
 python scripts/benchmark.py
+python scripts/test_parallel.py
 ./scripts/setup_rust.sh
 
 # Or use the Makefile targets

@@ -202,15 +202,6 @@ mod analysis {
         }
     }
 
-    /// Calculate adjusted depth for consistent reporting
-    pub fn calculate_adjusted_depth(depth: usize, root_depth: usize) -> u32 {
-        if depth <= root_depth {
-            0
-        } else {
-            (depth - root_depth) as u32
-        }
-    }
-
     /// Estimate directory size for parallel processing decisions
     pub fn estimate_directory_size(path: &Path, max_sample: usize) -> usize {
         let mut count = 0;
