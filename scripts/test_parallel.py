@@ -2,9 +2,13 @@
 """
 Test script for the new parallel implementation
 """
+import sys
 import tempfile
 import time
 from pathlib import Path
+
+# Add the src directory to the path so we can import filoma
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 
 def create_test_structure(base_path: Path, num_dirs: int = 50, num_files_per_dir: int = 20):

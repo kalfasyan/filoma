@@ -9,6 +9,11 @@ This directory contains development and utility scripts for the filoma project.
   python scripts/benchmark.py
   ```
 
+- **`test_parallel.py`** - Performance testing script for parallel implementations
+  ```bash
+  python scripts/test_parallel.py
+  ```
+
 - **`setup_rust.sh`** - Automated setup script for Rust acceleration
   ```bash
   ./scripts/setup_rust.sh

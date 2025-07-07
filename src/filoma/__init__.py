@@ -11,5 +11,6 @@ Features:
 # Make main modules easily accessible
 from . import directories, files, images
 from ._version import __version__
+from .dataframe import DataFrame
 
-__all__ = ["__version__", "directories", "images", "files"]
+__all__ = ["__version__", "directories", "images", "files", "DataFrame"]

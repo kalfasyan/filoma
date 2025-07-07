@@ -1,4 +1,3 @@
-import os
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Dict, Optional
@@ -21,6 +20,13 @@ except ImportError:
         RUST_AVAILABLE = False
         RUST_PARALLEL_AVAILABLE = False
 
+# Import DataFrame for enhanced functionality
+try:
+    from ..dataframe import DataFrame
+    DATAFRAME_AVAILABLE = True
+except ImportError:
+    DATAFRAME_AVAILABLE = False
+
 
 class DirectoryProfiler:
     """
@@ -35,7 +41,8 @@ class DirectoryProfiler:
         self,
         use_rust: bool = True,
         use_parallel: bool = True,
-        parallel_threshold: int = 1000
+        parallel_threshold: int = 1000,
+        build_dataframe: bool = False
     ):
         """
         Initialize the directory profiler.
@@ -47,11 +54,16 @@ class DirectoryProfiler:
                          Only effective when use_rust=True.
             parallel_threshold: Minimum estimated directory size to trigger parallel processing.
                               Larger values = less likely to use parallel processing.
+            build_dataframe: Whether to build a DataFrame with all file paths for enhanced analysis.
+                           Requires polars to be installed. When using Rust acceleration,
+                           statistics are computed in Rust but file paths are collected
+                           using Python for DataFrame consistency.
         """
         self.console = Console()
         self.use_rust = use_rust and RUST_AVAILABLE
         self.use_parallel = use_parallel and RUST_PARALLEL_AVAILABLE and self.use_rust
         self.parallel_threshold = parallel_threshold
+        self.build_dataframe = build_dataframe and DATAFRAME_AVAILABLE
 
         if use_rust and not RUST_AVAILABLE:
             self.console.print(
@@ -61,6 +73,12 @@ class DirectoryProfiler:
             self.console.print(
                 "[yellow]Warning: Rust parallel implementation not available, using sequential Rust[/yellow]"
             )
+
+        if build_dataframe and not DATAFRAME_AVAILABLE:
+            self.console.print(
+                "[yellow]Warning: DataFrame functionality not available (polars not installed), disabling DataFrame building[/yellow]"
+            )
+            self.build_dataframe = False
 
     def is_rust_available(self) -> bool:
         """
@@ -90,8 +108,10 @@ class DirectoryProfiler:
         return {
             "rust_available": RUST_AVAILABLE,
             "rust_parallel_available": RUST_PARALLEL_AVAILABLE,
+            "dataframe_available": DATAFRAME_AVAILABLE,
             "using_rust": self.use_rust,
             "using_parallel": self.use_parallel,
+            "using_dataframe": self.build_dataframe,
             "python_fallback": not self.use_rust,
         }
 
@@ -127,19 +147,51 @@ class DirectoryProfiler:
             return self._analyze_python(root_path, max_depth)
 
     def _analyze_rust(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
-        """Use the Rust implementation for analysis."""
+        """
+        Use the Rust implementation for analysis.
+
+        For performance, the main statistical analysis is done in Rust.
+        If DataFrame building is enabled, file paths are collected separately
+        using Python/pathlib to maintain consistency with the Python implementation.
+        """
+        # Get the main analysis from Rust
         if self.use_parallel and RUST_PARALLEL_AVAILABLE:
-            return analyze_directory_rust_parallel(
+            result = analyze_directory_rust_parallel(
                 root_path,
                 max_depth,
                 self.parallel_threshold
             )
         else:
-            return analyze_directory_rust(root_path, max_depth)
+            result = analyze_directory_rust(root_path, max_depth)
+
+        # If DataFrame building is enabled, we need to collect file paths
+        # since the Rust implementation doesn't return them
+        if self.build_dataframe and DATAFRAME_AVAILABLE:
+            root_path_obj = Path(root_path)
+            all_paths = []
+
+            # Collect paths using Python (pathlib) to match the Python implementation
+            for current_path in root_path_obj.rglob("*"):
+                # Calculate current depth
+                try:
+                    depth = len(current_path.relative_to(root_path_obj).parts)
+                except ValueError:
+                    depth = 0
+
+                # Skip if beyond max depth
+                if max_depth is not None and depth > max_depth:
+                    continue
+
+                all_paths.append(str(current_path))
+
+            # Add DataFrame to the result
+            result["dataframe"] = DataFrame(all_paths)
+
+        return result
 
     def _analyze_python(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
         """
-        Pure Python implementation (original code).
+        Pure Python implementation with enhanced DataFrame support.
         """
         root_path = Path(root_path)
         if not root_path.exists():
@@ -149,7 +201,7 @@ class DirectoryProfiler:
 
         # Initialize counters and collections
         file_count = 0
-        folder_count = 0
+        folder_count = 1  # Start with 1 to count the root directory itself
         total_size = 0
         empty_folders = []
         file_extensions = Counter()
@@ -157,37 +209,54 @@ class DirectoryProfiler:
         files_per_folder = defaultdict(int)
         depth_stats = defaultdict(int)
 
-        # Walk through directory tree
-        for current_path, dirs, files in os.walk(root_path):
-            current_path = Path(current_path)
+        # Count the root directory at depth 0
+        depth_stats[0] = 1
 
+        # Collection for DataFrame if enabled
+        all_paths = [] if self.build_dataframe else None
+
+        # Walk through directory tree using pathlib for consistency
+        for current_path in root_path.rglob("*"):
             # Calculate current depth
             try:
                 depth = len(current_path.relative_to(root_path).parts)
             except ValueError:
                 depth = 0
 
-            # Skip if beyond max depth
-            if max_depth is not None and depth > max_depth:
-                dirs.clear()  # Don't descend further
-                continue
+            # Skip if beyond max depth (match Rust implementation logic)
+            if max_depth is not None:
+                if current_path.is_dir() and depth > max_depth:
+                    continue
+                elif current_path.is_file() and depth > max_depth + 1:
+                    continue
 
-            depth_stats[depth] += 1
-            folder_count += 1
+            # Add to paths collection if DataFrame is enabled
+            if self.build_dataframe:
+                all_paths.append(str(current_path))
 
-            # Check for empty folders
-            if not dirs and not files:
-                empty_folders.append(str(current_path))
+            if current_path.is_dir():
+                depth_stats[depth] += 1
+                folder_count += 1
 
-            # Analyze files in current directory
-            files_per_folder[str(current_path)] = len(files)
+                # Check for empty folders
+                try:
+                    if not any(current_path.iterdir()):
+                        empty_folders.append(str(current_path))
+                except (OSError, PermissionError):
+                    # Skip directories we can't read
+                    pass
 
-            for file_name in files:
-                file_path = current_path / file_name
+                # Analyze folder names for patterns
+                folder_names[current_path.name] += 1
+
+            elif current_path.is_file():
                 file_count += 1
 
+                # Count files in parent directory
+                files_per_folder[str(current_path.parent)] += 1
+
                 # Get file extension
-                ext = file_path.suffix.lower()
+                ext = current_path.suffix.lower()
                 if ext:
                     file_extensions[ext] += 1
                 else:
@@ -195,14 +264,10 @@ class DirectoryProfiler:
 
                 # Add to total size
                 try:
-                    total_size += file_path.stat().st_size
+                    total_size += current_path.stat().st_size
                 except (OSError, IOError):
                     # Skip files we can't stat (permissions, broken symlinks, etc.)
                     pass
-
-            # Analyze folder names for patterns
-            for dir_name in dirs:
-                folder_names[dir_name] += 1
 
         # Calculate summary statistics
         avg_files_per_folder = file_count / max(1, folder_count)
@@ -212,7 +277,8 @@ class DirectoryProfiler:
             files_per_folder.items(), key=lambda x: x[1], reverse=True
         )[:10]
 
-        return {
+        # Build result dictionary
+        result = {
             "root_path": str(root_path),
             "summary": {
                 "total_files": file_count,
@@ -230,6 +296,12 @@ class DirectoryProfiler:
             "depth_distribution": dict(depth_stats),
         }
 
+        # Add DataFrame if enabled
+        if self.build_dataframe and DATAFRAME_AVAILABLE:
+            result["dataframe"] = DataFrame(all_paths)
+
+        return result
+
     def print_summary(self, analysis: Dict):
         """Print a summary of the directory analysis."""
         summary = analysis["summary"]
@@ -242,6 +314,10 @@ class DirectoryProfiler:
                 impl_type = "🦀 Rust (Sequential)"
         else:
             impl_type = "🐍 Python"
+
+        # Add DataFrame indicator
+        if self.build_dataframe and "dataframe" in analysis:
+            impl_type += " + 📊 DataFrame"
 
         # Main summary table
         table = Table(
@@ -257,10 +333,35 @@ class DirectoryProfiler:
         table.add_row("Maximum Depth", str(summary["max_depth"]))
         table.add_row("Empty Folders", str(summary["empty_folder_count"]))
 
+        # Add DataFrame info if available
+        if self.build_dataframe and "dataframe" in analysis:
+            df = analysis["dataframe"]
+            table.add_row("DataFrame Rows", f"{len(df):,}")
+
         self.console.print(table)
         self.console.print()
 
-    # ... rest of the existing methods remain the same ...
+    def get_dataframe(self, analysis: Dict) -> Optional['DataFrame']:
+        """
+        Get the DataFrame from analysis results.
+
+        Args:
+            analysis: Analysis results dictionary
+
+        Returns:
+            DataFrame object if available, None otherwise
+        """
+        return analysis.get("dataframe")
+
+    def is_dataframe_enabled(self) -> bool:
+        """
+        Check if DataFrame building is enabled and available.
+
+        Returns:
+            True if DataFrame building is enabled, False otherwise
+        """
+        return self.build_dataframe and DATAFRAME_AVAILABLE
+
     def print_file_extensions(self, analysis: Dict, top_n: int = 10):
         """Print the most common file extensions."""
         extensions = analysis["file_extensions"]

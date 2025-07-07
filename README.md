@@ -37,6 +37,7 @@ uv add filoma --force  # or: uv pip install --force-reinstall filoma
 
 ## Features
 - **Directory analysis**: Comprehensive directory tree analysis including file counts, folder patterns, empty directories, extension analysis, size statistics, and depth distribution
+- **📊 DataFrame support**: Build Polars DataFrames with all file paths for advanced analysis, filtering, and data manipulation
 - **🦀 Rust acceleration**: Optional Rust backend for 5-20x faster directory analysis - **completely automatic and transparent!**
 - **Image analysis**: Analyze .tif, .png, .npy, .zarr files for metadata, stats (min, max, mean, NaNs, etc.), and irregularities
 - **File profiling**: System metadata (size, permissions, owner, group, timestamps, symlink targets, etc.)
@@ -143,6 +144,42 @@ print(f"File extensions: {result['file_extensions']}")
 print(f"Common folder names: {result['common_folder_names']}")
 ```
 
+### DataFrame Analysis (Advanced)
+```python
+from filoma.directories import DirectoryProfiler
+from filoma import DataFrame
+
+# Enable DataFrame building for advanced analysis
+profiler = DirectoryProfiler(build_dataframe=True)
+result = profiler.analyze("/path/to/directory")
+
+# Get the DataFrame with all file paths
+df = profiler.get_dataframe(result)
+print(f"Found {len(df)} paths")
+
+# Add path components (parent, name, stem, suffix)
+df_enhanced = df.add_path_components()
+print(df_enhanced.head())
+
+# Filter by file type
+python_files = df.filter_by_extension('.py')
+image_files = df.filter_by_extension(['.jpg', '.png', '.tif'])
+
+# Group and analyze
+extension_counts = df.group_by_extension()
+directory_counts = df.group_by_directory()
+
+# Add file statistics
+df_with_stats = df.add_file_stats()  # size, timestamps, etc.
+
+# Add depth information
+df_with_depth = df.add_depth_column()
+
+# Export for further analysis
+df.save_csv("file_analysis.csv")
+df.save_parquet("file_analysis.parquet")
+```
+
 ### File Profiling
 ```python
 from filoma.files import FileProfiler
@@ -171,6 +208,17 @@ The `DirectoryProfiler` provides comprehensive analysis of directory structures:
 - **Empty Directory Detection**: Find directories with no files or subdirectories
 - **Depth Control**: Limit analysis depth with `max_depth` parameter
 - **Rich Output**: Beautiful terminal reports with tables and formatting
+- **📊 DataFrame Support**: Optional Polars DataFrame with all file paths for advanced analysis
+
+### DataFrame Features
+When enabled with `build_dataframe=True`, you get access to powerful data analysis capabilities:
+
+- **Path Analysis**: Automatic extraction of path components (parent, name, stem, suffix)
+- **File Statistics**: Size, modification times, creation times, file type detection
+- **Advanced Filtering**: Filter by extensions, patterns, or custom conditions
+- **Grouping & Aggregation**: Group by extension, directory, or custom fields
+- **Export Options**: Save results as CSV, Parquet, or access the underlying Polars DataFrame
+- **Performance**: Works with both Python and Rust implementations seamlessly
 
 ### Analysis Output Structure
 ```python
@@ -189,8 +237,34 @@ The `DirectoryProfiler` provides comprehensive analysis of directory structures:
     "common_folder_names": {"src": 3, "tests": 2, "docs": 1},
     "empty_folders": ["/path/to/empty1", "/path/to/empty2"],
     "top_folders_by_file_count": [("/path/with/most/files", 25)],
-    "depth_distribution": {0: 1, 1: 5, 2: 12, 3: 7}
+    "depth_distribution": {0: 1, 1: 5, 2: 12, 3: 7},
+    "dataframe": filoma.DataFrame  # When build_dataframe=True
 }
+```
+
+### DataFrame API Reference
+
+The `filoma.DataFrame` class provides:
+
+```python
+# Path manipulation
+df.add_path_components()     # Add parent, name, stem, suffix columns
+df.add_depth_column()        # Add directory depth column
+df.add_file_stats()          # Add size, timestamps, file type info
+
+# Filtering
+df.filter_by_extension('.py')              # Filter by single extension
+df.filter_by_extension(['.jpg', '.png'])   # Filter by multiple extensions
+df.filter_by_pattern('test')               # Filter by path pattern
+
+# Analysis
+df.group_by_extension()      # Group and count by file extension
+df.group_by_directory()      # Group and count by parent directory
+
+# Export
+df.save_csv("analysis.csv")           # Export to CSV
+df.save_parquet("analysis.parquet")   # Export to Parquet
+df.to_polars()                        # Get underlying Polars DataFrame
 ```
 
 ## Project Structure
