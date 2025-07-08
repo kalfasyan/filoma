@@ -3,9 +3,11 @@
 Test script for parallel directory/file profiling (originally in scripts/).
 """
 
-from filoma.directories import DirectoryProfiler
-from pathlib import Path
 import time
+from pathlib import Path
+
+from filoma.directories import DirectoryProfiler
+
 
 def test_parallel():
     print("Testing parallel directory profiling...")
