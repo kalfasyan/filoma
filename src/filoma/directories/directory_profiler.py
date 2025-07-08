@@ -1,8 +1,11 @@
+import time
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Callable, Dict, Optional
 
+from loguru import logger
 from rich.console import Console
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
 # Try to import the Rust implementation
@@ -42,7 +45,9 @@ class DirectoryProfiler:
         use_rust: bool = True,
         use_parallel: bool = True,
         parallel_threshold: int = 1000,
-        build_dataframe: bool = False
+        build_dataframe: bool = False,
+        show_progress: bool = True,
+        progress_callback: Optional[Callable[[str, int, int], None]] = None,
     ):
         """
         Initialize the directory profiler.
@@ -58,12 +63,17 @@ class DirectoryProfiler:
                            Requires polars to be installed. When using Rust acceleration,
                            statistics are computed in Rust but file paths are collected
                            using Python for DataFrame consistency.
+            show_progress: Whether to show progress indication during analysis.
+            progress_callback: Optional callback function for custom progress handling.
+                             Signature: callback(message: str, current: int, total: int)
         """
         self.console = Console()
         self.use_rust = use_rust and RUST_AVAILABLE
         self.use_parallel = use_parallel and RUST_PARALLEL_AVAILABLE and self.use_rust
         self.parallel_threshold = parallel_threshold
         self.build_dataframe = build_dataframe and DATAFRAME_AVAILABLE
+        self.show_progress = show_progress
+        self.progress_callback = progress_callback
 
         if use_rust and not RUST_AVAILABLE:
             self.console.print(
@@ -141,10 +151,41 @@ class DirectoryProfiler:
         Returns:
             Dictionary containing analysis results
         """
-        if self.use_rust:
-            return self._analyze_rust(root_path, max_depth)
-        else:
-            return self._analyze_python(root_path, max_depth)
+        start_time = time.time()
+
+        # Log the start of analysis
+        impl_type = "Rust (Parallel)" if self.use_parallel else "Rust (Sequential)" if self.use_rust else "Python"
+        logger.info(f"Starting directory analysis of '{root_path}' using {impl_type} implementation")
+
+        try:
+            if self.use_rust:
+                result = self._analyze_rust(root_path, max_depth)
+            else:
+                result = self._analyze_python(root_path, max_depth)
+
+            # Calculate and log timing
+            elapsed_time = time.time() - start_time
+            total_items = result["summary"]["total_files"] + result["summary"]["total_folders"]
+
+            logger.success(
+                f"Directory analysis completed in {elapsed_time:.2f}s - "
+                f"Found {total_items:,} items ({result['summary']['total_files']:,} files, "
+                f"{result['summary']['total_folders']:,} folders) using {impl_type}"
+            )
+
+            # Add timing information to result
+            result["timing"] = {
+                "elapsed_seconds": elapsed_time,
+                "implementation": impl_type,
+                "items_per_second": total_items / elapsed_time if elapsed_time > 0 else 0
+            }
+
+            return result
+
+        except Exception as e:
+            elapsed_time = time.time() - start_time
+            logger.error(f"Directory analysis failed after {elapsed_time:.2f}s: {str(e)}")
+            raise
 
     def _analyze_rust(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
         """
@@ -154,44 +195,76 @@ class DirectoryProfiler:
         If DataFrame building is enabled, file paths are collected separately
         using Python/pathlib to maintain consistency with the Python implementation.
         """
-        # Get the main analysis from Rust
-        if self.use_parallel and RUST_PARALLEL_AVAILABLE:
-            result = analyze_directory_rust_parallel(
-                root_path,
-                max_depth,
-                self.parallel_threshold
+        progress = None
+        task_id = None
+
+        if self.show_progress:
+            progress = Progress(
+                SpinnerColumn(),
+                TextColumn("[bold blue]Analyzing directory structure..."),
+                BarColumn(),
+                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                TimeElapsedColumn(),
+                console=self.console,
+                transient=True  # Remove progress bar when done
             )
-        else:
-            result = analyze_directory_rust(root_path, max_depth)
+            progress.start()
+            task_id = progress.add_task("Analyzing...", total=None)
 
-        # If DataFrame building is enabled, we need to collect file paths
-        # since the Rust implementation doesn't return them
-        if self.build_dataframe and DATAFRAME_AVAILABLE:
-            root_path_obj = Path(root_path)
-            all_paths = []
+        try:
+            # Get the main analysis from Rust
+            if self.use_parallel and RUST_PARALLEL_AVAILABLE:
+                result = analyze_directory_rust_parallel(
+                    root_path,
+                    max_depth,
+                    self.parallel_threshold
+                )
+            else:
+                result = analyze_directory_rust(root_path, max_depth)
 
-            # Collect paths using Python (pathlib) to match the Python implementation
-            for current_path in root_path_obj.rglob("*"):
-                # Calculate current depth
-                try:
-                    depth = len(current_path.relative_to(root_path_obj).parts)
-                except ValueError:
-                    depth = 0
+            # Update progress to show completion
+            if progress and task_id is not None:
+                progress.update(task_id, description="[bold green]Analysis complete!")
+                progress.update(task_id, total=100, completed=100)
 
-                # Skip if beyond max depth
-                if max_depth is not None and depth > max_depth:
-                    continue
+            # If DataFrame building is enabled, we need to collect file paths
+            # since the Rust implementation doesn't return them
+            if self.build_dataframe and DATAFRAME_AVAILABLE:
+                if progress and task_id is not None:
+                    progress.update(task_id, description="[bold yellow]Building DataFrame...")
 
-                all_paths.append(str(current_path))
+                root_path_obj = Path(root_path)
+                all_paths = []
 
-            # Add DataFrame to the result
-            result["dataframe"] = DataFrame(all_paths)
+                # Collect paths using Python (pathlib) to match the Python implementation
+                for current_path in root_path_obj.rglob("*"):
+                    # Calculate current depth
+                    try:
+                        depth = len(current_path.relative_to(root_path_obj).parts)
+                    except ValueError:
+                        depth = 0
 
-        return result
+                    # Skip if beyond max depth
+                    if max_depth is not None and depth > max_depth:
+                        continue
+
+                    all_paths.append(str(current_path))
+
+                # Add DataFrame to the result
+                result["dataframe"] = DataFrame(all_paths)
+
+                if progress and task_id is not None:
+                    progress.update(task_id, description="[bold green]DataFrame built!")
+
+            return result
+
+        finally:
+            if progress:
+                progress.stop()
 
     def _analyze_python(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
         """
-        Pure Python implementation with enhanced DataFrame support.
+        Pure Python implementation with enhanced DataFrame support and progress indication.
         """
         root_path = Path(root_path)
         if not root_path.exists():
@@ -215,96 +288,144 @@ class DirectoryProfiler:
         # Collection for DataFrame if enabled
         all_paths = [] if self.build_dataframe else None
 
-        # Walk through directory tree using pathlib for consistency
-        for current_path in root_path.rglob("*"):
-            # Calculate current depth
-            try:
-                depth = len(current_path.relative_to(root_path).parts)
-            except ValueError:
-                depth = 0
+        # Estimate total items for progress tracking
+        progress = None
+        task_id = None
+        total_items = None
+        processed_items = 0
 
-            # Skip if beyond max depth (match Rust implementation logic)
-            if max_depth is not None:
-                if current_path.is_dir() and depth > max_depth:
-                    continue
-                elif current_path.is_file() and depth > max_depth + 1:
-                    continue
+        if self.show_progress:
+            # Quick estimation pass
+            total_items = sum(1 for _ in root_path.rglob("*"))
 
-            # Add to paths collection if DataFrame is enabled
-            if self.build_dataframe:
-                all_paths.append(str(current_path))
+            progress = Progress(
+                SpinnerColumn(),
+                TextColumn("[bold blue]Analyzing directory structure..."),
+                BarColumn(),
+                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                TextColumn("({task.completed:,}/{task.total:,} items)"),
+                TimeElapsedColumn(),
+                console=self.console,
+                transient=True
+            )
+            progress.start()
+            task_id = progress.add_task("Analyzing...", total=total_items)
 
-            if current_path.is_dir():
-                depth_stats[depth] += 1
-                folder_count += 1
+        try:
+            # Walk through directory tree using pathlib for consistency
+            for current_path in root_path.rglob("*"):
+                processed_items += 1
 
-                # Check for empty folders
+                # Update progress
+                if progress and task_id is not None:
+                    if processed_items % 100 == 0:  # Update every 100 items for performance
+                        progress.update(task_id, completed=processed_items)
+
+                    # Call custom progress callback if provided
+                    if self.progress_callback:
+                        self.progress_callback(
+                            f"Processing: {current_path.name}",
+                            processed_items,
+                            total_items or 0
+                        )
+
+                # Calculate current depth
                 try:
-                    if not any(current_path.iterdir()):
-                        empty_folders.append(str(current_path))
-                except (OSError, PermissionError):
-                    # Skip directories we can't read
-                    pass
+                    depth = len(current_path.relative_to(root_path).parts)
+                except ValueError:
+                    depth = 0
 
-                # Analyze folder names for patterns
-                folder_names[current_path.name] += 1
+                # Skip if beyond max depth (match Rust implementation logic)
+                if max_depth is not None:
+                    if current_path.is_dir() and depth > max_depth:
+                        continue
+                    elif current_path.is_file() and depth > max_depth + 1:
+                        continue
 
-            elif current_path.is_file():
-                file_count += 1
+                # Add to paths collection if DataFrame is enabled
+                if self.build_dataframe:
+                    all_paths.append(str(current_path))
 
-                # Count files in parent directory
-                files_per_folder[str(current_path.parent)] += 1
+                if current_path.is_dir():
+                    depth_stats[depth] += 1
+                    folder_count += 1
 
-                # Get file extension
-                ext = current_path.suffix.lower()
-                if ext:
-                    file_extensions[ext] += 1
-                else:
-                    file_extensions["<no extension>"] += 1
+                    # Check for empty folders
+                    try:
+                        if not any(current_path.iterdir()):
+                            empty_folders.append(str(current_path))
+                    except (OSError, PermissionError):
+                        # Skip directories we can't read
+                        pass
 
-                # Add to total size
-                try:
-                    total_size += current_path.stat().st_size
-                except (OSError, IOError):
-                    # Skip files we can't stat (permissions, broken symlinks, etc.)
-                    pass
+                    # Analyze folder names for patterns
+                    folder_names[current_path.name] += 1
 
-        # Calculate summary statistics
-        avg_files_per_folder = file_count / max(1, folder_count)
+                elif current_path.is_file():
+                    file_count += 1
 
-        # Find folders with most files
-        top_folders_by_file_count = sorted(
-            files_per_folder.items(), key=lambda x: x[1], reverse=True
-        )[:10]
+                    # Count files in parent directory
+                    files_per_folder[str(current_path.parent)] += 1
 
-        # Build result dictionary
-        result = {
-            "root_path": str(root_path),
-            "summary": {
-                "total_files": file_count,
-                "total_folders": folder_count,
-                "total_size_bytes": total_size,
-                "total_size_mb": round(total_size / (1024 * 1024), 2),
-                "avg_files_per_folder": round(avg_files_per_folder, 2),
-                "max_depth": max(depth_stats.keys()) if depth_stats else 0,
-                "empty_folder_count": len(empty_folders),
-            },
-            "file_extensions": dict(file_extensions.most_common(20)),
-            "common_folder_names": dict(folder_names.most_common(20)),
-            "empty_folders": empty_folders,
-            "top_folders_by_file_count": top_folders_by_file_count,
-            "depth_distribution": dict(depth_stats),
-        }
+                    # Get file extension
+                    ext = current_path.suffix.lower()
+                    if ext:
+                        file_extensions[ext] += 1
+                    else:
+                        file_extensions["<no extension>"] += 1
 
-        # Add DataFrame if enabled
-        if self.build_dataframe and DATAFRAME_AVAILABLE:
-            result["dataframe"] = DataFrame(all_paths)
+                    # Add to total size
+                    try:
+                        total_size += current_path.stat().st_size
+                    except (OSError, IOError):
+                        # Skip files we can't stat (permissions, broken symlinks, etc.)
+                        pass
 
-        return result
+            # Final progress update
+            if progress and task_id is not None:
+                progress.update(task_id, completed=processed_items)
+
+            # Calculate summary statistics
+            avg_files_per_folder = file_count / max(1, folder_count)
+
+            # Find folders with most files
+            top_folders_by_file_count = sorted(
+                files_per_folder.items(), key=lambda x: x[1], reverse=True
+            )[:10]
+
+            # Build result dictionary
+            result = {
+                "root_path": str(root_path),
+                "summary": {
+                    "total_files": file_count,
+                    "total_folders": folder_count,
+                    "total_size_bytes": total_size,
+                    "total_size_mb": round(total_size / (1024 * 1024), 2),
+                    "avg_files_per_folder": round(avg_files_per_folder, 2),
+                    "max_depth": max(depth_stats.keys()) if depth_stats else 0,
+                    "empty_folder_count": len(empty_folders),
+                },
+                "file_extensions": dict(file_extensions.most_common(20)),
+                "common_folder_names": dict(folder_names.most_common(20)),
+                "empty_folders": empty_folders,
+                "top_folders_by_file_count": top_folders_by_file_count,
+                "depth_distribution": dict(depth_stats),
+            }
+
+            # Add DataFrame if enabled
+            if self.build_dataframe and DATAFRAME_AVAILABLE:
+                result["dataframe"] = DataFrame(all_paths)
+
+            return result
+
+        finally:
+            if progress:
+                progress.stop()
 
     def print_summary(self, analysis: Dict):
         """Print a summary of the directory analysis."""
         summary = analysis["summary"]
+        timing = analysis.get("timing", {})
 
         # Show which implementation was used with more detail
         if self.use_rust:
@@ -320,9 +441,11 @@ class DirectoryProfiler:
             impl_type += " + 📊 DataFrame"
 
         # Main summary table
-        table = Table(
-            title=f"Directory Analysis: {analysis['root_path']} ({impl_type})"
-        )
+        title = f"Directory Analysis: {analysis['root_path']} ({impl_type})"
+        if timing:
+            title += f" - {timing['elapsed_seconds']:.2f}s"
+
+        table = Table(title=title)
         table.add_column("Metric", style="bold cyan")
         table.add_column("Value", style="white")
 
@@ -337,6 +460,12 @@ class DirectoryProfiler:
         if self.build_dataframe and "dataframe" in analysis:
             df = analysis["dataframe"]
             table.add_row("DataFrame Rows", f"{len(df):,}")
+
+        # Add timing information if available
+        if timing:
+            table.add_row("Analysis Time", f"{timing['elapsed_seconds']:.2f}s")
+            if timing.get('items_per_second', 0) > 0:
+                table.add_row("Processing Speed", f"{timing['items_per_second']:,.0f} items/sec")
 
         self.console.print(table)
         self.console.print()

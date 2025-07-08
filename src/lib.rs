@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 use walkdir::{DirEntry, WalkDir};
 use rayon::prelude::*;
 use dashmap::DashMap;
+use std::time::Instant;
 
 /// Configuration for directory analysis
 #[derive(Debug, Clone)]
@@ -16,6 +17,7 @@ pub struct AnalysisConfig {
     pub follow_links: bool,
     pub parallel: bool,
     pub parallel_threshold: usize,
+    pub log_progress: bool,
 }
 
 impl Default for AnalysisConfig {
@@ -25,6 +27,7 @@ impl Default for AnalysisConfig {
             follow_links: false,
             parallel: true,
             parallel_threshold: 1000, // Use parallel processing for directories with >1000 entries
+            log_progress: false,
         }
     }
 }
@@ -107,6 +110,7 @@ impl ParallelDirectoryStats {
             folder_names: self.folder_names.iter().map(|entry| (entry.key().clone(), *entry.value())).collect(),
             files_per_folder: self.files_per_folder.iter().map(|entry| (entry.key().clone(), *entry.value())).collect(),
             depth_distribution: self.depth_distribution.iter().map(|entry| (*entry.key(), *entry.value())).collect(),
+            elapsed_seconds: 0.0, // Will be set later
         }
     }
 }
@@ -123,6 +127,7 @@ struct DirectoryStats {
     files_per_folder: HashMap<String, u64>,
     depth_distribution: HashMap<u32, u64>,
     max_depth: u32,
+    elapsed_seconds: f64,
 }
 
 impl DirectoryStats {
@@ -137,7 +142,12 @@ impl DirectoryStats {
             files_per_folder: HashMap::new(),
             depth_distribution: HashMap::new(),
             max_depth: 0,
+            elapsed_seconds: 0.0,
         }
+    }
+
+    fn set_timing(&mut self, elapsed_seconds: f64) {
+        self.elapsed_seconds = elapsed_seconds;
     }
 
     fn to_py_dict(&self, py: Python, root_path: &str) -> PyResult<PyObject> {
@@ -173,6 +183,19 @@ impl DirectoryStats {
         top_folders.sort_by(|a, b| b.1.cmp(&a.1));
         top_folders.truncate(10);
         dict.set_item("top_folders_by_file_count", top_folders)?;
+        
+        // Add timing information
+        let timing = PyDict::new(py);
+        timing.set_item("elapsed_seconds", self.elapsed_seconds)?;
+        timing.set_item("implementation", "Rust")?;
+        let total_items = self.total_files + self.total_folders;
+        timing.set_item("items_per_second", 
+            if self.elapsed_seconds > 0.0 { 
+                total_items as f64 / self.elapsed_seconds 
+            } else { 
+                0.0 
+            })?;
+        dict.set_item("timing", timing)?;
         
         Ok(dict.into())
     }
@@ -243,6 +266,7 @@ mod sequential {
         root_path: &Path,
         config: &AnalysisConfig,
     ) -> Result<DirectoryStats, String> {
+        let start_time = Instant::now();
         let mut stats = DirectoryStats::new();
         let mut walker = WalkDir::new(root_path).follow_links(config.follow_links);
 
@@ -314,6 +338,9 @@ mod sequential {
             }
         }
 
+        let elapsed = start_time.elapsed();
+        stats.set_timing(elapsed.as_secs_f64());
+
         Ok(stats)
     }
 }
@@ -326,6 +353,7 @@ mod parallel {
         root_path: &Path,
         config: &AnalysisConfig,
     ) -> Result<DirectoryStats, String> {
+        let start_time = Instant::now();
         let stats = Arc::new(ParallelDirectoryStats::new());
         
         // First, analyze the root directory itself
@@ -350,7 +378,11 @@ mod parallel {
             }
         }
         
-        Ok(stats.to_directory_stats())
+        let elapsed = start_time.elapsed();
+        let mut result = stats.to_directory_stats();
+        result.set_timing(elapsed.as_secs_f64());
+        
+        Ok(result)
     }
 
     fn analyze_root_directory(
@@ -479,6 +511,7 @@ fn analyze_directory_rust_with_config(
         follow_links: false,
         parallel: parallel_threshold.is_some(),
         parallel_threshold: parallel_threshold.unwrap_or(1000),
+        log_progress: false,
     };
 
     // Choose analysis method based on configuration and directory size

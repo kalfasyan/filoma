@@ -35,8 +35,10 @@ uv add filoma --force  # or: uv pip install --force-reinstall filoma
 - **`uv pip install filoma`** → Use for standalone scripts or when you don't want project dependency management
 - **`pip install filoma`** → Traditional method for older Python environments
 
+
 ## Features
 - **Directory analysis**: Comprehensive directory tree analysis including file counts, folder patterns, empty directories, extension analysis, size statistics, and depth distribution
+- **Progress bar & timing**: See real-time progress and timing for large directory scans, with beautiful terminal output (using `rich`).
 - **📊 DataFrame support**: Build Polars DataFrames with all file paths for advanced analysis, filtering, and data manipulation
 - **🦀 Rust acceleration**: Optional Rust backend for 5-20x faster directory analysis - **completely automatic and transparent!**
 - **Image analysis**: Analyze .tif, .png, .npy, .zarr files for metadata, stats (min, max, mean, NaNs, etc.), and irregularities
@@ -44,6 +46,33 @@ uv add filoma --force  # or: uv pip install --force-reinstall filoma
 - Modular, extensible codebase
 - CLI entry point (planned)
 - Ready for testing, CI/CD, Docker, and database integration
+## Progress Bar & Timing Features
+
+`filoma` provides a real-time progress bar and timing details for directory analysis, making it easy to track progress on large scans. The progress bar is enabled by default and uses the `rich` library for beautiful terminal output.
+
+**Example:**
+
+```python
+from filoma.directories import DirectoryProfiler
+
+profiler = DirectoryProfiler(show_progress=True)
+result = profiler.analyze("/path/to/large/directory")
+profiler.print_summary(result)
+
+# Output includes a progress bar and timing details:
+#
+# Directory Analysis: /path/to/large/directory (🦀 Rust) - 0.12s
+# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+# ┃ Metric                   ┃ Value         ┃
+# ...
+# ┃ Analysis Time            ┃ 0.12s         ┃
+# ┃ Processing Speed         ┃ 8,000 items/s ┃
+# ┗━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━┛
+```
+
+**Performance Note:**
+> The progress bar introduces minimal overhead (especially when updated every 100 items, as in the default implementation). For benchmarking or maximum speed, you can disable it with `show_progress=False`.
+
 
 ## 🚀 Automatic Performance Acceleration
 
@@ -271,7 +300,7 @@ df.to_polars()                        # Get underlying Polars DataFrame
 - `src/filoma/directories/` — Directory analysis and structure profiling
 - `src/filoma/images/` — Image profilers and analysis
 - `src/filoma/files/` — File profiling (system metadata)
-- `tests/` — Unit tests for all modules
+- `tests/` — All tests (unit, integration, and scripts) are in this folder
 
 ## 🔧 Advanced: Rust Acceleration Details
 
