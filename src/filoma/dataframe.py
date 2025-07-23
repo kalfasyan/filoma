@@ -5,6 +5,7 @@ for file and directory analysis results using Polars.
 
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+import datetime
 
 import polars as pl
 
@@ -123,32 +124,32 @@ class DataFrame:
                     stat = path.stat()
                     return {
                         "size_bytes": stat.st_size,
-                        "modified_time": stat.st_mtime,
-                        "created_time": stat.st_ctime,
+                        "modified_time": str(datetime.datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')),
+                        "created_time": str(datetime.datetime.fromtimestamp(stat.st_ctime).strftime('%Y-%m-%d %H:%M:%S')),
                         "is_file": True,
                         "is_dir": False,
                     }
                 elif path.exists() and path.is_dir():
                     return {
                         "size_bytes": None,
-                        "modified_time": None,
-                        "created_time": None,
+                        "modified_time": "",
+                        "created_time": "",
                         "is_file": False,
                         "is_dir": True,
                     }
                 else:
                     return {
                         "size_bytes": None,
-                        "modified_time": None,
-                        "created_time": None,
+                        "modified_time": "",
+                        "created_time": "",
                         "is_file": False,
                         "is_dir": False,
                     }
             except (OSError, IOError):
                 return {
                     "size_bytes": None,
-                    "modified_time": None,
-                    "created_time": None,
+                    "modified_time": "",
+                    "created_time": "",
                     "is_file": False,
                     "is_dir": False,
                 }
@@ -157,7 +158,13 @@ class DataFrame:
         stats_data = [get_file_stats(path) for path in self._df["path"].to_list()]
 
         # Create a DataFrame from the stats
-        stats_df = pl.DataFrame(stats_data)
+        stats_df = pl.DataFrame(stats_data, schema={
+            "size_bytes": pl.Int64,
+            "modified_time": pl.String,
+            "created_time": pl.String,
+            "is_file": pl.Boolean,
+            "is_dir": pl.Boolean,
+        })
 
         # Concatenate with the original DataFrame
         df_with_stats = pl.concat([self._df, stats_df], how="horizontal")
