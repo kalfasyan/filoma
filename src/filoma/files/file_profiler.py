@@ -43,9 +43,9 @@ class FileProfiler:
             "mode": oct(st.st_mode),
             "owner": pwd.getpwuid(st.st_uid).pw_name if hasattr(pwd, 'getpwuid') else st.st_uid,
             "group": grp.getgrgid(st.st_gid).gr_name if hasattr(grp, 'getgrgid') else st.st_gid,
-            "created": datetime.datetime.fromtimestamp(st.st_ctime).isoformat(),
-            "modified": datetime.datetime.fromtimestamp(st.st_mtime).isoformat(),
-            "accessed": datetime.datetime.fromtimestamp(st.st_atime).isoformat(),
+            "created": datetime.datetime.fromtimestamp(st.st_ctime).strftime('%Y-%m-%d %H:%M:%S'),
+            "modified": datetime.datetime.fromtimestamp(st.st_mtime).strftime('%Y-%m-%d %H:%M:%S'),
+            "accessed": datetime.datetime.fromtimestamp(st.st_atime).strftime('%Y-%m-%d %H:%M:%S'),
             "is_symlink": is_symlink,
             "rights": rights,
         }
