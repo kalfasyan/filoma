@@ -3,9 +3,9 @@ DataFrame module for filoma - provides enhanced data manipulation capabilities
 for file and directory analysis results using Polars.
 """
 
+import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
-import datetime
 
 import polars as pl
 
