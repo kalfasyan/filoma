@@ -41,7 +41,7 @@ class FdSearcher:
         case_sensitive: Optional[bool] = None,
         **fd_options,
     ) -> List[str]:
-        """
+        r"""
         Find files matching pattern.
 
         Args:
@@ -231,7 +231,7 @@ class FdSearcher:
     def execute_on_results(
         self, pattern: str, command: List[str], directory: Union[str, Path] = ".", parallel: bool = True, **fd_options
     ) -> subprocess.CompletedProcess:
-        """
+        r"""
         Execute command on search results using fd's built-in execution.
 
         Args:

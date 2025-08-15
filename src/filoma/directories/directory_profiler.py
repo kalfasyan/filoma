@@ -1,5 +1,4 @@
 import time
-import warnings
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Callable, Dict, List, Optional

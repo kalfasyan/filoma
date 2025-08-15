@@ -11,8 +11,8 @@ from pathlib import Path
 # Add src to path so we can import filoma
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from filoma.directories import DirectoryProfiler, FdSearcher
 from filoma.core import FdIntegration
+from filoma.directories import DirectoryProfiler, FdSearcher
 
 
 def test_fd_integration():

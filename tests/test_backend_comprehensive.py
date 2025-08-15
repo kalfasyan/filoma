@@ -12,9 +12,8 @@ from pathlib import Path
 
 import pytest
 
-from filoma.directories import DirectoryProfiler
 from filoma.core import FdIntegration
-from filoma.directories import FdSearcher
+from filoma.directories import DirectoryProfiler, FdSearcher
 
 
 class TestBackendComprehensive:
@@ -145,7 +144,7 @@ class TestBackendComprehensive:
             profiler_rust = DirectoryProfiler(search_backend="rust", show_progress=False)
             rust_result = profiler_rust.analyze(test_directory)
             results["rust"] = rust_result
-        except:
+        except Exception:
             pass
 
         # fd (if available)
@@ -193,7 +192,7 @@ class TestBackendComprehensive:
             result_rust = profiler_rust.analyze(test_directory)
             rust_time = time.time() - start_time
             performance_results["rust"] = {"time": rust_time, "files": result_rust["summary"]["total_files"]}
-        except:
+        except Exception:
             pass
 
         # Test fd (if available)
@@ -250,7 +249,7 @@ class TestBackendComprehensive:
         try:
             profiler_rust = DirectoryProfiler(search_backend="rust", show_progress=False)
             backends_to_test.append(("rust", profiler_rust))
-        except:
+        except Exception:
             pass
 
         # fd (if available)
