@@ -55,19 +55,15 @@ uv add filoma --force  # or: uv pip install --force-reinstall filoma
 ```python
 from filoma.directories import DirectoryProfiler
 
+# Standard mode (collects metadata)
 profiler = DirectoryProfiler(show_progress=True)
 result = profiler.analyze("/path/to/large/directory")
 profiler.print_summary(result)
 
-# Output includes a progress bar and timing details:
-#
-# Directory Analysis: /path/to/large/directory (🦀 Rust) - 0.12s
-# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
-# ┃ Metric                   ┃ Value         ┃
-# ...
-# ┃ Analysis Time            ┃ 0.12s         ┃
-# ┃ Processing Speed         ┃ 8,000 items/s ┃
-# ┗━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━┛
+# Fast path only mode (just finds file paths, no metadata)
+profiler_fast = DirectoryProfiler(show_progress=True, fast_path_only=True)
+result_fast = profiler_fast.analyze("/path/to/large/directory")
+print(f"Found {result_fast['summary']['total_files']} files (fast path only)")
 ```
 
 **Performance Note:**

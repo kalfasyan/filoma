@@ -17,6 +17,7 @@ try:
 except ImportError:
     try:
         from filoma.filoma_core import analyze_directory_rust
+
         RUST_AVAILABLE = True
         RUST_PARALLEL_AVAILABLE = False
     except ImportError:
@@ -26,6 +27,7 @@ except ImportError:
 # Import DataFrame for enhanced functionality
 try:
     from ..dataframe import DataFrame
+
     DATAFRAME_AVAILABLE = True
 except ImportError:
     DATAFRAME_AVAILABLE = False
@@ -48,6 +50,7 @@ class DirectoryProfiler:
         build_dataframe: bool = False,
         show_progress: bool = True,
         progress_callback: Optional[Callable[[str, int, int], None]] = None,
+        fast_path_only: bool = False,
     ):
         """
         Initialize the directory profiler.
@@ -66,6 +69,7 @@ class DirectoryProfiler:
             show_progress: Whether to show progress indication during analysis.
             progress_callback: Optional callback function for custom progress handling.
                              Signature: callback(message: str, current: int, total: int)
+            fast_path_only: Internal flag to use fast path (no metadata) in Rust backend.
         """
         self.console = Console()
         self.use_rust = use_rust and RUST_AVAILABLE
@@ -74,21 +78,24 @@ class DirectoryProfiler:
         self.build_dataframe = build_dataframe and DATAFRAME_AVAILABLE
         self.show_progress = show_progress
         self.progress_callback = progress_callback
+        self._fast_path_only = fast_path_only
 
         if use_rust and not RUST_AVAILABLE:
-            self.console.print(
-                "[yellow]Warning: Rust implementation not available, falling back to Python[/yellow]"
-            )
+            self.console.print("[yellow]Warning: Rust implementation not available, falling back to Python[/yellow]")
         elif use_parallel and self.use_rust and not RUST_PARALLEL_AVAILABLE:
-            self.console.print(
-                "[yellow]Warning: Rust parallel implementation not available, using sequential Rust[/yellow]"
-            )
+            self.console.print("[yellow]Warning: Rust parallel implementation not available, using sequential Rust[/yellow]")
 
         if build_dataframe and not DATAFRAME_AVAILABLE:
-            self.console.print(
-                "[yellow]Warning: DataFrame functionality not available (polars not installed), disabling DataFrame building[/yellow]"
-            )
+            self.console.print("[yellow]Warning: DataFrame functionality not available (polars not installed), disabling DataFrame building[/yellow]")
             self.build_dataframe = False
+        # Warn if show_progress is True and Rust is being used
+        if self.show_progress and (self.use_rust is None or self.use_rust):
+            import warnings
+
+            warnings.warn(
+                "[filoma] Progress bar updates are limited when using the Rust backend. "
+                "You will only see updates at the start and end of the scan. For live progress, use the Python backend (use_rust=False)."
+            )
 
     def is_rust_available(self) -> bool:
         """
@@ -125,9 +132,7 @@ class DirectoryProfiler:
             "python_fallback": not self.use_rust,
         }
 
-    def analyze_directory(
-        self, root_path: str, max_depth: Optional[int] = None
-    ) -> Dict:
+    def analyze_directory(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
         """
         Alias for analyze() method for backward compatibility.
 
@@ -159,7 +164,7 @@ class DirectoryProfiler:
 
         try:
             if self.use_rust:
-                result = self._analyze_rust(root_path, max_depth)
+                result = self._analyze_rust(root_path, max_depth, fast_path_only=self._fast_path_only)
             else:
                 result = self._analyze_python(root_path, max_depth)
 
@@ -177,7 +182,7 @@ class DirectoryProfiler:
             result["timing"] = {
                 "elapsed_seconds": elapsed_time,
                 "implementation": impl_type,
-                "items_per_second": total_items / elapsed_time if elapsed_time > 0 else 0
+                "items_per_second": total_items / elapsed_time if elapsed_time > 0 else 0,
             }
 
             return result
@@ -187,7 +192,7 @@ class DirectoryProfiler:
             logger.error(f"Directory analysis failed after {elapsed_time:.2f}s: {str(e)}")
             raise
 
-    def _analyze_rust(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
+    def _analyze_rust(self, root_path: str, max_depth: Optional[int] = None, fast_path_only: bool = False) -> Dict:
         """
         Use the Rust implementation for analysis.
 
@@ -206,7 +211,7 @@ class DirectoryProfiler:
                 TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
                 TimeElapsedColumn(),
                 console=self.console,
-                transient=True  # Remove progress bar when done
+                transient=True,  # Remove progress bar when done
             )
             progress.start()
             task_id = progress.add_task("Analyzing...", total=None)
@@ -214,13 +219,9 @@ class DirectoryProfiler:
         try:
             # Get the main analysis from Rust
             if self.use_parallel and RUST_PARALLEL_AVAILABLE:
-                result = analyze_directory_rust_parallel(
-                    root_path,
-                    max_depth,
-                    self.parallel_threshold
-                )
+                result = analyze_directory_rust_parallel(root_path, max_depth, self.parallel_threshold, fast_path_only)
             else:
-                result = analyze_directory_rust(root_path, max_depth)
+                result = analyze_directory_rust(root_path, max_depth, fast_path_only)
 
             # Update progress to show completion
             if progress and task_id is not None:
@@ -306,7 +307,7 @@ class DirectoryProfiler:
                 TextColumn("({task.completed:,}/{task.total:,} items)"),
                 TimeElapsedColumn(),
                 console=self.console,
-                transient=True
+                transient=True,
             )
             progress.start()
             task_id = progress.add_task("Analyzing...", total=total_items)
@@ -323,11 +324,7 @@ class DirectoryProfiler:
 
                     # Call custom progress callback if provided
                     if self.progress_callback:
-                        self.progress_callback(
-                            f"Processing: {current_path.name}",
-                            processed_items,
-                            total_items or 0
-                        )
+                        self.progress_callback(f"Processing: {current_path.name}", processed_items, total_items or 0)
 
                 # Calculate current depth
                 try:
@@ -389,9 +386,7 @@ class DirectoryProfiler:
             avg_files_per_folder = file_count / max(1, folder_count)
 
             # Find folders with most files
-            top_folders_by_file_count = sorted(
-                files_per_folder.items(), key=lambda x: x[1], reverse=True
-            )[:10]
+            top_folders_by_file_count = sorted(files_per_folder.items(), key=lambda x: x[1], reverse=True)[:10]
 
             # Build result dictionary
             result = {
@@ -464,13 +459,13 @@ class DirectoryProfiler:
         # Add timing information if available
         if timing:
             table.add_row("Analysis Time", f"{timing['elapsed_seconds']:.2f}s")
-            if timing.get('items_per_second', 0) > 0:
+            if timing.get("items_per_second", 0) > 0:
                 table.add_row("Processing Speed", f"{timing['items_per_second']:,.0f} items/sec")
 
         self.console.print(table)
         self.console.print()
 
-    def get_dataframe(self, analysis: Dict) -> Optional['DataFrame']:
+    def get_dataframe(self, analysis: Dict) -> Optional["DataFrame"]:
         """
         Get the DataFrame from analysis results.
 
@@ -537,9 +532,7 @@ class DirectoryProfiler:
             self.console.print("[green]✓ No empty folders found![/green]")
             return
 
-        table = Table(
-            title=f"Empty Folders (showing {min(len(empty_folders), max_show)} of {len(empty_folders)})"
-        )
+        table = Table(title=f"Empty Folders (showing {min(len(empty_folders), max_show)} of {len(empty_folders)})")
         table.add_column("Path", style="yellow")
 
         for folder in empty_folders[:max_show]:

@@ -18,6 +18,7 @@ pub struct AnalysisConfig {
     pub parallel: bool,
     pub parallel_threshold: usize,
     pub log_progress: bool,
+    pub fast_path_only: bool, // NEW: Only collect file paths, not metadata
 }
 
 impl Default for AnalysisConfig {
@@ -28,6 +29,7 @@ impl Default for AnalysisConfig {
             parallel: true,
             parallel_threshold: 1000, // Use parallel processing for directories with >1000 entries
             log_progress: false,
+            fast_path_only: false,
         }
     }
 }
@@ -61,13 +63,13 @@ impl ParallelDirectoryStats {
         }
     }
 
-    fn add_file(&self, size: u64, extension: String, parent_path: String) {
+    fn add_file(&self, size: u64, extension: String, parent_path: String, fast_path_only: bool) {
         self.total_files.fetch_add(1, Ordering::Relaxed);
-        self.total_size.fetch_add(size, Ordering::Relaxed);
-        
+        if !fast_path_only {
+            self.total_size.fetch_add(size, Ordering::Relaxed);
+        }
         // Update extension count
         *self.file_extensions.entry(extension).or_insert(0) += 1;
-        
         // Update files per folder count
         *self.files_per_folder.entry(parent_path).or_insert(0) += 1;
     }
@@ -324,9 +326,11 @@ mod sequential {
                 let ext = get_file_extension(entry.path());
                 *stats.file_extensions.entry(ext).or_insert(0) += 1;
 
-                // Get file size
-                if let Ok(metadata) = entry.metadata() {
-                    stats.total_size += metadata.len();
+                if !config.fast_path_only {
+                    // Get file size
+                    if let Ok(metadata) = entry.metadata() {
+                        stats.total_size += metadata.len();
+                    }
                 }
 
                 // Count file in its parent directory
@@ -448,15 +452,13 @@ mod parallel {
                 }
             } else if entry.file_type().is_file() {
                 let ext = get_file_extension(entry.path());
-                let size = entry.metadata()
-                    .map(|m| m.len())
-                    .unwrap_or(0);
-                
+                let size = if config.fast_path_only { 0 } else {
+                    entry.metadata().map(|m| m.len()).unwrap_or(0)
+                };
                 let parent_path = entry.path().parent()
                     .map(|p| p.to_string_lossy().to_string())
                     .unwrap_or_default();
-
-                stats.add_file(size, ext, parent_path);
+                stats.add_file(size, ext, parent_path, config.fast_path_only);
             }
         }
 
@@ -472,23 +474,25 @@ mod parallel {
 
 /// Python interface functions
 #[pyfunction]
-fn analyze_directory_rust(root_path: &str, max_depth: Option<u32>) -> PyResult<PyObject> {
-    analyze_directory_rust_with_config(root_path, max_depth, None)
+fn analyze_directory_rust(root_path: &str, max_depth: Option<u32>, fast_path_only: Option<bool>) -> PyResult<PyObject> {
+    analyze_directory_rust_with_config(root_path, max_depth, None, fast_path_only)
 }
 
 #[pyfunction]
 fn analyze_directory_rust_parallel(
     root_path: &str, 
     max_depth: Option<u32>,
-    parallel_threshold: Option<usize>
+    parallel_threshold: Option<usize>,
+    fast_path_only: Option<bool>
 ) -> PyResult<PyObject> {
-    analyze_directory_rust_with_config(root_path, max_depth, parallel_threshold)
+    analyze_directory_rust_with_config(root_path, max_depth, parallel_threshold, fast_path_only)
 }
 
 fn analyze_directory_rust_with_config(
     root_path: &str,
     max_depth: Option<u32>,
     parallel_threshold: Option<usize>,
+    fast_path_only: Option<bool>,
 ) -> PyResult<PyObject> {
     let root = Path::new(root_path);
     
@@ -512,6 +516,7 @@ fn analyze_directory_rust_with_config(
         parallel: parallel_threshold.is_some(),
         parallel_threshold: parallel_threshold.unwrap_or(1000),
         log_progress: false,
+        fast_path_only: fast_path_only.unwrap_or(false),
     };
 
     // Choose analysis method based on configuration and directory size
