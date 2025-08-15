@@ -211,6 +211,7 @@ name = "filoma"
 version = "1.3.2"
 source = { editable = "." }
 dependencies = [
+    { name = "ipython" },
     { name = "loguru" },
     { name = "numpy" },
     { name = "pillow" },
@@ -230,6 +231,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "ipython", specifier = ">=9.4.0" },
     { name = "ipython", marker = "extra == 'dev'", specifier = ">=9.2.0" },
     { name = "loguru", specifier = ">=0.7.0" },
     { name = "maturin", marker = "extra == 'dev'", specifier = ">=1.9.0" },

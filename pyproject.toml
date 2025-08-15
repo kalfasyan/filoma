@@ -10,6 +10,7 @@ dependencies = [
     "pillow>=10.0.0",
     "polars>=1.0.0",
     "loguru>=0.7.0",
+    "ipython>=9.4.0",
 ]
 
 [project.optional-dependencies]

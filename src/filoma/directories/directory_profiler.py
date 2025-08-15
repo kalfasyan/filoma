@@ -601,23 +601,35 @@ class DirectoryProfiler:
 
                 root_path_obj = Path(root_path)
                 all_paths = []
+                permission_errors_encountered = False
 
-                # Collect paths using Python (pathlib) to match the Python implementation
-                for current_path in root_path_obj.rglob("*"):
-                    # Calculate current depth
-                    try:
-                        depth = len(current_path.relative_to(root_path_obj).parts)
-                    except ValueError:
-                        depth = 0
+                # Collect paths using Python (pathlib) with error handling for system directories
+                try:
+                    for current_path in root_path_obj.rglob("*"):
+                        try:
+                            # Calculate current depth
+                            depth = len(current_path.relative_to(root_path_obj).parts)
 
-                    # Skip if beyond max depth
-                    if max_depth is not None and depth > max_depth:
-                        continue
+                            # Skip if beyond max depth
+                            if max_depth is not None and depth > max_depth:
+                                continue
 
-                    all_paths.append(str(current_path))
+                            all_paths.append(str(current_path))
+                        except (ValueError, OSError, PermissionError):
+                            # Skip paths that can't be accessed or processed
+                            permission_errors_encountered = True
+                            continue
+                except (OSError, PermissionError, FileNotFoundError):
+                    # If rglob fails entirely, provide DataFrame with whatever we collected
+                    self.console.print("[yellow]Warning: Some paths couldn't be accessed for DataFrame building[/yellow]")
+                    logger.warning(f"DataFrame building encountered permission errors on {root_path}, providing partial results")
+                    permission_errors_encountered = True
 
-                # Add DataFrame to the result
+                # Add DataFrame to the result (may be partial if there were permission errors)
                 result["dataframe"] = DataFrame(all_paths)
+                if permission_errors_encountered:
+                    # Add a note only if we actually encountered permission errors
+                    result["dataframe_note"] = "DataFrame may be incomplete due to permission restrictions"
 
                 if progress and task_id is not None:
                     progress.update(task_id, description="[bold green]DataFrame built!")
@@ -679,69 +691,109 @@ class DirectoryProfiler:
 
         try:
             # Walk through directory tree using pathlib for consistency
-            for current_path in root_path.rglob("*"):
-                processed_items += 1
-
-                # Update progress
-                if progress and task_id is not None:
-                    if processed_items % 100 == 0:  # Update every 100 items for performance
-                        progress.update(task_id, completed=processed_items)
-
-                    # Call custom progress callback if provided
-                    if self.progress_callback:
-                        self.progress_callback(f"Processing: {current_path.name}", processed_items, total_items or 0)
-
-                # Calculate current depth
-                try:
-                    depth = len(current_path.relative_to(root_path).parts)
-                except ValueError:
-                    depth = 0
-
-                # Skip if beyond max depth (match Rust implementation logic)
-                if max_depth is not None:
-                    if current_path.is_dir() and depth > max_depth:
-                        continue
-                    elif current_path.is_file() and depth > max_depth + 1:
-                        continue
-
-                # Add to paths collection if DataFrame is enabled
-                if self.build_dataframe:
-                    all_paths.append(str(current_path))
-
-                if current_path.is_dir():
-                    depth_stats[depth] += 1
-                    folder_count += 1
-
-                    # Check for empty folders
+            try:
+                for current_path in root_path.rglob("*"):
                     try:
-                        if not any(current_path.iterdir()):
-                            empty_folders.append(str(current_path))
+                        processed_items += 1
+
+                        # Update progress
+                        if progress and task_id is not None:
+                            if processed_items % 100 == 0:  # Update every 100 items for performance
+                                progress.update(task_id, completed=processed_items)
+
+                            # Call custom progress callback if provided
+                            if self.progress_callback:
+                                self.progress_callback(f"Processing: {current_path.name}", processed_items, total_items or 0)
+
+                        # Calculate current depth
+                        try:
+                            depth = len(current_path.relative_to(root_path).parts)
+                        except ValueError:
+                            depth = 0
+
+                        # Skip if beyond max depth (match Rust implementation logic)
+                        if max_depth is not None:
+                            try:
+                                if current_path.is_dir() and depth > max_depth:
+                                    continue
+                                elif current_path.is_file() and depth > max_depth + 1:
+                                    continue
+                            except (OSError, PermissionError):
+                                # Skip paths we can't access for depth checking
+                                continue
+
+                        # Add to paths collection if DataFrame is enabled
+                        if self.build_dataframe:
+                            all_paths.append(str(current_path))
+
+                        try:
+                            is_dir = current_path.is_dir()
+                            is_file = current_path.is_file()
+                        except (OSError, PermissionError):
+                            # Skip paths we can't determine type for
+                            continue
+
+                        if is_dir:
+                            depth_stats[depth] += 1
+                            folder_count += 1
+
+                            # Check for empty folders
+                            try:
+                                if not any(current_path.iterdir()):
+                                    empty_folders.append(str(current_path))
+                            except (OSError, PermissionError):
+                                # Skip directories we can't read
+                                pass
+
+                            # Analyze folder names for patterns
+                            folder_names[current_path.name] += 1
+
+                        elif is_file:
+                            file_count += 1
+
+                            # Count files in parent directory
+                            files_per_folder[str(current_path.parent)] += 1
+
+                            # Get file extension
+                            ext = current_path.suffix.lower()
+                            if ext:
+                                file_extensions[ext] += 1
+                            else:
+                                file_extensions["<no extension>"] += 1
+
+                            # Add to total size
+                            try:
+                                total_size += current_path.stat().st_size
+                            except (OSError, IOError):
+                                # Skip files we can't stat (permissions, broken symlinks, etc.)
+                                pass
+
                     except (OSError, PermissionError):
-                        # Skip directories we can't read
-                        pass
+                        # Skip individual files/directories we can't access
+                        continue
 
-                    # Analyze folder names for patterns
-                    folder_names[current_path.name] += 1
-
-                elif current_path.is_file():
-                    file_count += 1
-
-                    # Count files in parent directory
-                    files_per_folder[str(current_path.parent)] += 1
-
-                    # Get file extension
-                    ext = current_path.suffix.lower()
-                    if ext:
-                        file_extensions[ext] += 1
-                    else:
-                        file_extensions["<no extension>"] += 1
-
-                    # Add to total size
-                    try:
-                        total_size += current_path.stat().st_size
-                    except (OSError, IOError):
-                        # Skip files we can't stat (permissions, broken symlinks, etc.)
-                        pass
+            except (OSError, PermissionError):
+                # If rglob fails entirely, we can't analyze this directory
+                self.console.print(f"[yellow]Warning: Cannot access directory {root_path} - insufficient permissions[/yellow]")
+                # Return minimal result
+                return {
+                    "root_path": str(root_path),
+                    "summary": {
+                        "total_files": 0,
+                        "total_folders": 0,
+                        "total_size_bytes": 0,
+                        "total_size_mb": 0.0,
+                        "avg_files_per_folder": 0.0,
+                        "max_depth": 0,
+                        "empty_folder_count": 0,
+                    },
+                    "file_extensions": {},
+                    "common_folder_names": {},
+                    "empty_folders": [],
+                    "top_folders_by_file_count": [],
+                    "depth_distribution": {},
+                    "timing": {"error": "Permission denied"},
+                }
 
             # Final progress update
             if progress and task_id is not None:
