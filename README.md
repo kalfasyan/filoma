@@ -122,7 +122,7 @@ print(img_report)  # Shape, dtype, stats, etc.
 
 *Cold cache benchmarks on NVMe SSD. See [benchmarks](docs/benchmarks.md) for detailed methodology.*
 
-**System directories**: filoma automatically handles permission errors and falls back to Python implementation when needed for directories like `/proc`, `/sys`.
+**System directories**: filoma automatically handles permission errors for directories like `/proc`, `/sys`.
 
 ## Installation & Setup
 
