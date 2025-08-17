@@ -39,13 +39,16 @@ print(f"Extensions: {result['file_extensions']}")
 
 ## Key Features
 
-- **🚀 3 Performance Backends** - Automatic selection: Rust (2.5x faster), fd (competitive), Python (universal)
+
+- **🚀 3 Performance Backends** - Automatic selection: Rust (*~2.3x faster* **\***), fd (competitive), Python (baseline)
 - **📊 Directory Analysis** - File counts, extensions, empty folders, depth distribution, size statistics
 - **🔍 Smart File Search** - Advanced patterns with regex/glob support via FdSearcher
 - **📈 DataFrame Support** - Build Polars DataFrames for advanced analysis and filtering
 - **🖼️ Image Analysis** - Profile .tif, .png, .npy, .zarr files with metadata and statistics
 - **📁 File Profiling** - System metadata, permissions, timestamps, symlink analysis
 - **🎨 Rich Terminal Output** - Beautiful progress bars and formatted reports
+
+**\*** *According to [benchmarks](docs/benchmarks.md)*
 
 ## Examples
 
@@ -150,7 +153,16 @@ src/filoma/
 
 ## License
 
-This project is licensed under the MIT License.
+Shield: [![CC BY 4.0][cc-by-shield]][cc-by]
+
+This work is licensed under a
+[Creative Commons Attribution 4.0 International License][cc-by].
+
+[![CC BY 4.0][cc-by-image]][cc-by]
+
+[cc-by]: http://creativecommons.org/licenses/by/4.0/
+[cc-by-image]: https://i.creativecommons.org/l/by/4.0/88x31.png
+[cc-by-shield]: https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg
 
 ## Contributing
 
