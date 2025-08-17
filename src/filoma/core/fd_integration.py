@@ -25,7 +25,6 @@ class FdIntegration:
 
         if self.available:
             self.version = CommandRunner.get_command_version("fd")
-            logger.debug(f"fd available: {self.version}")
         else:
             logger.warning("fd command not found in PATH")
 

@@ -63,8 +63,6 @@ class CommandRunner:
         start_time = time.time()
 
         try:
-            logger.debug(f"Running command: {' '.join(cmd)}")
-
             result = subprocess.run(
                 cmd,
                 cwd=cwd,
@@ -76,7 +74,6 @@ class CommandRunner:
             )
 
             elapsed = time.time() - start_time
-            logger.debug(f"Command completed in {elapsed:.3f}s with exit code {result.returncode}")
 
             return result
 
