@@ -75,7 +75,7 @@ impl ParallelDirectoryStats {
     }
 
     fn add_folder(&self, name: String, is_empty: bool, path: String, depth: u32) {
-        self.total_folders.fetch_add(1, Ordering::Relaxed);
+    self.total_folders.fetch_add(1, Ordering::Relaxed);
         
         // Update max depth atomically
         self.max_depth.fetch_max(depth, Ordering::Relaxed);
@@ -259,6 +259,10 @@ mod analysis {
 }
 
 use analysis::*;
+
+// Async scanner module
+mod async_scan;
+use async_scan::analyze_directory_rust_async;
 
 /// Sequential directory analysis engine
 mod sequential {
@@ -558,5 +562,6 @@ fn should_use_parallel_analysis(root: &Path, config: &AnalysisConfig) -> bool {
 fn filoma_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(analyze_directory_rust, m)?)?;
     m.add_function(wrap_pyfunction!(analyze_directory_rust_parallel, m)?)?;
+    m.add_function(wrap_pyfunction!(analyze_directory_rust_async, m)?)?;
     Ok(())
 }

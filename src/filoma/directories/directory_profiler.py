@@ -24,6 +24,14 @@ except ImportError:
         RUST_AVAILABLE = False
         RUST_PARALLEL_AVAILABLE = False
 
+# Optional async analyzer if compiled with tokio support
+try:
+    from filoma.filoma_core import analyze_directory_rust_async  # type: ignore
+
+    RUST_ASYNC_AVAILABLE = True
+except Exception:
+    RUST_ASYNC_AVAILABLE = False
+
 # Import DataFrame for enhanced functionality
 try:
     from ..dataframe import DataFrame
@@ -80,7 +88,10 @@ class DirectoryProfiler:
         build_dataframe: bool = False,
         show_progress: bool = True,
         progress_callback: Optional[Callable[[str, int, int], None]] = None,
-        fast_path_only: bool = False,
+    fast_path_only: bool = False,
+    network_concurrency: int = 64,
+    network_timeout_ms: int = 5000,
+    network_retries: int = 0,
     ):
         """
         Initialize the directory profiler.
@@ -121,6 +132,11 @@ class DirectoryProfiler:
 
         self.progress_callback = progress_callback
         self._fast_path_only = fast_path_only
+
+        # Network tuning
+        self.network_concurrency = network_concurrency
+        self.network_timeout_ms = network_timeout_ms
+        self.network_retries = network_retries
 
         # Initialize fd integration if available
         self.fd_integration = None
@@ -582,11 +598,41 @@ class DirectoryProfiler:
             task_id = progress.add_task("Analyzing...", total=None)
 
         try:
-            # Get the main analysis from Rust
-            if self.use_parallel and RUST_PARALLEL_AVAILABLE:
-                result = analyze_directory_rust_parallel(root_path, max_depth, self.parallel_threshold, fast_path_only)
+            # Choose Rust variant: async for network filesystems, sync otherwise
+            try:
+                fs_type = self._detect_filesystem_type(root_path)
+            except Exception:
+                fs_type = None
+
+            is_network_fs = False
+            if fs_type:
+                # Common network FS types
+                if any(x in fs_type.lower() for x in ("nfs", "cifs", "smb", "ceph", "gluster", "sshfs")):
+                    is_network_fs = True
+
+            # If network FS choose async Rust analyzer which limits concurrency and uses tokio
+            if is_network_fs:
+                # Default concurrency limit can be tuned; use configured values
+                if RUST_ASYNC_AVAILABLE:
+                    result = analyze_directory_rust_async(
+                        root_path,
+                        max_depth,
+                        self.network_concurrency,
+                        self.network_timeout_ms,
+                        self.network_retries,
+                        fast_path_only,
+                    )
+                else:
+                    # Async variant not available; fall back to parallel or sequential Rust
+                    if self.use_parallel and RUST_PARALLEL_AVAILABLE:
+                        result = analyze_directory_rust_parallel(root_path, max_depth, self.parallel_threshold, fast_path_only)
+                    else:
+                        result = analyze_directory_rust(root_path, max_depth, fast_path_only)
             else:
-                result = analyze_directory_rust(root_path, max_depth, fast_path_only)
+                if self.use_parallel and RUST_PARALLEL_AVAILABLE:
+                    result = analyze_directory_rust_parallel(root_path, max_depth, self.parallel_threshold, fast_path_only)
+                else:
+                    result = analyze_directory_rust(root_path, max_depth, fast_path_only)
 
             # Update progress to show completion
             if progress and task_id is not None:
@@ -896,6 +942,39 @@ class DirectoryProfiler:
             True if DataFrame building is enabled, False otherwise
         """
         return self.build_dataframe and DATAFRAME_AVAILABLE
+
+    def _detect_filesystem_type(self, path: str) -> Optional[str]:
+        """
+        Attempt to detect the filesystem type for a given path.
+
+        Returns the fs type string (e.g., 'nfs', 'ext4') or None if not detected.
+        """
+        import os
+
+        try:
+            # Parse /proc/mounts for the mount containing the path
+            mounts = []
+            with open("/proc/mounts", "r") as f:
+                for line in f:
+                    parts = line.split()
+                    if len(parts) >= 3:
+                        mounts.append((parts[1], parts[2]))  # (mount_point, fs_type)
+
+            # Find best match by longest mount_point prefix
+            best = ("", None)
+            p = os.path.abspath(path)
+            for mnt, fst in mounts:
+                if p.startswith(mnt) and len(mnt) > len(best[0]):
+                    best = (mnt, fst)
+
+            if best[1]:
+                return best[1]
+
+        except Exception:
+            pass
+
+        # Fallback: try os.statvfs and map f_fsid is not portable; return None
+        return None
 
     def print_file_extensions(self, analysis: Dict, top_n: int = 10):
         """Print the most common file extensions."""

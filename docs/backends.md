@@ -35,6 +35,23 @@ profiler.print_summary(result)
 # Shows: "Directory Analysis: /path (🦀 Rust)" or "🔍 fd" or "🐍 Python"
 ```
 
+### 🦀 Rust Async (Network-optimized)
+
+- **When**: Automatically selected for network-mounted filesystems (NFS/CIFS/SMB/Gluster/SSHFS) when available.
+- **Why**: Uses a tokio-based scanner with bounded concurrency to hide network latency and avoid overwhelming remote servers.
+- **Tuning**: `DirectoryProfiler` accepts network tuning parameters:
+    - `network_concurrency` (int): maximum outstanding directory ops (default 64)
+    - `network_timeout_ms` (int): per-operation timeout in milliseconds (default 5000)
+    - `network_retries` (int): number of retries on transient failures (default 0)
+
+Use these to tune behavior on slow or flaky mounts. Example:
+
+```python
+profiler = DirectoryProfiler(network_concurrency=32, network_timeout_ms=2000, network_retries=1)
+```
+
+If the async Rust backend isn't compiled into your wheel, filoma will fall back to the existing Rust or fd backends.
+
 ## Manual Backend Selection
 
 ```python
