@@ -88,10 +88,10 @@ class DirectoryProfiler:
         build_dataframe: bool = False,
         show_progress: bool = True,
         progress_callback: Optional[Callable[[str, int, int], None]] = None,
-    fast_path_only: bool = False,
-    network_concurrency: int = 64,
-    network_timeout_ms: int = 5000,
-    network_retries: int = 0,
+        fast_path_only: bool = False,
+        network_concurrency: int = 64,
+        network_timeout_ms: int = 5000,
+        network_retries: int = 0,
     ):
         """
         Initialize the directory profiler.

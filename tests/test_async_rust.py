@@ -8,6 +8,7 @@ from filoma.directories import DirectoryProfiler
 
 try:
     from filoma.filoma_core import analyze_directory_rust_async
+
     ASYNC_AVAILABLE = True
 except Exception:
     ASYNC_AVAILABLE = False
