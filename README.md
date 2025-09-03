@@ -60,12 +60,6 @@ from filoma.directories import DirectoryProfiler
 profiler = DirectoryProfiler()
 result = profiler.analyze("/path/to/directory", max_depth=3)
 profiler.print_summary(result)
-
-# Access specific data
-print(f"📁 Files: {result['summary']['total_files']}")
-print(f"📂 Folders: {result['summary']['total_folders']}")
-print(f"🗂️ Empty folders: {result['summary']['empty_folder_count']}")
-print(f"📄 Extensions: {result['file_extensions']}")
 ```
 
 ### Smart File Search
