@@ -20,13 +20,12 @@ class FdIntegration:
 
     def __init__(self):
         """Initialize fd integration and check availability."""
-        self.available = CommandRunner.check_command_available("fd")
-        self.version = None
+        # Prefer a sanity-checked fd: ensure that invoking `fd --version` returns usable output.
+        self.version = CommandRunner.get_command_version("fd")
+        self.available = bool(self.version)
 
-        if self.available:
-            self.version = CommandRunner.get_command_version("fd")
-        else:
-            logger.warning("fd command not found in PATH")
+        if not self.available:
+            logger.warning("fd command not found or not usable in PATH")
 
     def is_available(self) -> bool:
         """Check if fd is available for use."""
