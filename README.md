@@ -98,8 +98,17 @@ from filoma.images import PngProfiler
 
 # File metadata
 file_profiler = FileProfiler()
-report = file_profiler.profile("/path/to/file.txt")
+
+# 1) dict-style (legacy) — returns the same report dict that print_report expects
+report = file_profiler.analyze("/path/to/file.txt")
 file_profiler.print_report(report)
+
+# 2) dataclass-style (recommended) — returns a `Filo` dataclass with attribute access
+#    `compute_hash=True` will compute a SHA256 fingerprint (optional/expensive)
+filo = file_profiler.analyze_filo("/path/to/file.txt", compute_hash=True)
+print(filo)               # dataclass repr; access fields like filo.path, filo.sha256
+print(filo.sha256)        # full SHA256 (if computed)
+print(filo.to_dict())     # convert to plain dict
 
 # Image analysis
 img_profiler = PngProfiler()

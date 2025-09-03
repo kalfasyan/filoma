@@ -1,9 +1,11 @@
+from dataclasses import dataclass, asdict
 import datetime
 import grp
 import os
+from pathlib import Path
 import pwd
 import stat
-from pathlib import Path
+from typing import Optional, Dict, Any
 
 from rich.console import Console
 from rich.table import Table
@@ -86,6 +88,16 @@ class FileProfiler:
             report["is_dir"] = is_dir
         return report
 
+    def analyze_filo(self, path: str, compute_hash: bool = False) -> "Filo":
+        """Return a Filo dataclass instance containing the collected stats.
+
+        This is a convenience wrapper that keeps `analyze` unchanged for
+        backward compatibility while offering a structured return type.
+        """
+        # call existing analyze which supports the (path, compute_hash) tuple hack
+        report = self.analyze((path, compute_hash))
+        return Filo.from_report(report)
+
     def print_report(self, report: dict):
         console = Console()
         table = Table(title=f"File Profile: {report['path']}")
@@ -144,3 +156,89 @@ class FileProfiler:
         except Exception:
             pass
         return None
+
+
+@dataclass
+class Filo:
+    """Structured container for file metadata collected by FileProfiler.
+
+    `path` is a pathlib.Path and date fields are datetime.datetime objects.
+    """
+
+    path: Path
+    size: Optional[int] = None
+    mode: Optional[str] = None
+    mode_str: Optional[str] = None
+    owner: Optional[str] = None
+    group: Optional[str] = None
+    created: Optional[datetime.datetime] = None
+    modified: Optional[datetime.datetime] = None
+    accessed: Optional[datetime.datetime] = None
+    is_symlink: Optional[bool] = None
+    is_file: Optional[bool] = None
+    is_dir: Optional[bool] = None
+    target_is_file: Optional[bool] = None
+    target_is_dir: Optional[bool] = None
+    rights: Optional[Dict[str, bool]] = None
+    inode: Optional[int] = None
+    nlink: Optional[int] = None
+    sha256: Optional[str] = None
+    xattrs: Optional[Dict[str, Any]] = None
+
+    @classmethod
+    def from_report(cls, report: dict) -> "Filo":
+        # Convert path string to Path
+        path_val = report.get("path")
+        path_obj = Path(path_val) if path_val is not None else None
+
+        def _parse_dt(v):
+            if not v:
+                return None
+            if isinstance(v, datetime.datetime):
+                return v
+            try:
+                return datetime.datetime.strptime(v, "%Y-%m-%d %H:%M:%S")
+            except Exception:
+                # fallback: leave as None
+                return None
+
+        created = _parse_dt(report.get("created"))
+        modified = _parse_dt(report.get("modified"))
+        accessed = _parse_dt(report.get("accessed"))
+
+        return cls(
+            path=path_obj,
+            size=report.get("size"),
+            mode=report.get("mode"),
+            mode_str=report.get("mode_str"),
+            owner=report.get("owner"),
+            group=report.get("group"),
+            created=created,
+            modified=modified,
+            accessed=accessed,
+            is_symlink=report.get("is_symlink"),
+            is_file=report.get("is_file"),
+            is_dir=report.get("is_dir"),
+            target_is_file=report.get("target_is_file"),
+            target_is_dir=report.get("target_is_dir"),
+            rights=report.get("rights"),
+            inode=report.get("inode"),
+            nlink=report.get("nlink"),
+            sha256=report.get("sha256"),
+            xattrs=report.get("xattrs"),
+        )
+
+    def to_dict(self) -> dict:
+        """Convert to a JSON-serializable dict (Path->str, datetime->isoformat)."""
+        d = asdict(self)
+        # path -> str
+        if isinstance(self.path, Path):
+            d["path"] = str(self.path)
+        # datetime fields -> ISO strings
+        for key in ("created", "modified", "accessed"):
+            val = getattr(self, key)
+            if isinstance(val, datetime.datetime):
+                d[key] = val.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                d[key] = None
+        return d
