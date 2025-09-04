@@ -18,7 +18,7 @@ class FileProfiler:
     Also reports current user's access rights.
     """
 
-    def analyze(self, path: str) -> dict:
+    def probe(self, path: str) -> dict:
         # Use pathlib for path handling and return resolved full path
         # compute_hash: optional boolean to compute SHA256 (may be slow for large files)
         compute_hash = False
@@ -88,14 +88,14 @@ class FileProfiler:
             report["is_dir"] = is_dir
         return report
 
-    def analyze_filo(self, path: str, compute_hash: bool = False) -> "Filo":
+    def probe_filo(self, path: str, compute_hash: bool = False) -> "Filo":
         """Return a Filo dataclass instance containing the collected stats.
 
-        This is a convenience wrapper that keeps `analyze` unchanged for
+        This is a convenience wrapper that keeps `probe` unchanged for
         backward compatibility while offering a structured return type.
         """
-        # call existing analyze which supports the (path, compute_hash) tuple hack
-        report = self.analyze((path, compute_hash))
+        # call existing probe which supports the (path, compute_hash) tuple hack
+        report = self.probe((path, compute_hash))
         return Filo.from_report(report)
 
     def print_report(self, report: dict):

@@ -26,7 +26,7 @@ def test_directory_profiler_basic():
 
         # Test the profiler
         profiler = DirectoryProfiler()
-        result = profiler.analyze(str(tmp_path))
+        result = profiler.probe(str(tmp_path))
 
         # Verify results
         assert result["summary"]["total_files"] == 4
@@ -51,7 +51,7 @@ def test_directory_profiler_max_depth():
         profiler = DirectoryProfiler()
 
         # Test with max_depth=2
-        result = profiler.analyze(str(tmp_path), max_depth=2)
+        result = profiler.probe(str(tmp_path), max_depth=2)
 
         # Should find files at level 1 and 2, but not level 3
         assert result["summary"]["total_files"] == 2

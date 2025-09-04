@@ -24,7 +24,7 @@ uv add filoma  # or: pip install filoma
 ```python
 from filoma.directories import DirectoryProfiler
 profiler = DirectoryProfiler()
-res = profiler.analyze("/", max_depth=3)
+res = profiler.probe("/", max_depth=3)
 profiler.print_summary(res)
 ```
 Example output:
@@ -62,12 +62,12 @@ Directory Analysis: / (🦀 Rust (Parallel)) - 29.56s
 
 ### Directory Analysis
 
-The simplest way to analyze a directory and print a summary:
+The simplest way to probe a directory and print a summary:
 ```python
 from filoma.directories import DirectoryProfiler
 
 profiler = DirectoryProfiler()
-res = profiler.analyze("/", max_depth=3)
+res = profiler.probe("/", max_depth=3)
 profiler.print_summary(res)
 ```
 
@@ -87,7 +87,7 @@ profiler = DirectoryProfiler(
     network_retries=2          # Retries for transient errors
 )
 
-result = profiler.analyze("/mnt/nfs/share")
+result = profiler.probe("/mnt/nfs/share")
 profiler.print_summary(result)
 ```
 
@@ -123,10 +123,10 @@ config_files = searcher.find_files(pattern="*.{json,yaml}", use_glob=True)
 ```python
 # Build DataFrame for advanced analysis
 profiler = DirectoryProfiler(build_dataframe=True)
-result = profiler.analyze(".")
+result = profiler.probe(".")
 df = profiler.get_dataframe(result)
 
-# Add path components and analyze
+# Add path components and probe
 df = df.add_path_components().add_file_stats()
 python_files = df.filter_by_extension('.py')
 df.save_csv("analysis.csv")
@@ -142,19 +142,19 @@ from filoma.images import PngProfiler
 file_profiler = FileProfiler()
 
 # 1) dict-style (legacy) — returns the same report dict that print_report expects
-report = file_profiler.analyze("/path/to/file.txt")
+report = file_profiler.probe("/path/to/file.txt")
 file_profiler.print_report(report)
 
 # 2) dataclass-style (recommended) — returns a `Filo` dataclass with attribute access
 #    `compute_hash=True` will compute a SHA256 fingerprint (optional/expensive)
-filo = file_profiler.analyze_filo("/path/to/file.txt", compute_hash=True)
+filo = file_profiler.probe_filo("/path/to/file.txt", compute_hash=True)
 print(filo)               # dataclass repr; access fields like filo.path, filo.sha256
 print(filo.sha256)        # full SHA256 (if computed)
 print(filo.to_dict())     # convert to plain dict
 
 # Image analysis
 img_profiler = PngProfiler()
-img_report = img_profiler.analyze("/path/to/image.png")
+img_report = img_profiler.probe("/path/to/image.png")
 print(img_report)  # Shape, dtype, stats, etc.
 ```
 

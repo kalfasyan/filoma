@@ -76,7 +76,7 @@ def test_fd_integration():
         print("   ✅ DirectoryProfiler fd backend available")
 
         # Quick test on current directory
-        result = profiler.analyze(".", max_depth=2)
+        result = profiler.probe(".", max_depth=2)
         print(f"   ✅ Analysis completed: {result['summary']['total_files']} files found")
         print(f"   ✅ Backend used: {result['timing']['implementation']}")
         assert "summary" in result and "total_files" in result["summary"]
@@ -114,9 +114,9 @@ def test_backend_comparison():
                 # Suppress the progress warning here so the dedicated warning test can assert it
                 with warnings.catch_warnings():
                     warnings.filterwarnings("ignore", message=WARNING_REGEX)
-                    result = profiler.analyze(test_dir, max_depth=max_depth)
+                    result = profiler.probe(test_dir, max_depth=max_depth)
             else:
-                result = profiler.analyze(test_dir, max_depth=max_depth)
+                result = profiler.probe(test_dir, max_depth=max_depth)
             elapsed = time.time() - start_time
 
             backends.append(
@@ -182,18 +182,18 @@ def test_rust_progress_warning_expected():
     # The profiler emits an informational UserWarning about limited progress updates.
     with pytest.warns(UserWarning, match=WARNING_REGEX):
         profiler = DirectoryProfiler(search_backend="rust")
-        _ = profiler.analyze(".", max_depth=2)
+        _ = profiler.probe(".", max_depth=2)
 
 
 def test_rust_progress_warning_suppressed():
-    """Run the same profiler analyze while explicitly suppressing the progress warning."""
+    """Run the same profiler probe while explicitly suppressing the progress warning."""
     if not RUST_AVAILABLE_LOCAL:
         pytest.skip("Rust backend not available")
 
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message=WARNING_REGEX)
         profiler = DirectoryProfiler(search_backend="rust")
-        _ = profiler.analyze(".", max_depth=2)
+        _ = profiler.probe(".", max_depth=2)
 
 
 if __name__ == "__main__":

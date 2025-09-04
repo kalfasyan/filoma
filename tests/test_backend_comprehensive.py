@@ -81,7 +81,7 @@ class TestBackendComprehensive:
     def test_python_backend_basic(self, test_directory):
         """Test Python backend basic functionality."""
         profiler = DirectoryProfiler(search_backend="python", show_progress=False)
-        result = profiler.analyze(test_directory)
+        result = profiler.probe(test_directory)
 
         # Verify basic counts
         assert result["summary"]["total_files"] >= 12  # At least our created files
@@ -99,11 +99,11 @@ class TestBackendComprehensive:
         empty_folders = [Path(p).name for p in result["empty_folders"]]
         assert "empty_dir" in empty_folders
 
-    @pytest.mark.skipif(not hasattr(DirectoryProfiler(show_progress=False), "_analyze_rust"), reason="Rust backend not available")
+    @pytest.mark.skipif(not hasattr(DirectoryProfiler(show_progress=False), "_probe_rust"), reason="Rust backend not available")
     def test_rust_backend_basic(self, test_directory):
         """Test Rust backend basic functionality."""
         profiler = DirectoryProfiler(search_backend="rust", show_progress=False)
-        result = profiler.analyze(test_directory)
+        result = profiler.probe(test_directory)
 
         # Verify basic counts
         assert result["summary"]["total_files"] >= 12
@@ -122,7 +122,7 @@ class TestBackendComprehensive:
             pytest.skip("fd not available")
 
         profiler = DirectoryProfiler(search_backend="fd", show_progress=False)
-        result = profiler.analyze(test_directory)
+        result = profiler.probe(test_directory)
 
         # Verify basic counts
         assert result["summary"]["total_files"] >= 12
@@ -137,12 +137,12 @@ class TestBackendComprehensive:
 
         # Python (always available)
         profiler_py = DirectoryProfiler(search_backend="python", show_progress=False)
-        results["python"] = profiler_py.analyze(test_directory)
+        results["python"] = profiler_py.probe(test_directory)
 
         # Rust (if available)
         try:
             profiler_rust = DirectoryProfiler(search_backend="rust", show_progress=False)
-            rust_result = profiler_rust.analyze(test_directory)
+            rust_result = profiler_rust.probe(test_directory)
             results["rust"] = rust_result
         except Exception:
             pass
@@ -150,7 +150,7 @@ class TestBackendComprehensive:
         # fd (if available)
         if fd.is_available():
             profiler_fd = DirectoryProfiler(search_backend="fd", show_progress=False)
-            results["fd"] = profiler_fd.analyze(test_directory)
+            results["fd"] = profiler_fd.probe(test_directory)
 
         # Compare results between backends
         if len(results) >= 2:
@@ -181,7 +181,7 @@ class TestBackendComprehensive:
         # Test Python
         profiler_py = DirectoryProfiler(search_backend="python", show_progress=False)
         start_time = time.time()
-        result_py = profiler_py.analyze(test_directory)
+        result_py = profiler_py.probe(test_directory)
         py_time = time.time() - start_time
         performance_results["python"] = {"time": py_time, "files": result_py["summary"]["total_files"]}
 
@@ -189,7 +189,7 @@ class TestBackendComprehensive:
         try:
             profiler_rust = DirectoryProfiler(search_backend="rust", show_progress=False)
             start_time = time.time()
-            result_rust = profiler_rust.analyze(test_directory)
+            result_rust = profiler_rust.probe(test_directory)
             rust_time = time.time() - start_time
             performance_results["rust"] = {"time": rust_time, "files": result_rust["summary"]["total_files"]}
         except Exception:
@@ -199,7 +199,7 @@ class TestBackendComprehensive:
         if fd.is_available():
             profiler_fd = DirectoryProfiler(search_backend="fd", show_progress=False)
             start_time = time.time()
-            result_fd = profiler_fd.analyze(test_directory)
+            result_fd = profiler_fd.probe(test_directory)
             fd_time = time.time() - start_time
             performance_results["fd"] = {"time": fd_time, "files": result_fd["summary"]["total_files"]}
 
@@ -215,9 +215,9 @@ class TestBackendComprehensive:
     def test_auto_backend_selection(self, test_directory):
         """Test that auto backend selection works correctly."""
         profiler = DirectoryProfiler(show_progress=False)  # Uses auto selection
-        result = profiler.analyze(test_directory)
+        result = profiler.probe(test_directory)
 
-        # Should successfully analyze the directory
+        # Should successfully probe the directory
         assert result["summary"]["total_files"] >= 12
         assert result["summary"]["total_folders"] >= 8
 
@@ -227,7 +227,7 @@ class TestBackendComprehensive:
 
         # Should prefer Rust > fd > Python based on our updated logic
         fd = FdIntegration()
-        if hasattr(profiler, "_analyze_rust") and profiler.use_rust:
+        if hasattr(profiler, "_probe_rust") and profiler.use_rust:
             assert chosen_backend == "rust", "Auto selection should prefer Rust when available"
         elif fd.is_available():
             assert chosen_backend == "fd", "Auto selection should prefer fd when Rust unavailable"
@@ -260,7 +260,7 @@ class TestBackendComprehensive:
 
         results = {}
         for backend_name, profiler in backends_to_test:
-            result = profiler.analyze(test_directory, max_depth=max_depth)
+            result = profiler.probe(test_directory, max_depth=max_depth)
             results[backend_name] = result
 
         # Compare results between backends

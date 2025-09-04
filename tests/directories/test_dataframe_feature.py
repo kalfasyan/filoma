@@ -20,7 +20,7 @@ def test_dataframe_functionality():
     # Test with DataFrame enabled
     profiler = DirectoryProfiler(
         use_rust=False,  # Use Python implementation for testing
-        build_dataframe=True
+        build_dataframe=True,
     )
 
     print(f"DataFrame enabled: {profiler.is_dataframe_enabled()}")
@@ -31,7 +31,7 @@ def test_dataframe_functionality():
     print(f"\nAnalyzing directory: {current_dir}")
 
     try:
-        analysis = profiler.analyze(str(current_dir), max_depth=2)
+        analysis = profiler.probe(str(current_dir), max_depth=2)
 
         # Print basic summary
         profiler.print_summary(analysis)
@@ -57,7 +57,7 @@ def test_dataframe_functionality():
             print(ext_counts)
 
             # Filter Python files
-            py_files = df.filter_by_extension(['.py', '.pyc'])
+            py_files = df.filter_by_extension([".py", ".pyc"])
             print(f"\n🐍 Found {len(py_files)} Python files")
             if len(py_files) > 0:
                 print(py_files.head())
@@ -73,12 +73,13 @@ def test_dataframe_functionality():
     except Exception as e:
         print(f"❌ Error during analysis: {e}")
         import traceback
+
         traceback.print_exc()
 
 
 def test_standalone_dataframe():
     """Test the standalone DataFrame class."""
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("Testing standalone DataFrame class...")
 
     # Create a DataFrame with some test paths
@@ -103,7 +104,7 @@ def test_standalone_dataframe():
     print(df_with_components.df)
 
     # Filter by extension
-    py_files = df.filter_by_extension('.py')
+    py_files = df.filter_by_extension(".py")
     print(f"\nPython files ({len(py_files)}):")
     print(py_files.df)
 

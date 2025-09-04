@@ -12,7 +12,7 @@ def test_png_checker(tmp_path):
     img.save(png_path)
 
     checker = PngProfiler()
-    report = checker.analyze(png_path)
+    report = checker.probe(png_path)
     assert report["file_type"] == "png"
     assert report["shape"] == (2, 2)
     assert report["min"] == 0

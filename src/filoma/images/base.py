@@ -9,7 +9,7 @@ class BaseImageProfiler(ABC):
         self.console = Console()
 
     @abstractmethod
-    def analyze(self, path):
+    def probe(self, path):
         """Perform analysis and return a report (dict or custom object)."""
         pass
 

@@ -107,7 +107,7 @@ def benchmark_backend(backend_name, directory, iterations=3):
     for i in range(iterations):
         clear_filesystem_cache()
         start = time.time()
-        result = profiler.analyze(directory)
+        result = profiler.probe(directory)
         elapsed = time.time() - start
         times.append(elapsed)
         
@@ -149,12 +149,12 @@ if results:
 # Cold cache (realistic)
 clear_filesystem_cache()
 start = time.time()
-result = profiler.analyze("/test/directory")
+result = profiler.probe("/test/directory")
 cold_time = time.time() - start
 
 # Warm cache (for comparison only)
 start = time.time()
-result = profiler.analyze("/test/directory")  
+result = profiler.probe("/test/directory")  
 warm_time = time.time() - start
 
 print(f"Cold cache: {cold_time:.3f}s (realistic)")

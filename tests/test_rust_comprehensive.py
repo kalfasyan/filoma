@@ -67,14 +67,14 @@ class TestRustBackend:
         # Test Python
         profiler_py = DirectoryProfiler(search_backend="python", show_progress=False)
         start_py = time.time()
-        result_py = profiler_py.analyze(large_test_structure)
+        result_py = profiler_py.probe(large_test_structure)
         time_py = time.time() - start_py
 
         # Test Rust (if available)
         try:
             profiler_rust = DirectoryProfiler(search_backend="rust", show_progress=False)
             start_rust = time.time()
-            result_rust = profiler_rust.analyze(large_test_structure)
+            result_rust = profiler_rust.probe(large_test_structure)
             time_rust = time.time() - start_rust
 
             # Rust should be faster (or at least not much slower)
@@ -99,13 +99,13 @@ class TestRustBackend:
             # Test with parallel disabled
             profiler_seq = DirectoryProfiler(search_backend="rust", use_parallel=False, show_progress=False)
             start_seq = time.time()
-            result_seq = profiler_seq.analyze(large_test_structure)
+            result_seq = profiler_seq.probe(large_test_structure)
             time_seq = time.time() - start_seq
 
             # Test with parallel enabled
             profiler_par = DirectoryProfiler(search_backend="rust", use_parallel=True, show_progress=False)
             start_par = time.time()
-            result_par = profiler_par.analyze(large_test_structure)
+            result_par = profiler_par.probe(large_test_structure)
             time_par = time.time() - start_par
 
             print(f"\n🔧 Rust Sequential: {time_seq:.3f}s")
@@ -129,13 +129,13 @@ class TestRustBackend:
             # Test full analysis
             profiler_full = DirectoryProfiler(search_backend="rust", fast_path_only=False, show_progress=False)
             start_full = time.time()
-            result_full = profiler_full.analyze(large_test_structure)
+            result_full = profiler_full.probe(large_test_structure)
             time_full = time.time() - start_full
 
             # Test fast path
             profiler_fast = DirectoryProfiler(search_backend="rust", fast_path_only=True, show_progress=False)
             start_fast = time.time()
-            result_fast = profiler_fast.analyze(large_test_structure)
+            result_fast = profiler_fast.probe(large_test_structure)
             time_fast = time.time() - start_fast
 
             print(f"\n⚡ Rust Full Analysis: {time_full:.3f}s")
@@ -162,7 +162,7 @@ class TestRustBackend:
             results = {}
 
             for depth in depths:
-                result = profiler.analyze(large_test_structure, max_depth=depth)
+                result = profiler.probe(large_test_structure, max_depth=depth)
                 results[depth] = result
                 print(f"📏 Depth {depth}: {result['summary']['total_files']} files, {result['summary']['total_folders']} folders")
 
@@ -188,7 +188,7 @@ class TestRustBackend:
 
             try:
                 profiler = DirectoryProfiler(search_backend="rust", show_progress=False)
-                result = profiler.analyze(str(tmp_path))
+                result = profiler.probe(str(tmp_path))
 
                 # Should detect empty directories
                 assert result["summary"]["empty_folder_count"] >= 3  # empty1, empty2, deep_empty
@@ -215,7 +215,7 @@ class TestRustBackend:
 
             try:
                 profiler = DirectoryProfiler(search_backend="rust", show_progress=False)
-                result = profiler.analyze(str(tmp_path))
+                result = profiler.probe(str(tmp_path))
 
                 # Should handle all files
                 assert result["summary"]["total_files"] == 4
@@ -234,7 +234,7 @@ class TestRustBackend:
         """Test Rust backend extension detection accuracy."""
         try:
             profiler = DirectoryProfiler(search_backend="rust", show_progress=False)
-            result = profiler.analyze(large_test_structure)
+            result = profiler.probe(large_test_structure)
 
             # Should detect the extensions we created
             extensions = result["file_extensions"]
@@ -258,11 +258,11 @@ class TestRustBackend:
 
             # Test non-existent directory
             with pytest.raises(Exception):  # Should raise appropriate error
-                profiler.analyze("/nonexistent/directory/path")
+                profiler.probe("/nonexistent/directory/path")
 
             # Test with permission issues (if we can create them)
             with tempfile.TemporaryDirectory() as tmp_dir:
-                result = profiler.analyze(tmp_dir)  # Empty directory should work
+                result = profiler.probe(tmp_dir)  # Empty directory should work
                 assert result["summary"]["total_files"] == 0
                 assert result["summary"]["total_folders"] == 1  # Just the root
 

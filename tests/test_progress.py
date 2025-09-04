@@ -12,6 +12,7 @@ from filoma.directories import DirectoryProfiler
 
 # Use print instead of logger for standalone test script
 
+
 def test_progress_features():
     """Test the new progress and timing features."""
     print("=" * 80)
@@ -49,12 +50,12 @@ def test_progress_features():
             use_rust=config.get("use_rust", True),
             use_parallel=config.get("use_parallel", True),
             show_progress=config.get("show_progress", True),
-            build_dataframe=False
+            build_dataframe=False,
         )
         impl_info = profiler.get_implementation_info()
         print(f"Implementation: {impl_info}")
         try:
-            result = profiler.analyze(str(test_dir), max_depth=2)
+            result = profiler.probe(str(test_dir), max_depth=2)
             profiler.print_summary(result)
             if "timing" in result:
                 timing = result["timing"]
@@ -67,26 +68,26 @@ def test_progress_features():
         print("\n" + "=" * 50)
         time.sleep(0.5)
 
+
 def test_custom_progress_callback():
     """Test custom progress callback functionality."""
     print("\n🔄 Testing Custom Progress Callback")
     print("-" * 50)
+
     def custom_callback(message: str, current: int, total: int):
         if total > 0:
             percentage = (current / total) * 100
             print(f"📊 {message} - {current:,}/{total:,} ({percentage:.1f}%)")
         else:
             print(f"📊 {message} - {current:,} items processed")
-    profiler = DirectoryProfiler(
-        use_rust=False,
-        show_progress=False,
-        progress_callback=custom_callback
-    )
+
+    profiler = DirectoryProfiler(use_rust=False, show_progress=False, progress_callback=custom_callback)
     test_dir = Path.cwd()
-    result = profiler.analyze(str(test_dir), max_depth=1)
+    result = profiler.probe(str(test_dir), max_depth=1)
     print("✅ Custom callback test completed!")
     print(f"   - Found {result['summary']['total_files']} files")
     print(f"   - Found {result['summary']['total_folders']} folders")
+
 
 def test_large_directory():
     """Test with a larger directory to better see progress indication."""
@@ -105,14 +106,10 @@ def test_large_directory():
                     file_path = sub_dir / f"file_{k}.txt"
                     file_path.write_text(f"Content of file {k} in {sub_dir}")
         print("Test directory structure created. Starting analysis...")
-        profiler = DirectoryProfiler(
-            use_rust=True,
-            use_parallel=True,
-            show_progress=True,
-            build_dataframe=False
-        )
-        result = profiler.analyze(temp_dir)
+        profiler = DirectoryProfiler(use_rust=True, use_parallel=True, show_progress=True, build_dataframe=False)
+        result = profiler.probe(temp_dir)
         profiler.print_summary(result)
+
 
 if __name__ == "__main__":
     test_progress_features()

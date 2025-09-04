@@ -22,13 +22,10 @@ def compare_implementations():
 
     # Test Python implementation
     print("🐍 Testing Python implementation...")
-    profiler_python = DirectoryProfiler(
-        use_rust=False,
-        build_dataframe=True
-    )
+    profiler_python = DirectoryProfiler(use_rust=False, build_dataframe=True)
 
     start_time = time.time()
-    analysis_python = profiler_python.analyze(current_dir, max_depth=2)
+    analysis_python = profiler_python.probe(current_dir, max_depth=2)
     python_time = time.time() - start_time
 
     df_python = profiler_python.get_dataframe(analysis_python)
@@ -36,13 +33,10 @@ def compare_implementations():
 
     # Test Rust implementation
     print("🦀 Testing Rust implementation...")
-    profiler_rust = DirectoryProfiler(
-        use_rust=True,
-        build_dataframe=True
-    )
+    profiler_rust = DirectoryProfiler(use_rust=True, build_dataframe=True)
 
     start_time = time.time()
-    analysis_rust = profiler_rust.analyze(current_dir, max_depth=2)
+    analysis_rust = profiler_rust.probe(current_dir, max_depth=2)
     rust_time = time.time() - start_time
 
     df_rust = profiler_rust.get_dataframe(analysis_rust)
@@ -73,8 +67,8 @@ def compare_implementations():
     print(f"   Rust extensions:   {len(rust_extensions)} unique")
 
     # Compare Python files
-    py_files_python = df_python.filter_by_extension('.py')
-    py_files_rust = df_rust.filter_by_extension('.py')
+    py_files_python = df_python.filter_by_extension(".py")
+    py_files_rust = df_rust.filter_by_extension(".py")
     print(f"   Python files (Python impl): {len(py_files_python)}")
     print(f"   Python files (Rust impl):   {len(py_files_rust)}")
     print(f"   Same Python file count: {'✅' if len(py_files_python) == len(py_files_rust) else '❌'}")
@@ -82,6 +76,7 @@ def compare_implementations():
     print("\n🎯 Both implementations now support DataFrame functionality!")
     print("   The Rust implementation gets the speed benefits for statistics,")
     print("   while file path collection uses Python for DataFrame building.")
+
 
 if __name__ == "__main__":
     compare_implementations()

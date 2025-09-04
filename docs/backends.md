@@ -28,7 +28,7 @@ from filoma.directories import DirectoryProfiler
 
 # Automatically uses fastest available backend
 profiler = DirectoryProfiler()
-result = profiler.analyze("/path/to/directory")
+result = profiler.probe("/path/to/directory")
 
 # Check which backend was used
 profiler.print_summary(result)
@@ -79,7 +79,7 @@ for backend in backends:
         (backend == "fd" and profiler.is_fd_available()) or
         (backend == "python")):  # Python always available
         start = time.time()
-        result = profiler.analyze("/test/directory")
+        result = profiler.probe("/test/directory")
         elapsed = time.time() - start
         files_per_sec = result['summary']['total_files'] / elapsed
         print(f"{backend}: {elapsed:.3f}s ({files_per_sec:,.0f} files/sec)")

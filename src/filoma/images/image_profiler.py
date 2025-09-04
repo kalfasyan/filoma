@@ -5,7 +5,8 @@ class ImageProfiler:
     """
     Provides common analysis methods for image data loaded as numpy arrays.
     """
-    def analyze(self, arr: np.ndarray) -> dict:
+
+    def probe(self, arr: np.ndarray) -> dict:
         report = {
             "shape": arr.shape,
             "dtype": str(arr.dtype),

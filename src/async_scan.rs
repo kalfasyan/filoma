@@ -12,7 +12,7 @@ use crate::{analysis::get_file_extension, AnalysisConfig, ParallelDirectoryStats
 
 // Async scanning implementation tuned for higher-latency filesystems (NFS/CIFS)
 
-pub async fn analyze_directory_async_internal(
+pub async fn probe_directory_async_internal(
     root_path: PathBuf,
     config: AnalysisConfig,
     concurrency_limit: usize,
@@ -129,7 +129,7 @@ fn scan_dir_recursive(
             if let Some(md) = metadata {
                 if md.is_dir() {
                     // Add folder
-                    // Use adjusted depth semantics to match the sequential analyzer
+                    // Use adjusted depth semantics to match the sequential prober
                     // (sequential uses adjusted_depth = if depth == 0 { 0 } else { depth - 1 })
                     // Here, current_depth represents the adjusted depth of `dir`, so child folders
                     // should be recorded with the same adjusted depth value before recursing.
@@ -171,7 +171,7 @@ fn scan_dir_recursive(
 }
 
 #[pyfunction]
-pub(crate) fn analyze_directory_rust_async(root_path: &str, max_depth: Option<u32>, concurrency_limit: Option<usize>, timeout_ms: Option<u64>, retries: Option<u8>, fast_path_only: Option<bool>) -> PyResult<PyObject> {
+pub(crate) fn probe_directory_rust_async(root_path: &str, max_depth: Option<u32>, concurrency_limit: Option<usize>, timeout_ms: Option<u64>, retries: Option<u8>, fast_path_only: Option<bool>) -> PyResult<PyObject> {
     let root = PathBuf::from(root_path);
 
     if !root.exists() {
@@ -203,7 +203,7 @@ pub(crate) fn analyze_directory_rust_async(root_path: &str, max_depth: Option<u3
 
     // Wrap the internal call to inject timeout/retry behavior into a config closure
     let stats = rt.block_on(async move {
-        analyze_directory_async_internal(root, config, concurrency, op_timeout_ms, retries).await
+        probe_directory_async_internal(root, config, concurrency, op_timeout_ms, retries).await
     });
 
     let stats = stats.map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;

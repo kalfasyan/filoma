@@ -14,9 +14,10 @@ def test_parallel():
     profiler = DirectoryProfiler(use_rust=True, use_parallel=True, show_progress=True)
     test_dir = Path.cwd()
     start = time.time()
-    result = profiler.analyze(str(test_dir), max_depth=2)
+    result = profiler.probe(str(test_dir), max_depth=2)
     profiler.print_summary(result)
     print(f"Elapsed: {time.time() - start:.2f}s")
+
 
 if __name__ == "__main__":
     test_parallel()

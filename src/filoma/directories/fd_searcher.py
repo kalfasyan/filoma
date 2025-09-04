@@ -281,7 +281,7 @@ class FdSearcher:
         Get basic statistics about a directory using fd.
 
         Args:
-            directory: Directory to analyze
+            directory: Directory to probe
 
         Returns:
             Dictionary with basic stats

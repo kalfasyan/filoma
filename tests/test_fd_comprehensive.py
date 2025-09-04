@@ -222,7 +222,7 @@ class TestFdBackend:
             pytest.skip("fd command not available")
 
         profiler = DirectoryProfiler(search_backend="fd", show_progress=False)
-        result = profiler.analyze(complex_test_structure)
+        result = profiler.probe(complex_test_structure)
 
         # Should find all our test files
         assert result["summary"]["total_files"] >= 20
@@ -246,11 +246,11 @@ class TestFdBackend:
 
         # Test Python backend
         profiler_py = DirectoryProfiler(search_backend="python", show_progress=False)
-        result_py = profiler_py.analyze(complex_test_structure)
+        result_py = profiler_py.probe(complex_test_structure)
 
         # Test fd backend
         profiler_fd = DirectoryProfiler(search_backend="fd", show_progress=False)
-        result_fd = profiler_fd.analyze(complex_test_structure)
+        result_fd = profiler_fd.probe(complex_test_structure)
 
         # Results should be reasonably close
         # (small differences acceptable due to hidden file handling)
@@ -277,13 +277,13 @@ class TestFdBackend:
         # Test Python performance
         profiler_py = DirectoryProfiler(search_backend="python", show_progress=False)
         start_py = time.time()
-        result_py = profiler_py.analyze(complex_test_structure)
+        result_py = profiler_py.probe(complex_test_structure)
         time_py = time.time() - start_py
 
         # Test fd performance
         profiler_fd = DirectoryProfiler(search_backend="fd", show_progress=False)
         start_fd = time.time()
-        result_fd = profiler_fd.analyze(complex_test_structure)
+        result_fd = profiler_fd.probe(complex_test_structure)
         time_fd = time.time() - start_fd
 
         print("\n🚀 Performance Comparison:")

@@ -29,7 +29,7 @@ def benchmark_implementation(profiler, test_path: str, name: str):
     print(f"\n🔥 Benchmarking {name} implementation...")
 
     start_time = time.time()
-    result = profiler.analyze(test_path)
+    result = profiler.probe(test_path)
     end_time = time.time()
 
     elapsed = end_time - start_time

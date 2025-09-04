@@ -74,7 +74,7 @@ print(f"🦀 Rust: {'✅' if profiler.use_rust else '❌'}")
 print(f"🔍 fd: {'✅' if profiler.use_fd else '❌'}")
 
 # Quick test
-result = profiler.analyze(".")
+result = profiler.probe(".")
 print(f"✅ Found {result['summary']['total_files']} files")
 ```
 
@@ -91,11 +91,11 @@ from filoma.directories import DirectoryProfiler
 profiler = DirectoryProfiler()
 
 # This will automatically fall back to Python implementation if Rust fails
-result = profiler.analyze("/proc", max_depth=2)
+result = profiler.probe("/proc", max_depth=2)
 
 # For maximum compatibility with system directories, use Python backend
 profiler_safe = DirectoryProfiler(search_backend="python")
-result = profiler_safe.analyze("/", max_depth=3)
+result = profiler_safe.probe("/", max_depth=3)
 ```
 
 ### Common Issues
@@ -103,14 +103,14 @@ result = profiler_safe.analyze("/", max_depth=3)
 **Permission denied errors:**
 ```bash
 # Run with limited depth to avoid deep system directories
-python -c "from filoma.directories import DirectoryProfiler; print(DirectoryProfiler().analyze('/', max_depth=2)['summary'])"
+python -c "from filoma.directories import DirectoryProfiler; print(DirectoryProfiler().probe('/', max_depth=2)['summary'])"
 ```
 
 **Memory issues with large directories:**
 ```python
 # Use fast_path_only for path discovery without metadata
 profiler = DirectoryProfiler(fast_path_only=True, build_dataframe=False)
-result = profiler.analyze("/large/directory")
+result = profiler.probe("/large/directory")
 ```
 
 **Progress bar issues in Jupyter:**

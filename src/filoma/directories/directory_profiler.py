@@ -10,13 +10,13 @@ from rich.table import Table
 
 # Try to import the Rust implementation
 try:
-    from filoma.filoma_core import analyze_directory_rust, analyze_directory_rust_parallel
+    from filoma.filoma_core import probe_directory_rust, probe_directory_rust_parallel
 
     RUST_AVAILABLE = True
     RUST_PARALLEL_AVAILABLE = True
 except ImportError:
     try:
-        from filoma.filoma_core import analyze_directory_rust
+        from filoma.filoma_core import probe_directory_rust
 
         RUST_AVAILABLE = True
         RUST_PARALLEL_AVAILABLE = False
@@ -24,9 +24,9 @@ except ImportError:
         RUST_AVAILABLE = False
         RUST_PARALLEL_AVAILABLE = False
 
-# Optional async analyzer if compiled with tokio support
+# Optional async prober if compiled with tokio support
 try:
-    from filoma.filoma_core import analyze_directory_rust_async  # type: ignore
+    from filoma.filoma_core import probe_directory_rust_async  # type: ignore
 
     RUST_ASYNC_AVAILABLE = True
 except Exception:
@@ -231,25 +231,25 @@ class DirectoryProfiler:
             "python_fallback": not (self.use_rust or self.use_fd),
         }
 
-    def analyze_directory(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
+    def probe_directory(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
         """
-        Alias for analyze() method for backward compatibility.
+        Alias for probe() method for backward compatibility.
 
         Args:
-            root_path: Path to the root directory to analyze
+            root_path: Path to the root directory to probe
             max_depth: Maximum depth to traverse (None for unlimited)
 
         Returns:
             Dictionary containing analysis results
         """
-        return self.analyze(root_path, max_depth)
+        return self.probe(root_path, max_depth)
 
-    def analyze(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
+    def probe(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
         """
         Analyze a directory tree and return comprehensive statistics.
 
         Args:
-            root_path: Path to the root directory to analyze
+            root_path: Path to the root directory to probe
             max_depth: Maximum depth to traverse (None for unlimited)
 
         Returns:
@@ -266,11 +266,11 @@ class DirectoryProfiler:
 
         try:
             if backend == "fd":
-                result = self._analyze_fd(root_path, max_depth)
+                result = self._probe_fd(root_path, max_depth)
             elif backend == "rust":
-                result = self._analyze_rust(root_path, max_depth, fast_path_only=self._fast_path_only)
+                result = self._probe_rust(root_path, max_depth, fast_path_only=self._fast_path_only)
             else:
-                result = self._analyze_python(root_path, max_depth)
+                result = self._probe_python(root_path, max_depth)
 
             # Calculate and log timing
             elapsed_time = time.time() - start_time
@@ -354,7 +354,7 @@ class DirectoryProfiler:
         else:
             return "🐍 Python"
 
-    def _analyze_fd(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
+    def _probe_fd(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
         """
         Use fd for file discovery + Python for analysis.
 
@@ -411,9 +411,9 @@ class DirectoryProfiler:
                 progress.update(task_id, description="[bold yellow]Analyzing discovered files...")
                 progress.update(task_id, total=100, completed=50)
 
-            # Now analyze the discovered paths using Python logic
+            # Now probe the discovered paths using Python logic
             # Pass the existing progress to avoid conflicts
-            result = self._analyze_paths_python(root_path_obj, all_paths, max_depth, existing_progress=progress, existing_task_id=task_id)
+            result = self._probe_paths_python(root_path_obj, all_paths, max_depth, existing_progress=progress, existing_task_id=task_id)
 
             if progress and task_id is not None:
                 progress.update(task_id, description="[bold green]Analysis complete!")
@@ -425,7 +425,7 @@ class DirectoryProfiler:
             if progress:
                 progress.stop()
 
-    def _analyze_paths_python(
+    def _probe_paths_python(
         self, root_path: Path, all_paths: List[Path], max_depth: Optional[int] = None, existing_progress=None, existing_task_id=None
     ) -> Dict:
         """
@@ -435,8 +435,8 @@ class DirectoryProfiler:
         the statistical analysis to maintain consistency with the Python backend.
 
         Args:
-            root_path: Root directory being analyzed
-            all_paths: List of paths to analyze
+            root_path: Root directory being probed
+            all_paths: List of paths to probe
             max_depth: Maximum depth for analysis
             existing_progress: Existing progress bar to reuse (avoids conflicts)
             existing_task_id: Existing task ID to update
@@ -585,7 +585,7 @@ class DirectoryProfiler:
             if progress and progress_owned:
                 progress.stop()
 
-    def _analyze_rust(self, root_path: str, max_depth: Optional[int] = None, fast_path_only: bool = False) -> Dict:
+    def _probe_rust(self, root_path: str, max_depth: Optional[int] = None, fast_path_only: bool = False) -> Dict:
         """
         Use the Rust implementation for analysis.
 
@@ -622,13 +622,13 @@ class DirectoryProfiler:
                 if any(x in fs_type.lower() for x in ("nfs", "cifs", "smb", "ceph", "gluster", "sshfs")):
                     is_network_fs = True
 
-            # If network FS choose async Rust analyzer which limits concurrency and uses tokio
+            # If network FS choose async Rust prober which limits concurrency and uses tokio
             # Only use the async Rust variant when the path looks like a network
             # filesystem AND the user explicitly enabled async via `use_async`.
             if is_network_fs and self.use_async:
                 # Default concurrency limit can be tuned; use configured values
                 if RUST_ASYNC_AVAILABLE:
-                    result = analyze_directory_rust_async(
+                    result = probe_directory_rust_async(
                         root_path,
                         max_depth,
                         self.network_concurrency,
@@ -639,20 +639,20 @@ class DirectoryProfiler:
                 else:
                     # Async variant not available; fall back to parallel or sequential Rust
                     if self.use_parallel and RUST_PARALLEL_AVAILABLE:
-                        result = analyze_directory_rust_parallel(root_path, max_depth, self.parallel_threshold, fast_path_only)
+                        result = probe_directory_rust_parallel(root_path, max_depth, self.parallel_threshold, fast_path_only)
                     else:
-                        result = analyze_directory_rust(root_path, max_depth, fast_path_only)
+                        result = probe_directory_rust(root_path, max_depth, fast_path_only)
             elif is_network_fs and not self.use_async:
                 # User explicitly disabled async; prefer parallel or sequential Rust
                 if self.use_parallel and RUST_PARALLEL_AVAILABLE:
-                    result = analyze_directory_rust_parallel(root_path, max_depth, self.parallel_threshold, fast_path_only)
+                    result = probe_directory_rust_parallel(root_path, max_depth, self.parallel_threshold, fast_path_only)
                 else:
-                    result = analyze_directory_rust(root_path, max_depth, fast_path_only)
+                    result = probe_directory_rust(root_path, max_depth, fast_path_only)
             else:
                 if self.use_parallel and RUST_PARALLEL_AVAILABLE:
-                    result = analyze_directory_rust_parallel(root_path, max_depth, self.parallel_threshold, fast_path_only)
+                    result = probe_directory_rust_parallel(root_path, max_depth, self.parallel_threshold, fast_path_only)
                 else:
-                    result = analyze_directory_rust(root_path, max_depth, fast_path_only)
+                    result = probe_directory_rust(root_path, max_depth, fast_path_only)
 
             # Update progress to show completion
             if progress and task_id is not None:
@@ -706,7 +706,7 @@ class DirectoryProfiler:
             if progress:
                 progress.stop()
 
-    def _analyze_python(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
+    def _probe_python(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
         """
         Pure Python implementation with enhanced DataFrame support and progress indication.
         """
@@ -839,7 +839,7 @@ class DirectoryProfiler:
                         continue
 
             except (OSError, PermissionError):
-                # If rglob fails entirely, we can't analyze this directory
+                # If rglob fails entirely, we can't probe this directory
                 self.console.print(f"[yellow]Warning: Cannot access directory {root_path} - insufficient permissions[/yellow]")
                 # Return minimal result
                 return {

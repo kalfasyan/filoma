@@ -262,13 +262,13 @@ use analysis::*;
 
 // Async scanner module
 mod async_scan;
-use async_scan::analyze_directory_rust_async;
+use async_scan::probe_directory_rust_async;
 
 /// Sequential directory analysis engine
 mod sequential {
     use super::*;
 
-    pub fn analyze_directory_sequential(
+    pub fn probe_directory_sequential(
         root_path: &Path,
         config: &AnalysisConfig,
     ) -> Result<DirectoryStats, String> {
@@ -357,15 +357,15 @@ mod sequential {
 mod parallel {
     use super::*;
 
-    pub fn analyze_directory_parallel(
+    pub fn probe_directory_parallel(
         root_path: &Path,
         config: &AnalysisConfig,
     ) -> Result<DirectoryStats, String> {
         let start_time = Instant::now();
         let stats = Arc::new(ParallelDirectoryStats::new());
         
-        // First, analyze the root directory itself
-        analyze_root_directory(root_path, &stats, config)?;
+        // First, probe the root directory itself
+        probe_root_directory(root_path, &stats, config)?;
         
         // Get immediate subdirectories for parallel processing
         let subdirs = get_subdirectories(root_path, config);
@@ -377,12 +377,12 @@ mod parallel {
         if should_parallelize && subdirs.len() > 1 {
             // Process subdirectories in parallel
             subdirs.par_iter().for_each(|subdir| {
-                let _ = analyze_subdirectory_recursive(subdir, &stats, config, 1);
+                let _ = probe_subdirectory_recursive(subdir, &stats, config, 1);
             });
         } else {
             // Fall back to sequential processing for small directories
             for subdir in subdirs {
-                let _ = analyze_subdirectory_recursive(&subdir, &stats, config, 1);
+                let _ = probe_subdirectory_recursive(&subdir, &stats, config, 1);
             }
         }
         
@@ -393,7 +393,7 @@ mod parallel {
         Ok(result)
     }
 
-    fn analyze_root_directory(
+    fn probe_root_directory(
         root_path: &Path,
         stats: &Arc<ParallelDirectoryStats>,
         _config: &AnalysisConfig,
@@ -411,7 +411,7 @@ mod parallel {
         Ok(())
     }
 
-    fn analyze_subdirectory_recursive(
+    fn probe_subdirectory_recursive(
         dir_path: &Path,
         stats: &Arc<ParallelDirectoryStats>,
         config: &AnalysisConfig,
@@ -478,21 +478,21 @@ mod parallel {
 
 /// Python interface functions
 #[pyfunction]
-fn analyze_directory_rust(root_path: &str, max_depth: Option<u32>, fast_path_only: Option<bool>) -> PyResult<PyObject> {
-    analyze_directory_rust_with_config(root_path, max_depth, None, fast_path_only)
+fn probe_directory_rust(root_path: &str, max_depth: Option<u32>, fast_path_only: Option<bool>) -> PyResult<PyObject> {
+    probe_directory_rust_with_config(root_path, max_depth, None, fast_path_only)
 }
 
 #[pyfunction]
-fn analyze_directory_rust_parallel(
+fn probe_directory_rust_parallel(
     root_path: &str, 
     max_depth: Option<u32>,
     parallel_threshold: Option<usize>,
     fast_path_only: Option<bool>
 ) -> PyResult<PyObject> {
-    analyze_directory_rust_with_config(root_path, max_depth, parallel_threshold, fast_path_only)
+    probe_directory_rust_with_config(root_path, max_depth, parallel_threshold, fast_path_only)
 }
 
-fn analyze_directory_rust_with_config(
+fn probe_directory_rust_with_config(
     root_path: &str,
     max_depth: Option<u32>,
     parallel_threshold: Option<usize>,
@@ -525,9 +525,9 @@ fn analyze_directory_rust_with_config(
 
     // Choose analysis method based on configuration and directory size
     let stats = if should_use_parallel_analysis(root, &config) {
-        parallel::analyze_directory_parallel(root, &config)
+        parallel::probe_directory_parallel(root, &config)
     } else {
-        sequential::analyze_directory_sequential(root, &config)
+        sequential::probe_directory_sequential(root, &config)
     };
 
     let stats = stats.map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
@@ -560,8 +560,8 @@ fn should_use_parallel_analysis(root: &Path, config: &AnalysisConfig) -> bool {
 
 #[pymodule]
 fn filoma_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(analyze_directory_rust, m)?)?;
-    m.add_function(wrap_pyfunction!(analyze_directory_rust_parallel, m)?)?;
-    m.add_function(wrap_pyfunction!(analyze_directory_rust_async, m)?)?;
+    m.add_function(wrap_pyfunction!(probe_directory_rust, m)?)?;
+    m.add_function(wrap_pyfunction!(probe_directory_rust_parallel, m)?)?;
+    m.add_function(wrap_pyfunction!(probe_directory_rust_async, m)?)?;
     Ok(())
 }

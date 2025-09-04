@@ -16,10 +16,7 @@ def test_rust_with_dataframe():
     """Test DataFrame functionality with Rust enabled."""
 
     # Test with Rust + DataFrame
-    profiler_rust = DirectoryProfiler(
-        use_rust=True,
-        build_dataframe=True
-    )
+    profiler_rust = DirectoryProfiler(use_rust=True, build_dataframe=True)
 
     print(f"Implementation info: {profiler_rust.get_implementation_info()}")
     print(f"Using Rust: {profiler_rust.is_rust_available()}")
@@ -27,7 +24,7 @@ def test_rust_with_dataframe():
 
     # Analyze current directory
     current_dir = str(Path(__file__).parent.parent.parent)  # Go to repo root
-    analysis = profiler_rust.analyze(current_dir, max_depth=1)
+    analysis = profiler_rust.probe(current_dir, max_depth=1)
 
     # Check if DataFrame was created
     df = profiler_rust.get_dataframe(analysis)
@@ -37,6 +34,7 @@ def test_rust_with_dataframe():
         print("❌ No DataFrame created with Rust")
 
     print(f"Analysis keys: {list(analysis.keys())}")
+
 
 if __name__ == "__main__":
     test_rust_with_dataframe()

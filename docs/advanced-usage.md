@@ -73,7 +73,7 @@ from filoma.directories import DirectoryProfiler
 
 # Enable DataFrame building for advanced analysis
 profiler = DirectoryProfiler(build_dataframe=True)
-result = profiler.analyze(".")
+result = profiler.probe(".")
 
 # Get the DataFrame with all file paths
 df = profiler.get_dataframe(result)
@@ -91,7 +91,7 @@ print(df_enhanced.head())
 python_files = df.filter_by_extension('.py')
 image_files = df.filter_by_extension(['.jpg', '.png', '.tif'])
 
-# Group and analyze
+# Group and probe
 extension_counts = df.group_by_extension()
 directory_counts = df.group_by_directory()
 
@@ -148,7 +148,7 @@ for backend in backends:
                     (backend == "python"))  # Python always available
         if available:
             start = time.time()
-            result = profiler.analyze("/test/directory")
+            result = profiler.probe("/test/directory")
             elapsed = time.time() - start
             results[backend] = {
                 'time': elapsed,
@@ -230,12 +230,12 @@ from filoma.directories import DirectoryProfiler
 
 # All backends support progress bars
 profiler = DirectoryProfiler(show_progress=True)
-result = profiler.analyze("/path/to/large/directory")
+result = profiler.probe("/path/to/large/directory")
 profiler.print_summary(result)
 
 # Fast path only mode (just finds file paths, no metadata)
 profiler_fast = DirectoryProfiler(show_progress=True, fast_path_only=True)
-result_fast = profiler_fast.analyze("/path/to/large/directory")
+result_fast = profiler_fast.probe("/path/to/large/directory")
 print(f"Found {result_fast['summary']['total_files']} files (fast path only)")
 
 # Disable progress for benchmarking
@@ -246,7 +246,7 @@ profiler_benchmark = DirectoryProfiler(show_progress=False)
 
 ```python
 {
-    "root_path": "/analyzed/path",
+    "root_path": "/probed/path",
     "summary": {
         "total_files": 150,
         "total_folders": 25,
