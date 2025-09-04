@@ -24,7 +24,7 @@ uv add filoma  # or: pip install filoma
 ```python
 from filoma.directories import DirectoryProfiler
 profiler = DirectoryProfiler()
-res = profiler.probe("/", max_depth=3)
+res = profiler.probe("/")
 profiler.print_summary(res)
 ```
 Example output:
