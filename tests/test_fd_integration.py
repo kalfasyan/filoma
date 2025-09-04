@@ -5,8 +5,12 @@ Test script for fd integration in filoma.
 This script tests the new fd integration capabilities.
 """
 
+import importlib.util
 import sys
+import warnings
 from pathlib import Path
+
+import pytest
 
 # Add src to path so we can import filoma
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -14,19 +18,29 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from filoma.core import FdIntegration
 from filoma.directories import DirectoryProfiler, FdSearcher
 
+# Detect Rust availability by checking module spec (avoids importing at test collection)
+RUST_AVAILABLE_LOCAL = importlib.util.find_spec("filoma.filoma_core") is not None
+
+# Warning regex used by multiple tests
+WARNING_REGEX = r"^\[filoma\] Progress bar updates are limited"
+
 
 def test_fd_integration():
     """Test fd integration components."""
-    print("🔍 Testing fd Integration\n")
+    # Suppress known progress warning emitted by the Rust backend during scans,
+    # but only for this test so other tests can still assert it.
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message=WARNING_REGEX)
 
-    # Test 1: Check fd availability
-    print("1. Checking fd availability...")
-    fd = FdIntegration()
-    if fd.is_available():
-        print(f"   ✅ fd is available: {fd.get_version()}")
+        print("🔍 Testing fd Integration\n")
+
+        # Test 1: Check fd availability
+        print("1. Checking fd availability...")
+        fd = FdIntegration()
+    if not fd.is_available():
+        pytest.skip("fd not available on this system")
     else:
-        print("   ❌ fd not available")
-        return False
+        print(f"   ✅ fd is available: {fd.get_version()}")
 
     # Test 2: Basic fd search
     print("\n2. Testing basic fd search...")
@@ -34,9 +48,10 @@ def test_fd_integration():
         # Use glob mode for the *.py pattern
         files = fd.search(pattern="*.py", base_path=".", max_results=5, use_glob=True)
         print(f"   ✅ Found {len(files)} Python files: {files[:3]}{'...' if len(files) > 3 else ''}")
+        assert isinstance(files, list)
+        assert len(files) > 0
     except Exception as e:
-        print(f"   ❌ fd search failed: {e}")
-        return False
+        pytest.fail(f"fd search failed: {e}")
 
     # Test 3: FdSearcher interface
     print("\n3. Testing FdSearcher interface...")
@@ -45,28 +60,30 @@ def test_fd_integration():
         if searcher.is_available():
             python_files = searcher.find_by_extension(".py", max_depth=2)
             print(f"   ✅ FdSearcher found {len(python_files)} Python files")
+            assert isinstance(python_files, list)
         else:
-            print("   ❌ FdSearcher not available")
+            pytest.skip("FdSearcher (fd) not available")
     except Exception as e:
-        print(f"   ❌ FdSearcher failed: {e}")
+        pytest.fail(f"FdSearcher failed: {e}")
 
     # Test 4: DirectoryProfiler with fd backend
     print("\n4. Testing DirectoryProfiler with fd backend...")
     try:
         profiler = DirectoryProfiler(search_backend="fd")
-        if profiler.is_fd_available():
-            print("   ✅ DirectoryProfiler fd backend available")
+        if not profiler.is_fd_available():
+            pytest.skip("DirectoryProfiler fd backend not available")
 
-            # Quick test on current directory
-            result = profiler.analyze(".", max_depth=2)
-            print(f"   ✅ Analysis completed: {result['summary']['total_files']} files found")
-            print(f"   ✅ Backend used: {result['timing']['implementation']}")
-        else:
-            print("   ❌ DirectoryProfiler fd backend not available")
+        print("   ✅ DirectoryProfiler fd backend available")
+
+        # Quick test on current directory
+        result = profiler.analyze(".", max_depth=2)
+        print(f"   ✅ Analysis completed: {result['summary']['total_files']} files found")
+        print(f"   ✅ Backend used: {result['timing']['implementation']}")
+        assert "summary" in result and "total_files" in result["summary"]
+        assert result["summary"]["total_files"] >= 0
+        assert "timing" in result and "implementation" in result["timing"]
     except Exception as e:
-        print(f"   ❌ DirectoryProfiler fd backend failed: {e}")
-
-    return True
+        pytest.fail(f"DirectoryProfiler fd backend failed: {e}")
 
 
 def test_backend_comparison():
@@ -93,7 +110,13 @@ def test_backend_comparison():
 
             print(f"Testing {backend} backend...")
             start_time = time.time()
-            result = profiler.analyze(test_dir, max_depth=max_depth)
+            if backend == "rust":
+                # Suppress the progress warning here so the dedicated warning test can assert it
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", message=WARNING_REGEX)
+                    result = profiler.analyze(test_dir, max_depth=max_depth)
+            else:
+                result = profiler.analyze(test_dir, max_depth=max_depth)
             elapsed = time.time() - start_time
 
             backends.append(
@@ -149,6 +172,28 @@ def test_fd_searcher_features():
                 print(f"✅ {test_name}: {len(result)} results")
         except Exception as e:
             print(f"❌ {test_name}: Failed - {e}")
+
+
+def test_rust_progress_warning_expected():
+    """Ensure the Rust progress warning is emitted (if Rust backend is used)."""
+    if not RUST_AVAILABLE_LOCAL:
+        pytest.skip("Rust backend not available")
+
+    # The profiler emits an informational UserWarning about limited progress updates.
+    with pytest.warns(UserWarning, match=WARNING_REGEX):
+        profiler = DirectoryProfiler(search_backend="rust")
+        _ = profiler.analyze(".", max_depth=2)
+
+
+def test_rust_progress_warning_suppressed():
+    """Run the same profiler analyze while explicitly suppressing the progress warning."""
+    if not RUST_AVAILABLE_LOCAL:
+        pytest.skip("Rust backend not available")
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message=WARNING_REGEX)
+        profiler = DirectoryProfiler(search_backend="rust")
+        _ = profiler.analyze(".", max_depth=2)
 
 
 if __name__ == "__main__":

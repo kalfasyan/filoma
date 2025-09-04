@@ -50,3 +50,9 @@ module-name = "filoma.filoma_core"
 # Use manylinux for PyPI compatibility
 compatibility = "manylinux2014"
 features = ["pyo3/extension-module"]
+
+[tool.pytest.ini_options]
+# Suppress the informational Rust progress warning in CI logs
+filterwarnings = [
+    "ignore::UserWarning:filoma.directories.directory_profiler",
+]
