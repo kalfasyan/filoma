@@ -82,6 +82,7 @@ class DirectoryProfiler:
         self,
         use_rust: bool = True,
         use_parallel: bool = True,
+        use_async: bool = False,
         use_fd: bool = True,
         search_backend: str = "auto",  # "rust", "python", "fd", "auto"
         parallel_threshold: int = 1000,
@@ -118,6 +119,15 @@ class DirectoryProfiler:
         self.console = Console()
         self.use_rust = use_rust and RUST_AVAILABLE
         self.use_parallel = use_parallel and RUST_PARALLEL_AVAILABLE and self.use_rust
+        # User-visible async toggle for the Rust network-optimized scanner.
+        # Off by default because async can be slower on local SSD/HDD.
+        self.use_async = use_async
+        if use_async and not RUST_ASYNC_AVAILABLE:
+            # If user requested async but the native async implementation isn't
+            # available, disable it and warn.
+            self.console = self.console if hasattr(self, "console") else Console()
+            self.console.print("[yellow]Warning: Rust async implementation not available, async disabled[/yellow]")
+            self.use_async = False
         self.use_fd = use_fd and FD_AVAILABLE
         self.search_backend = search_backend
         self.parallel_threshold = parallel_threshold
@@ -209,10 +219,12 @@ class DirectoryProfiler:
         return {
             "rust_available": RUST_AVAILABLE,
             "rust_parallel_available": RUST_PARALLEL_AVAILABLE,
+            "rust_async_available": RUST_ASYNC_AVAILABLE,
             "fd_available": FD_AVAILABLE,
             "dataframe_available": DATAFRAME_AVAILABLE,
             "using_rust": self.use_rust,
             "using_parallel": self.use_parallel,
+            "using_async": bool(self.use_async and RUST_ASYNC_AVAILABLE),
             "using_fd": self.use_fd,
             "using_dataframe": self.build_dataframe,
             "search_backend": self.search_backend,
@@ -611,7 +623,9 @@ class DirectoryProfiler:
                     is_network_fs = True
 
             # If network FS choose async Rust analyzer which limits concurrency and uses tokio
-            if is_network_fs:
+            # Only use the async Rust variant when the path looks like a network
+            # filesystem AND the user explicitly enabled async via `use_async`.
+            if is_network_fs and self.use_async:
                 # Default concurrency limit can be tuned; use configured values
                 if RUST_ASYNC_AVAILABLE:
                     result = analyze_directory_rust_async(
@@ -628,6 +642,12 @@ class DirectoryProfiler:
                         result = analyze_directory_rust_parallel(root_path, max_depth, self.parallel_threshold, fast_path_only)
                     else:
                         result = analyze_directory_rust(root_path, max_depth, fast_path_only)
+            elif is_network_fs and not self.use_async:
+                # User explicitly disabled async; prefer parallel or sequential Rust
+                if self.use_parallel and RUST_PARALLEL_AVAILABLE:
+                    result = analyze_directory_rust_parallel(root_path, max_depth, self.parallel_threshold, fast_path_only)
+                else:
+                    result = analyze_directory_rust(root_path, max_depth, fast_path_only)
             else:
                 if self.use_parallel and RUST_PARALLEL_AVAILABLE:
                     result = analyze_directory_rust_parallel(root_path, max_depth, self.parallel_threshold, fast_path_only)
