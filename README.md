@@ -24,17 +24,14 @@ uv add filoma  # or: pip install filoma
 ```python
 from filoma.directories import DirectoryProfiler
 
-# Analyze any directory (automatically uses fastest backend)
+# Quick analysis (auto backend selection; async is opt-in)
 profiler = DirectoryProfiler()
-result = profiler.analyze("/path/to/directory")
-
-# Beautiful terminal output
-profiler.print_summary(result)
+res = profiler.analyze("/path/to/dir")
+profiler.print_summary(res)
 # Directory Analysis: /path (🦀 Rust) - 2.3s, 15,249 files, 1,847 folders
 
-# Access data programmatically  
-print(f"Files: {result['summary']['total_files']}")
-print(f"Extensions: {result['file_extensions']}")
+# Access programmatically
+print(res['summary']['total_files'])
 ```
 
 ## Key Features
@@ -56,10 +53,39 @@ print(f"Extensions: {result['file_extensions']}")
 ```python
 from filoma.directories import DirectoryProfiler
 
-# Basic analysis
 profiler = DirectoryProfiler()
-result = profiler.analyze("/path/to/directory", max_depth=3)
-profiler.print_summary(result)
+res = profiler.analyze("/", max_depth=3)
+profiler.print_summary(res)
+```
+Example output:
+
+```text
+Directory Analysis: / (🦀 Rust (Parallel)) - 29.56s
+
+┌───────────────────────────┬──────────────────┐
+│ Metric                    │ Value            │
+├───────────────────────────┼──────────────────┤
+│ Total Files               │ 2,186,785        │
+│ Total Folders             │ 209,401          │
+│ Total Size                │ 135,050,621.82 MB│
+│ Average Files per Folder  │ 10.44            │
+│ Maximum Depth             │ 21               │
+│ Empty Folders             │ 7,930            │
+│ Analysis Time             │ 29.56 s          │
+│ Processing Speed          │ 81,074 items/sec │
+└───────────────────────────┴──────────────────┘
+```
+
+
+### Async (opt-in) — good for network filesystems
+```python
+from filoma.directories import DirectoryProfiler
+
+# Async is off by default. Enable explicitly for network mounts.
+prof = DirectoryProfiler(use_async=True)
+res = prof.analyze("/mnt/nfs/share")
+prof.print_summary(res)
+# Directory Analysis: /mnt/nfs/share (🦀 Rust (Async)) - 12.4s, 42,000 files, 3,200 folders
 ```
 
 ### Smart File Search
