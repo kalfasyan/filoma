@@ -1,6 +1,6 @@
 import pytest
 
-from filoma.directories.directory_profiler import DirectoryProfiler, RUST_ASYNC_AVAILABLE
+from filoma.directories.directory_profiler import RUST_ASYNC_AVAILABLE, DirectoryProfiler
 
 
 def test_default_async_off():
