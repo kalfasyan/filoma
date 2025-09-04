@@ -23,15 +23,26 @@ uv add filoma  # or: pip install filoma
 
 ```python
 from filoma.directories import DirectoryProfiler
-
-# Quick analysis (auto backend selection; async is opt-in)
 profiler = DirectoryProfiler()
-res = profiler.analyze("/path/to/dir")
+res = profiler.analyze("/", max_depth=3)
 profiler.print_summary(res)
-# Directory Analysis: /path (🦀 Rust) - 2.3s, 15,249 files, 1,847 folders
+```
+Example output:
 
-# Access programmatically
-print(res['summary']['total_files'])
+```text
+Directory Analysis: / (🦀 Rust (Parallel)) - 29.56s
+┌───────────────────────────┬──────────────────┐
+│ Metric                    │ Value            │
+├───────────────────────────┼──────────────────┤
+│ Total Files               │ 2,186,785        │
+│ Total Folders             │ 209,401          │
+│ Total Size                │ 135,050,621.82 MB│
+│ Average Files per Folder  │ 10.44            │
+│ Maximum Depth             │ 21               │
+│ Empty Folders             │ 7,930            │
+│ Analysis Time             │ 29.56 s          │
+│ Processing Speed          │ 81,074 items/sec │
+└───────────────────────────┴──────────────────┘
 ```
 
 ## Key Features
@@ -50,6 +61,8 @@ print(res['summary']['total_files'])
 ## Examples
 
 ### Directory Analysis
+
+The simplest way to analyze a directory and print a summary:
 ```python
 from filoma.directories import DirectoryProfiler
 
@@ -57,38 +70,37 @@ profiler = DirectoryProfiler()
 res = profiler.analyze("/", max_depth=3)
 profiler.print_summary(res)
 ```
-Example output:
-
-```text
-Directory Analysis: / (🦀 Rust (Parallel)) - 29.56s
-
-┌───────────────────────────┬──────────────────┐
-│ Metric                    │ Value            │
-├───────────────────────────┼──────────────────┤
-│ Total Files               │ 2,186,785        │
-│ Total Folders             │ 209,401          │
-│ Total Size                │ 135,050,621.82 MB│
-│ Average Files per Folder  │ 10.44            │
-│ Maximum Depth             │ 21               │
-│ Empty Folders             │ 7,930            │
-│ Analysis Time             │ 29.56 s          │
-│ Processing Speed          │ 81,074 items/sec │
-└───────────────────────────┴──────────────────┘
-```
-
 
 ### Async (opt-in) — good for network filesystems
+
+If traversing NFS/SMB, remote mounts, cloud-fuse, etc., enable async mode to parallelize filesystem calls and improve throughput.
+
 ```python
+# Async (opt‑in) scanning for network / high‑latency filesystems
+# Enable when traversing NFS/SMB, remote mounts, cloud-fuse, etc.
 from filoma.directories import DirectoryProfiler
 
-# Async is off by default. Enable explicitly for network mounts.
-prof = DirectoryProfiler(use_async=True)
-res = prof.analyze("/mnt/nfs/share")
-prof.print_summary(res)
-# Directory Analysis: /mnt/nfs/share (🦀 Rust (Async)) - 12.4s, 42,000 files, 3,200 folders
+profiler = DirectoryProfiler(
+    use_async=True,
+    network_concurrency=32,    # Parallel in-flight filesystem ops
+    network_timeout_ms=3000,   # Per op timeout (ms)
+    network_retries=2          # Retries for transient errors
+)
+
+result = profiler.analyze("/mnt/nfs/share")
+profiler.print_summary(result)
 ```
 
+Tips:
+- Lower network_concurrency if the server throttles you; raise for high-latency links.
+- Increase network_timeout_ms for very slow metadata calls.
+- Retries help with flaky mounts; set to 0 for strict mode.
+- Fallback: omit use_async for local SSDs (sync is usually faster there).
+
 ### Smart File Search
+
+The `FdSearcher` class provides advanced file searching with regex and glob support, leveraging the high-performance `fd` tool when available.
+
 ```python
 from filoma.directories import FdSearcher
 
@@ -105,6 +117,9 @@ config_files = searcher.find_files(pattern="*.{json,yaml}", use_glob=True)
 ```
 
 ### DataFrame Analysis
+
+`filoma` can build Polars DataFrames for advanced analysis and filtering, allowing you to leverage the full power of Polars for downstream tasks.
+
 ```python
 # Build DataFrame for advanced analysis
 profiler = DirectoryProfiler(build_dataframe=True)
@@ -118,6 +133,7 @@ df.save_csv("analysis.csv")
 ```
 
 ### File & Image Profiling
+Individual file profiling with metadata and image analysis:
 ```python
 from filoma.files import FileProfiler
 from filoma.images import PngProfiler
