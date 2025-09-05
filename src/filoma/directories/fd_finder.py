@@ -159,7 +159,7 @@ class FdFinder:
             >>> searcher = FdFinder()
             >>> code_files = searcher.find_by_extension([".py", ".rs", ".js"])
         """
-    # Normalize extensions (ensure they don't start with dots for fd)
+        # Normalize extensions (ensure they don't start with dots for fd)
 
         if isinstance(extensions, str):
             extensions = [extensions]
