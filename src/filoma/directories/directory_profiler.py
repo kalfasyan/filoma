@@ -93,6 +93,7 @@ class DirectoryProfiler:
         network_concurrency: int = 64,
         network_timeout_ms: int = 5000,
         network_retries: int = 0,
+        fd_threads: Optional[int] = None,
     ):
         """
         Initialize the directory profiler.
@@ -147,6 +148,9 @@ class DirectoryProfiler:
         self.network_concurrency = network_concurrency
         self.network_timeout_ms = network_timeout_ms
         self.network_retries = network_retries
+        # Optional threads setting to pass to fd (maps to fd's --threads flag).
+        # If None, fd will use its own default concurrency; a numeric value will be forwarded.
+        self.fd_threads = fd_threads
 
         # Initialize fd integration if available
         self.fd_integration = None
@@ -244,7 +248,7 @@ class DirectoryProfiler:
         """
         return self.probe(root_path, max_depth)
 
-    def probe(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
+    def probe(self, root_path: str, max_depth: Optional[int] = None, threads: Optional[int] = None) -> Dict:
         """
         Analyze a directory tree and return comprehensive statistics.
 
@@ -266,7 +270,9 @@ class DirectoryProfiler:
 
         try:
             if backend == "fd":
-                result = self._probe_fd(root_path, max_depth)
+                # threads param overrides instance fd_threads when provided
+                fd_threads = threads if threads is not None else self.fd_threads
+                result = self._probe_fd(root_path, max_depth, threads=fd_threads)
             elif backend == "rust":
                 result = self._probe_rust(root_path, max_depth, fast_path_only=self._fast_path_only)
             else:
@@ -329,13 +335,14 @@ class DirectoryProfiler:
             # Rust is fastest for both file discovery (3.16s) and DataFrame building (4.16s)
             # fd is competitive (4.80s for both) but consistently slower
             # Python is comprehensive but slowest (8.11s)
-
-            if self.use_rust:
-                # Rust is fastest overall - prioritize it
-                return "rust"
-            elif self.use_fd and self.fd_integration:
-                # fd as backup - still faster than Python
+            # Prefer fd when explicitly enabled by the user and available.
+            # This allows users who want fast discovery via fd to opt into it
+            # without having to disable Rust explicitly.
+            if self.use_fd and self.fd_integration:
                 return "fd"
+            elif self.use_rust:
+                # Rust is the next-best option
+                return "rust"
             else:
                 return "python"
 
@@ -354,7 +361,7 @@ class DirectoryProfiler:
         else:
             return "🐍 Python"
 
-    def _probe_fd(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
+    def _probe_fd(self, root_path: str, max_depth: Optional[int] = None, threads: Optional[int] = None) -> Dict:
         """
         Use fd for file discovery + Python for analysis.
 
@@ -386,11 +393,17 @@ class DirectoryProfiler:
             if progress and task_id is not None:
                 progress.update(task_id, description="[bold blue]Finding files...")
 
+            # fd's --max-depth applies to the matched path; to match the
+            # Python/Rust semantics where files up to depth (max_depth + 1)
+            # are included, when a max_depth is provided for the probe we
+            # increase the file search depth by 1.
+            file_max_depth = None if max_depth is None else max_depth + 1
             all_files = self.fd_integration.search(
                 base_path=root_path,
                 file_types=["f"],  # Files only
-                max_depth=max_depth,
+                max_depth=file_max_depth,
                 absolute_paths=True,
+                threads=threads,
             )
 
             if progress and task_id is not None:
@@ -401,6 +414,7 @@ class DirectoryProfiler:
                 file_types=["d"],  # Directories only
                 max_depth=max_depth,
                 absolute_paths=True,
+                threads=threads,
             )
 
             # Convert to Path objects for analysis
@@ -541,8 +555,8 @@ class DirectoryProfiler:
                     elif current_path.is_file() and depth > max_depth + 1:
                         continue
 
-                # Add to paths collection if DataFrame is enabled
-                if self.build_dataframe:
+                # Add to paths collection if DataFrame is enabled and we're collecting paths
+                if self.build_dataframe and dataframe_paths is not None:
                     dataframe_paths.append(str(current_path))
 
                 if current_path.is_dir():

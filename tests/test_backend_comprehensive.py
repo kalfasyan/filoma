@@ -225,12 +225,12 @@ class TestBackendComprehensive:
         chosen_backend = profiler._choose_backend()
         print(f"\n🤖 Auto selection chose: {chosen_backend}")
 
-        # Should prefer Rust > fd > Python based on our updated logic
+        # Should prefer fd > Rust > Python based on the updated logic
         fd = FdIntegration()
-        if hasattr(profiler, "_probe_rust") and profiler.use_rust:
-            assert chosen_backend == "rust", "Auto selection should prefer Rust when available"
-        elif fd.is_available():
-            assert chosen_backend == "fd", "Auto selection should prefer fd when Rust unavailable"
+        if profiler.use_fd and fd.is_available():
+            assert chosen_backend == "fd", "Auto selection should prefer fd when enabled and available"
+        elif hasattr(profiler, "_probe_rust") and profiler.use_rust:
+            assert chosen_backend == "rust", "Auto selection should prefer Rust when fd not enabled"
         else:
             assert chosen_backend == "python", "Auto selection should fall back to Python"
 
