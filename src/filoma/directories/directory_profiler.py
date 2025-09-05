@@ -93,7 +93,7 @@ class DirectoryProfiler:
         network_concurrency: int = 64,
         network_timeout_ms: int = 5000,
         network_retries: int = 0,
-        fd_threads: Optional[int] = None,
+        threads: Optional[int] = None,
     ):
         """
         Initialize the directory profiler.
@@ -148,9 +148,10 @@ class DirectoryProfiler:
         self.network_concurrency = network_concurrency
         self.network_timeout_ms = network_timeout_ms
         self.network_retries = network_retries
+
         # Optional threads setting to pass to fd (maps to fd's --threads flag).
         # If None, fd will use its own default concurrency; a numeric value will be forwarded.
-        self.fd_threads = fd_threads
+        self.threads = threads
 
         # Initialize fd integration if available
         self.fd_integration = None
@@ -270,9 +271,9 @@ class DirectoryProfiler:
 
         try:
             if backend == "fd":
-                # threads param overrides instance fd_threads when provided
-                fd_threads = threads if threads is not None else self.fd_threads
-                result = self._probe_fd(root_path, max_depth, threads=fd_threads)
+                # threads param overrides instance threads when provided
+                chosen_threads = threads if threads is not None else self.threads
+                result = self._probe_fd(root_path, max_depth, threads=chosen_threads)
             elif backend == "rust":
                 result = self._probe_rust(root_path, max_depth, fast_path_only=self._fast_path_only)
             else:
