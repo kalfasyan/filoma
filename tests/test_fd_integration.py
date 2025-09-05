@@ -16,7 +16,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from filoma.core import FdIntegration
-from filoma.directories import DirectoryProfiler, FdSearcher
+from filoma.directories import DirectoryProfiler, FdFinder
 
 # Detect Rust availability by checking module spec (avoids importing at test collection)
 RUST_AVAILABLE_LOCAL = importlib.util.find_spec("filoma.filoma_core") is not None
@@ -46,25 +46,25 @@ def test_fd_integration():
     print("\n2. Testing basic fd search...")
     try:
         # Use glob mode for the *.py pattern
-        files = fd.search(pattern="*.py", base_path=".", max_results=5, use_glob=True)
+        files = fd.find(pattern="*.py", base_path=".", max_results=5, use_glob=True)
         print(f"   ✅ Found {len(files)} Python files: {files[:3]}{'...' if len(files) > 3 else ''}")
         assert isinstance(files, list)
         assert len(files) > 0
     except Exception as e:
         pytest.fail(f"fd search failed: {e}")
 
-    # Test 3: FdSearcher interface
-    print("\n3. Testing FdSearcher interface...")
+    # Test 3: FdFinder interface
+    print("\n3. Testing FdFinder interface...")
     try:
-        searcher = FdSearcher()
+        searcher = FdFinder()
         if searcher.is_available():
             python_files = searcher.find_by_extension(".py", max_depth=2)
-            print(f"   ✅ FdSearcher found {len(python_files)} Python files")
+            print(f"   ✅ FdFinder found {len(python_files)} Python files")
             assert isinstance(python_files, list)
         else:
-            pytest.skip("FdSearcher (fd) not available")
+            pytest.skip("FdFinder (fd) not available")
     except Exception as e:
-        pytest.fail(f"FdSearcher failed: {e}")
+        pytest.fail(f"FdFinder failed: {e}")
 
     # Test 4: DirectoryProfiler with fd backend
     print("\n4. Testing DirectoryProfiler with fd backend...")
@@ -145,11 +145,11 @@ def test_backend_comparison():
                 print(f"   📈 {backend['name']}: {backend['time']:.3f}s ({speedup:.1f}x slower)")
 
 
-def test_fd_searcher_features():
-    """Test FdSearcher advanced features."""
-    print("\n🛠️  Testing FdSearcher Advanced Features\n")
+def test_fd_finder_features():
+    """Test FdFinder advanced features."""
+    print("\n🛠️  Testing FdFinder Advanced Features\n")
 
-    searcher = FdSearcher()
+    searcher = FdFinder()
     if not searcher.is_available():
         print("❌ fd not available for advanced testing")
         return
@@ -203,7 +203,7 @@ if __name__ == "__main__":
 
     if success:
         test_backend_comparison()
-        test_fd_searcher_features()
+        test_fd_finder_features()
         print("\n🎉 All tests completed!")
     else:
         print("\n💥 Basic fd integration tests failed")

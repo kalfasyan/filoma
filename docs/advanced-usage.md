@@ -2,13 +2,13 @@
 
 ## Smart File Discovery
 
-### FdSearcher Interface
+### FdFinder Interface
 
 ```python
-from filoma.directories import FdSearcher
+from filoma.directories import FdFinder
 
 # Create searcher (automatically uses fd if available)
-searcher = FdSearcher()
+searcher = FdFinder()
 
 # Find Python files
 python_files = searcher.find_files(pattern=r"\.py$", directory=".", max_depth=3)
@@ -52,16 +52,16 @@ if fd.is_available():
     print(f"fd version: {fd.get_version()}")
     
     # Regex pattern search
-    py_files = fd.search(pattern=r"\.py$", base_path="/src", max_depth=2)
+    py_files = fd.find(pattern=r"\.py$", base_path="/src", max_depth=2)
     
     # Glob pattern search  
-    config_files = fd.search(pattern="*.json", use_glob=True, max_results=10)
+    config_files = fd.find(pattern="*.json", use_glob=True, max_results=10)
     
     # Files only
-    files = fd.search(file_types=["f"], max_depth=3)
+    files = fd.find(file_types=["f"], max_depth=3)
     
     # Directories only
-    dirs = fd.search(file_types=["d"], search_hidden=True)
+    dirs = fd.find(file_types=["d"], search_hidden=True)
 ```
 
 ## DataFrame Analysis
@@ -193,7 +193,7 @@ fd = FdIntegration()
 
 if fd.is_available():
     # Complex regex patterns
-    test_files = fd.search(
+    test_files = fd.find(
         pattern=r"test.*\.py$",
         base_path="/src",
         max_depth=3,
@@ -201,7 +201,7 @@ if fd.is_available():
     )
     
     # Glob patterns with exclusions
-    source_files = fd.search(
+    source_files = fd.find(
         pattern="*.{py,rs,js}",
         use_glob=True,
         exclude_patterns=["*test*", "*__pycache__*"],
@@ -209,14 +209,14 @@ if fd.is_available():
     )
     
     # Find large files
-    large_files = fd.search(
+    large_files = fd.find(
         pattern=".",
         file_types=["f"],
         absolute_paths=True
     )
     
     # Search hidden files
-    hidden_files = fd.search(
+    hidden_files = fd.find(
         pattern=".*",
         search_hidden=True,
         max_results=100

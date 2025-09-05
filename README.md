@@ -50,7 +50,7 @@ Directory Analysis: / (🦀 Rust (Parallel)) - 29.56s
 
 - **🚀 3 Performance Backends** - Automatic selection: Rust (*~2.3x faster* **\***), fd (competitive), Python (baseline)
 - **📊 Directory Analysis** - File counts, extensions, empty folders, depth distribution, size statistics
-- **🔍 Smart File Search** - Advanced patterns with regex/glob support via FdSearcher
+- **🔍 Smart File Search** - Advanced patterns with regex/glob support via FdFinder
 - **📈 DataFrame Support** - Build Polars DataFrames for advanced analysis and filtering
 - **🖼️ Image Analysis** - Profile .tif, .png, .npy, .zarr files with metadata and statistics
 - **📁 File Profiling** - System metadata, permissions, timestamps, symlink analysis
@@ -99,12 +99,12 @@ Tips:
 
 ### Smart File Search
 
-The `FdSearcher` class provides advanced file searching with regex and glob support, leveraging the high-performance `fd` tool when available.
+The `FdFinder` class provides advanced file searching with regex and glob support, leveraging the high-performance `fd` tool when available.
 
 ```python
-from filoma.directories import FdSearcher
+from filoma.directories import FdFinder
 
-searcher = FdSearcher()
+searcher = FdFinder()
 
 # Find Python files
 python_files = searcher.find_files(pattern=r"\.py$", max_depth=2)

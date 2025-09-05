@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from filoma.core import FdIntegration
-from filoma.directories import DirectoryProfiler, FdSearcher
+from filoma.directories import DirectoryProfiler, FdFinder
 
 
 class TestBackendComprehensive:
@@ -293,12 +293,12 @@ class TestBackendComprehensive:
                     )
 
 
-class TestFdSearcher:
-    """Test FdSearcher interface thoroughly."""
+class TestFdFinder:
+    """Test FdFinder interface thoroughly."""
 
     @pytest.fixture
     def test_directory(self):
-        """Create test directory for FdSearcher tests."""
+        """Create test directory for FdFinder tests."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
 
@@ -321,9 +321,9 @@ class TestFdSearcher:
 
             yield str(tmp_path)
 
-    def test_fd_searcher_basic(self, test_directory):
-        """Test basic FdSearcher functionality."""
-        searcher = FdSearcher()
+    def test_fd_finder_basic(self, test_directory):
+        """Test basic FdFinder functionality."""
+        searcher = FdFinder()
         if not searcher.is_available():
             pytest.skip("fd not available")
 
@@ -335,9 +335,9 @@ class TestFdSearcher:
         json_files = searcher.find_by_extension([".json"], directory=test_directory)
         assert len(json_files) >= 1  # config.json
 
-    def test_fd_searcher_patterns(self, test_directory):
-        """Test different pattern types in FdSearcher."""
-        searcher = FdSearcher()
+    def test_fd_finder_patterns(self, test_directory):
+        """Test different pattern types in FdFinder."""
+        searcher = FdFinder()
         if not searcher.is_available():
             pytest.skip("fd not available")
 
@@ -353,9 +353,9 @@ class TestFdSearcher:
         readme_files = searcher.find_files(pattern="readme", directory=test_directory, case_sensitive=False)
         assert len(readme_files) >= 1
 
-    def test_fd_searcher_directories(self, test_directory):
-        """Test directory finding with FdSearcher."""
-        searcher = FdSearcher()
+    def test_fd_finder_directories(self, test_directory):
+        """Test directory finding with FdFinder."""
+        searcher = FdFinder()
         if not searcher.is_available():
             pytest.skip("fd not available")
 
@@ -364,9 +364,9 @@ class TestFdSearcher:
         assert len(dirs) >= 1
         assert any("nested" in str(d) for d in dirs)
 
-    def test_fd_searcher_hidden_files(self, test_directory):
+    def test_fd_finder_hidden_files(self, test_directory):
         """Test hidden file handling."""
-        searcher = FdSearcher()
+        searcher = FdFinder()
         if not searcher.is_available():
             pytest.skip("fd not available")
 

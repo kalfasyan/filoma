@@ -22,7 +22,7 @@ except Exception:
     _HAS_DF = False
 
 
-class FdSearcher:
+class FdFinder:
     """Direct interface to fd for search operations."""
 
     def __init__(self):
@@ -65,7 +65,7 @@ class FdSearcher:
             List of file paths
 
         Example:
-            >>> searcher = FdSearcher()
+            >>> searcher = FdFinder()
             >>> python_files = searcher.find_files(r"\.py$", "/src")
             >>> config_files = searcher.find_files("*.{json,yaml}", use_glob=True)
         """
@@ -81,7 +81,7 @@ class FdSearcher:
                 **fd_options,  # Pass through additional fd options including use_glob
             )
         except Exception as e:
-            logger.warning(f"FdSearcher.find_files failed for directory '{directory}': {e}")
+            logger.warning(f"FdFinder.find_files failed for directory '{directory}': {e}")
             return []  # Return empty list instead of raising
 
     def to_dataframe(self, pattern: str = "", directory: Union[str, Path] = ".", threads: Optional[int] = None, **fd_options):
@@ -122,7 +122,7 @@ class FdSearcher:
                 **fd_options,  # Pass through additional fd options
             )
         except Exception as e:
-            logger.warning(f"FdSearcher.find_directories failed for directory '{directory}': {e}")
+            logger.warning(f"FdFinder.find_directories failed for directory '{directory}': {e}")
             return []  # Return empty list instead of raising
 
     def find_by_extension(
@@ -141,7 +141,7 @@ class FdSearcher:
             List of file paths
 
         Example:
-            >>> searcher = FdSearcher()
+            >>> searcher = FdFinder()
             >>> code_files = searcher.find_by_extension([".py", ".rs", ".js"])
         """
         # Normalize extensions (ensure they don't start with dots for fd)
@@ -176,7 +176,7 @@ class FdSearcher:
 
             return list(set(all_files))  # Remove duplicates
         except Exception as e:
-            logger.warning(f"FdSearcher.find_by_extension failed for directory '{directory}': {e}")
+            logger.warning(f"FdFinder.find_by_extension failed for directory '{directory}': {e}")
             return []  # Return empty list instead of raising
 
     def find_recent_files(
@@ -195,7 +195,7 @@ class FdSearcher:
             List of file paths
 
         Example:
-            >>> searcher = FdSearcher()
+            >>> searcher = FdFinder()
             >>> recent_python = searcher.find_recent_files(
             ...     changed_within="1h", extension="py"
             ... )
@@ -219,13 +219,13 @@ class FdSearcher:
             List of file paths
 
         Example:
-            >>> searcher = FdSearcher()
+            >>> searcher = FdFinder()
             >>> large_files = searcher.find_large_files(min_size="10M")
         """
         try:
             return self.fd.find(root_path=directory, file_type="f", size=f"+{min_size}", max_depth=max_depth, **fd_options)
         except Exception as e:
-            logger.warning(f"FdSearcher.find_large_files failed for directory '{directory}': {e}")
+            logger.warning(f"FdFinder.find_large_files failed for directory '{directory}': {e}")
             return []
 
     def find_empty_directories(self, directory: Union[str, Path] = ".", **fd_options) -> List[str]:
@@ -242,7 +242,7 @@ class FdSearcher:
         try:
             return self.fd.find_empty_directories(root_path=directory, **fd_options)
         except Exception as e:
-            logger.warning(f"FdSearcher.find_empty_directories failed for directory '{directory}': {e}")
+            logger.warning(f"FdFinder.find_empty_directories failed for directory '{directory}': {e}")
             return []
 
     def count_files(self, pattern: str = "", directory: Union[str, Path] = ".", **fd_options) -> int:
@@ -260,7 +260,7 @@ class FdSearcher:
         try:
             return self.fd.count_files(pattern=pattern or None, root_path=directory, **fd_options)
         except Exception as e:
-            logger.warning(f"FdSearcher.count_files failed for directory '{directory}': {e}")
+            logger.warning(f"FdFinder.count_files failed for directory '{directory}': {e}")
             return 0
 
     def execute_on_results(
@@ -280,7 +280,7 @@ class FdSearcher:
             CompletedProcess object
 
         Example:
-            >>> searcher = FdSearcher()
+            >>> searcher = FdFinder()
             >>> # Delete all .tmp files
             >>> searcher.execute_on_results(
             ...     r"\.tmp$", ["rm"], parallel=False
@@ -322,7 +322,7 @@ class FdSearcher:
             Dictionary with basic stats
 
         Example:
-            >>> searcher = FdSearcher()
+            >>> searcher = FdFinder()
             >>> stats = searcher.get_stats("/project")
             >>> print(f"Files: {stats['file_count']}")
         """

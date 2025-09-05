@@ -1,4 +1,4 @@
-from filoma.directories.fd_searcher import FdSearcher
+from filoma.directories.fd_finder import FdFinder
 
 
 def test_to_dataframe_returns_dataframe_or_list(monkeypatch):
@@ -7,9 +7,9 @@ def test_to_dataframe_returns_dataframe_or_list(monkeypatch):
     def fake_search(self, *args, **kwargs):
         return fake_paths
 
-    monkeypatch.setattr("filoma.core.fd_integration.FdIntegration.search", fake_search)
+    monkeypatch.setattr("filoma.core.fd_integration.FdIntegration.find", fake_search)
 
-    s = FdSearcher()
+    s = FdFinder()
     df_or_list = s.to_dataframe(r".*\\.py$", directory=".")
 
     # If DataFrame available, expect object with .df attribute; otherwise list

@@ -35,7 +35,7 @@ class FdIntegration:
         """Get fd version string."""
         return self.version
 
-    def search(
+    def find(
         self,
         pattern: str = ".",
         base_path: str = ".",
@@ -250,7 +250,7 @@ class FdIntegration:
         Returns:
             List of file paths
         """
-        return self.search(
+        return self.find(
             extension=extensions,
             root_path=root_path,
             file_type="f",  # Only files
@@ -269,7 +269,7 @@ class FdIntegration:
         Returns:
             List of file paths
         """
-        return self.search(
+        return self.find(
             root_path=root_path,
             changed_within=changed_within,
             file_type="f",  # Only files
@@ -287,7 +287,7 @@ class FdIntegration:
         Returns:
             List of directory paths
         """
-        return self.search(
+        return self.find(
             root_path=root_path,
             file_type="e",  # Empty
             **kwargs,
@@ -320,5 +320,5 @@ class FdIntegration:
 
         except Exception:
             # Fallback to regular search if streaming fails
-            results = self.search(pattern=pattern, root_path=root_path, **kwargs)
+            results = self.find(pattern=pattern, root_path=root_path, **kwargs)
             return len(results)

@@ -1,4 +1,4 @@
 from .directory_profiler import DirectoryProfiler
-from .fd_searcher import FdSearcher
+from .fd_finder import FdFinder
 
-__all__ = ["DirectoryProfiler", "FdSearcher"]
+__all__ = ["DirectoryProfiler", "FdFinder"]

@@ -399,7 +399,7 @@ class DirectoryProfiler:
             # are included, when a max_depth is provided for the probe we
             # increase the file search depth by 1.
             file_max_depth = None if max_depth is None else max_depth + 1
-            all_files = self.fd_integration.search(
+            all_files = self.fd_integration.find(
                 base_path=root_path,
                 file_types=["f"],  # Files only
                 max_depth=file_max_depth,
@@ -410,7 +410,7 @@ class DirectoryProfiler:
             if progress and task_id is not None:
                 progress.update(task_id, description="[bold blue]Finding directories...")
 
-            all_dirs = self.fd_integration.search(
+            all_dirs = self.fd_integration.find(
                 base_path=root_path,
                 file_types=["d"],  # Directories only
                 max_depth=max_depth,

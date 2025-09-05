@@ -1,4 +1,4 @@
-from filoma.directories.fd_searcher import FdSearcher
+from filoma.directories.fd_finder import FdFinder
 
 
 def test_find_files_passes_threads(monkeypatch):
@@ -18,7 +18,7 @@ def test_find_files_passes_threads(monkeypatch):
     monkeypatch.setattr("filoma.core.command_runner.CommandRunner.get_command_version", lambda cmd: "fd 8.0")
     monkeypatch.setattr("filoma.core.command_runner.CommandRunner.run_command", fake_run_command)
 
-    searcher = FdSearcher()
+    searcher = FdFinder()
     # Call with threads=2 and assert CommandRunner got --threads 2
     searcher.find_files(pattern=".*", directory=".", threads=2)
 

@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from filoma.core import FdIntegration
-from filoma.directories import DirectoryProfiler, FdSearcher
+from filoma.directories import DirectoryProfiler, FdFinder
 
 
 class TestFdBackend:
@@ -90,7 +90,7 @@ class TestFdBackend:
             pytest.skip("fd command not available")
 
         # Test finding all Python files
-        py_files = fd.search(pattern=".*\\.py$", base_path=complex_test_structure)
+        py_files = fd.find(pattern=".*\\.py$", base_path=complex_test_structure)
         py_file_names = [Path(f).name for f in py_files]
 
         assert "main.py" in py_file_names
@@ -105,11 +105,11 @@ class TestFdBackend:
             pytest.skip("fd command not available")
 
         # Test glob pattern for Python files
-        py_files_glob = fd.search(pattern="*.py", base_path=complex_test_structure, use_glob=True)
+        py_files_glob = fd.find(pattern="*.py", base_path=complex_test_structure, use_glob=True)
         assert len(py_files_glob) >= 5
 
         # Test glob pattern for config files
-        config_files = fd.search(pattern="*.{json,yaml,yml}", base_path=complex_test_structure, use_glob=True)
+        config_files = fd.find(pattern="*.{json,yaml,yml}", base_path=complex_test_structure, use_glob=True)
         config_names = [Path(f).name for f in config_files]
         assert "config.json" in config_names
         assert any("yaml" in name or "yml" in name for name in config_names)
@@ -121,11 +121,11 @@ class TestFdBackend:
             pytest.skip("fd command not available")
 
         # Test regex for files with extensions
-        files_with_ext = fd.search(pattern=".*\\.(py|js|rs)$", base_path=complex_test_structure, use_glob=False)
+        files_with_ext = fd.find(pattern=".*\\.(py|js|rs)$", base_path=complex_test_structure, use_glob=False)
         assert len(files_with_ext) >= 6  # py, js, rs files
 
         # Test regex for files with specific patterns
-        dash_files = fd.search(pattern=".*-.*\\.(js|txt)$", base_path=complex_test_structure, use_glob=False)
+        dash_files = fd.find(pattern=".*-.*\\.(js|txt)$", base_path=complex_test_structure, use_glob=False)
         dash_names = [Path(f).name for f in dash_files]
         assert "file-with-dashes.js" in dash_names
 
@@ -136,13 +136,13 @@ class TestFdBackend:
             pytest.skip("fd command not available")
 
         # Test files only
-        files_only = fd.search(pattern=".", base_path=complex_test_structure, file_types=["f"])
+        files_only = fd.find(pattern=".", base_path=complex_test_structure, file_types=["f"])
         # Should not include directories
         for file_path in files_only:
             assert Path(file_path).is_file()
 
         # Test directories only
-        dirs_only = fd.search(pattern=".", base_path=complex_test_structure, file_types=["d"])
+        dirs_only = fd.find(pattern=".", base_path=complex_test_structure, file_types=["d"])
         # Should not include files
         for dir_path in dirs_only:
             assert Path(dir_path).is_dir()
@@ -154,12 +154,12 @@ class TestFdBackend:
             pytest.skip("fd command not available")
 
         # Test finding hidden files
-        hidden_files = fd.search(pattern="\\.", base_path=complex_test_structure, search_hidden=True)
+        hidden_files = fd.find(pattern="\\.", base_path=complex_test_structure, search_hidden=True)
         hidden_names = [Path(f).name for f in hidden_files]
         assert any(name.startswith(".") for name in hidden_names)
 
         # Test without hidden files (default)
-        normal_files = fd.search(pattern=".*\\.txt$", base_path=complex_test_structure, search_hidden=False)
+        normal_files = fd.find(pattern=".*\\.txt$", base_path=complex_test_structure, search_hidden=False)
         normal_names = [Path(f).name for f in normal_files]
         # Should find regular txt files but not hidden ones
         assert "large.txt" in normal_names
@@ -172,12 +172,12 @@ class TestFdBackend:
             pytest.skip("fd command not available")
 
         # Test depth 1 (only immediate children)
-        depth1_files = fd.search(pattern=".*\\.py$", base_path=complex_test_structure, max_depth=1)
+        depth1_files = fd.find(pattern=".*\\.py$", base_path=complex_test_structure, max_depth=1)
         depth1_names = [Path(f).name for f in depth1_files]
         assert "main.py" in depth1_names  # Should find root level file
 
         # Test deeper search
-        deep_files = fd.search(pattern=".*\\.py$", base_path=complex_test_structure, max_depth=3)
+        deep_files = fd.find(pattern=".*\\.py$", base_path=complex_test_structure, max_depth=3)
         deep_names = [Path(f).name for f in deep_files]
         assert "utils.py" in deep_names  # Should find nested files
         assert len(deep_files) >= len(depth1_files)
@@ -189,11 +189,11 @@ class TestFdBackend:
             pytest.skip("fd command not available")
 
         # Test limiting results
-        limited_files = fd.search(pattern=".*", base_path=complex_test_structure, max_results=5)
+        limited_files = fd.find(pattern=".*", base_path=complex_test_structure, max_results=5)
         assert len(limited_files) <= 5
 
         # Test unlimited
-        all_files = fd.search(pattern=".*", base_path=complex_test_structure, file_types=["f"])
+        all_files = fd.find(pattern=".*", base_path=complex_test_structure, file_types=["f"])
         assert len(all_files) >= 15  # Should find all our test files
 
     def test_fd_case_sensitivity(self, complex_test_structure):
@@ -207,10 +207,10 @@ class TestFdBackend:
         (test_path / "MixedCase.TXT").write_text("mixed case content")
 
         # Test case sensitive search
-        case_sensitive = fd.search(pattern=".*\\.txt$", base_path=complex_test_structure, case_sensitive=True)
+        case_sensitive = fd.find(pattern=".*\\.txt$", base_path=complex_test_structure, case_sensitive=True)
 
         # Test case insensitive search
-        case_insensitive = fd.search(pattern=".*\\.txt$", base_path=complex_test_structure, case_sensitive=False)
+        case_insensitive = fd.find(pattern=".*\\.txt$", base_path=complex_test_structure, case_sensitive=False)
 
         # Case insensitive should find more files
         assert len(case_insensitive) >= len(case_sensitive)
@@ -298,11 +298,11 @@ class TestFdBackend:
             # We're mainly testing that fd doesn't crash and produces results
             assert speedup >= 0.01, "fd performance unexpectedly poor"
 
-    def test_fd_searcher_interface(self, complex_test_structure):
-        """Test FdSearcher high-level interface."""
-        searcher = FdSearcher()
+    def test_fd_finder_interface(self, complex_test_structure):
+        """Test FdFinder high-level interface."""
+        searcher = FdFinder()
         if not searcher.is_available():
-            pytest.skip("FdSearcher not available")
+            pytest.skip("FdFinder not available")
 
         # Test finding files by extension
         py_files = searcher.find_by_extension([".py"], directory=complex_test_structure)
@@ -328,7 +328,7 @@ class TestFdBackend:
 
         # Test with non-existent directory - check that it returns empty or raises
         try:
-            result = fd.search(pattern=".*", base_path="/nonexistent/path")
+            result = fd.find(pattern=".*", base_path="/nonexistent/path")
             # If it doesn't raise an error, result should be empty
             assert isinstance(result, list)
             assert len(result) == 0, "Should return empty list for non-existent directory"
@@ -338,7 +338,7 @@ class TestFdBackend:
 
         # Test with invalid pattern (should handle gracefully or raise clear error)
         try:
-            result = fd.search(pattern="[invalid", base_path=".")
+            result = fd.find(pattern="[invalid", base_path=".")
             # If it doesn't raise an error, result should be empty or valid
             assert isinstance(result, list)
         except Exception as e:
