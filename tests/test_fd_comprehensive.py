@@ -305,19 +305,19 @@ class TestFdBackend:
             pytest.skip("FdFinder not available")
 
         # Test finding files by extension
-        py_files = searcher.find_by_extension([".py"], directory=complex_test_structure)
+        py_files = searcher.find_by_extension([".py"], path=complex_test_structure)
         assert len(py_files) >= 5
 
         # Test finding files by multiple extensions
-        code_files = searcher.find_by_extension([".py", ".js", ".rs"], directory=complex_test_structure)
+        code_files = searcher.find_by_extension([".py", ".js", ".rs"], path=complex_test_structure)
         assert len(code_files) >= 6
 
         # Test finding directories
-        dirs = searcher.find_directories(pattern=".*", directory=complex_test_structure)
+        dirs = searcher.find_directories(pattern=".*", path=complex_test_structure)
         assert len(dirs) >= 8
 
         # Test glob pattern
-        config_files = searcher.find_files(pattern="*.{json,yaml,yml}", directory=complex_test_structure, use_glob=True)
+        config_files = searcher.find_files(pattern="*.{json,yaml,yml}", path=complex_test_structure, use_glob=True)
         assert len(config_files) >= 2
 
     def test_fd_error_handling(self):

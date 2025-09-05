@@ -10,7 +10,7 @@ def test_to_dataframe_returns_dataframe_or_list(monkeypatch):
     monkeypatch.setattr("filoma.core.fd_integration.FdIntegration.find", fake_search)
 
     s = FdFinder()
-    df_or_list = s.to_dataframe(r".*\\.py$", directory=".")
+    df_or_list = s.to_dataframe(r".*\\.py$", path=".")
 
     # If DataFrame available, expect object with .df attribute; otherwise list
     if hasattr(df_or_list, "df"):

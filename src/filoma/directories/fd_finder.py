@@ -43,7 +43,7 @@ class FdFinder:
     def find_files(
         self,
         pattern: str = "",
-        directory: Union[str, Path] = ".",
+        path: Union[str, Path] = ".",
         max_depth: Optional[int] = None,
         hidden: bool = False,
         case_sensitive: Optional[bool] = None,
@@ -55,7 +55,7 @@ class FdFinder:
 
         Args:
             pattern: Search pattern (regex by default, glob if use_glob=True)
-            directory: Directory to search in
+            path: Directory to search in
             max_depth: Maximum depth to search
             hidden: Include hidden files
             case_sensitive: Force case sensitivity
@@ -72,7 +72,7 @@ class FdFinder:
         try:
             return self.fd.find(
                 pattern=pattern or ".",
-                base_path=str(directory),
+                base_path=str(path),
                 file_types=["f"],
                 max_depth=max_depth,
                 search_hidden=hidden,
@@ -81,29 +81,40 @@ class FdFinder:
                 **fd_options,  # Pass through additional fd options including use_glob
             )
         except Exception as e:
-            logger.warning(f"FdFinder.find_files failed for directory '{directory}': {e}")
+            logger.warning(f"FdFinder.find_files failed for path '{path}': {e}")
             return []  # Return empty list instead of raising
 
-    def to_dataframe(self, pattern: str = "", directory: Union[str, Path] = ".", threads: Optional[int] = None, **fd_options):
+    def to_dataframe(
+        self,
+        pattern: str = "",
+        path: Union[str, Path] = ".",
+        threads: Optional[int] = None,
+        **fd_options,
+    ):
         """
         Convenience: run an fd search and return a `filoma.DataFrame` of results.
 
         If the DataFrame feature isn't available (polars missing), returns a list of paths.
         """
-        paths = self.find_files(pattern=pattern, directory=directory, threads=threads, **fd_options)
+        paths = self.find_files(pattern=pattern, path=path, threads=threads, **fd_options)
         if _HAS_DF and FilomaDataFrame is not None:
             return FilomaDataFrame(paths)
         return paths
 
     def find_directories(
-        self, pattern: str = "", directory: Union[str, Path] = ".", max_depth: Optional[int] = None, hidden: bool = False, **fd_options
+        self,
+        pattern: str = "",
+        path: Union[str, Path] = ".",
+        max_depth: Optional[int] = None,
+        hidden: bool = False,
+        **fd_options,
     ) -> List[str]:
         """
         Find directories matching pattern.
 
         Args:
             pattern: Search pattern (regex by default, glob if use_glob=True)
-            directory: Directory to search in
+            path: Directory to search in
             max_depth: Maximum depth to search
             hidden: Include hidden directories
             **fd_options: Additional fd options (e.g., use_glob=True for glob patterns)
@@ -114,7 +125,7 @@ class FdFinder:
         try:
             return self.fd.find(
                 pattern=pattern or ".",
-                base_path=str(directory),
+                base_path=str(path),
                 file_types=["d"],
                 max_depth=max_depth,
                 search_hidden=hidden,
@@ -122,18 +133,22 @@ class FdFinder:
                 **fd_options,  # Pass through additional fd options
             )
         except Exception as e:
-            logger.warning(f"FdFinder.find_directories failed for directory '{directory}': {e}")
+            logger.warning(f"FdFinder.find_directories failed for path '{path}': {e}")
             return []  # Return empty list instead of raising
 
     def find_by_extension(
-        self, extensions: Union[str, List[str]], directory: Union[str, Path] = ".", max_depth: Optional[int] = None, **fd_options
+        self,
+        extensions: Union[str, List[str]],
+        path: Union[str, Path] = ".",
+        max_depth: Optional[int] = None,
+        **fd_options,
     ) -> List[str]:
         """
         Find files by extension(s).
 
         Args:
             extensions: File extension(s) to search for (with or without dots)
-            directory: Directory to search in
+            path: Directory to search in
             max_depth: Maximum depth to search
             **fd_options: Additional fd options
 
@@ -144,7 +159,8 @@ class FdFinder:
             >>> searcher = FdFinder()
             >>> code_files = searcher.find_by_extension([".py", ".rs", ".js"])
         """
-        # Normalize extensions (ensure they don't start with dots for fd)
+    # Normalize extensions (ensure they don't start with dots for fd)
+
         if isinstance(extensions, str):
             extensions = [extensions]
 
@@ -166,7 +182,7 @@ class FdFinder:
             for pattern in patterns:
                 files = self.fd.find(
                     pattern=pattern,
-                    base_path=str(directory),
+                    base_path=str(path),
                     file_types=["f"],
                     max_depth=max_depth,
                     use_glob=True,
@@ -176,17 +192,21 @@ class FdFinder:
 
             return list(set(all_files))  # Remove duplicates
         except Exception as e:
-            logger.warning(f"FdFinder.find_by_extension failed for directory '{directory}': {e}")
+            logger.warning(f"FdFinder.find_by_extension failed for path '{path}': {e}")
             return []  # Return empty list instead of raising
 
     def find_recent_files(
-        self, directory: Union[str, Path] = ".", changed_within: str = "1d", extension: Optional[Union[str, List[str]]] = None, **fd_options
+        self,
+        path: Union[str, Path] = ".",
+        changed_within: str = "1d",
+        extension: Optional[Union[str, List[str]]] = None,
+        **fd_options,
     ) -> List[str]:
         """
         Find recently modified files.
 
         Args:
-            directory: Directory to search in
+            path: Directory to search in
             changed_within: Time period (e.g., '1d', '2h', '30min')
             extension: Optional file extension filter
             **fd_options: Additional fd options
@@ -203,9 +223,19 @@ class FdFinder:
         if extension:
             fd_options["extension"] = extension
 
-        return self.fd.find_recent_files(root_path=directory, changed_within=changed_within, **fd_options)
+        try:
+            return self.fd.find_recent_files(root_path=path, changed_within=changed_within, **fd_options)
+        except Exception as e:
+            logger.warning(f"FdFinder.find_recent_files failed for path '{path}': {e}")
+            return []
 
-    def find_large_files(self, directory: Union[str, Path] = ".", min_size: str = "1M", max_depth: Optional[int] = None, **fd_options) -> List[str]:
+    def find_large_files(
+        self,
+        path: Union[str, Path] = ".",
+        min_size: str = "1M",
+        max_depth: Optional[int] = None,
+        **fd_options,
+    ) -> List[str]:
         """
         Find large files.
 
@@ -223,12 +253,12 @@ class FdFinder:
             >>> large_files = searcher.find_large_files(min_size="10M")
         """
         try:
-            return self.fd.find(root_path=directory, file_type="f", size=f"+{min_size}", max_depth=max_depth, **fd_options)
+            return self.fd.find(root_path=path, file_type="f", size=f"+{min_size}", max_depth=max_depth, **fd_options)
         except Exception as e:
-            logger.warning(f"FdFinder.find_large_files failed for directory '{directory}': {e}")
+            logger.warning(f"FdFinder.find_large_files failed for path '{path}': {e}")
             return []
 
-    def find_empty_directories(self, directory: Union[str, Path] = ".", **fd_options) -> List[str]:
+    def find_empty_directories(self, path: Union[str, Path] = ".", **fd_options) -> List[str]:
         """
         Find empty directories.
 
@@ -240,12 +270,12 @@ class FdFinder:
             List of empty directory paths
         """
         try:
-            return self.fd.find_empty_directories(root_path=directory, **fd_options)
+            return self.fd.find_empty_directories(root_path=path, **fd_options)
         except Exception as e:
-            logger.warning(f"FdFinder.find_empty_directories failed for directory '{directory}': {e}")
+            logger.warning(f"FdFinder.find_empty_directories failed for path '{path}': {e}")
             return []
 
-    def count_files(self, pattern: str = "", directory: Union[str, Path] = ".", **fd_options) -> int:
+    def count_files(self, pattern: str = "", path: Union[str, Path] = ".", **fd_options) -> int:
         """
         Count files matching criteria without returning the full list.
 
@@ -258,13 +288,18 @@ class FdFinder:
             Number of matching files
         """
         try:
-            return self.fd.count_files(pattern=pattern or None, root_path=directory, **fd_options)
+            return self.fd.count_files(pattern=pattern or None, root_path=path, **fd_options)
         except Exception as e:
-            logger.warning(f"FdFinder.count_files failed for directory '{directory}': {e}")
+            logger.warning(f"FdFinder.count_files failed for path '{path}': {e}")
             return 0
 
     def execute_on_results(
-        self, pattern: str, command: List[str], directory: Union[str, Path] = ".", parallel: bool = True, **fd_options
+        self,
+        pattern: str,
+        command: List[str],
+        path: Union[str, Path] = ".",
+        parallel: bool = True,
+        **fd_options,
     ) -> subprocess.CompletedProcess:
         r"""
         Execute command on search results using fd's built-in execution.
@@ -291,7 +326,7 @@ class FdFinder:
 
         from ..core import CommandRunner
 
-        cmd = ["fd", pattern, str(directory)]
+        cmd = ["fd", pattern, str(path)]
 
         # Add fd options
         for key, value in fd_options.items():
@@ -311,12 +346,12 @@ class FdFinder:
 
         return CommandRunner.run_command(cmd, capture_output=True, text=True)
 
-    def get_stats(self, directory: Union[str, Path] = ".") -> dict:
+    def get_stats(self, path: Union[str, Path] = ".") -> dict:
         """
         Get basic statistics about a directory using fd.
 
         Args:
-            directory: Directory to probe
+            path: Directory to probe
 
         Returns:
             Dictionary with basic stats
@@ -330,8 +365,8 @@ class FdFinder:
             return {"file_count": 0, "directory_count": 0, "error": "fd not available"}
 
         try:
-            file_count = self.fd.count_files(root_path=directory, file_type="f")
-            dir_count = self.fd.count_files(root_path=directory, file_type="d")
+            file_count = self.fd.count_files(root_path=path, file_type="f")
+            dir_count = self.fd.count_files(root_path=path, file_type="d")
 
             return {
                 "file_count": file_count,
@@ -340,5 +375,5 @@ class FdFinder:
             }
 
         except Exception as e:
-            logger.error(f"Failed to get directory stats: {e}")
+            logger.error(f"Failed to get directory stats for path '{path}': {e}")
             return {"file_count": 0, "directory_count": 0, "error": str(e)}

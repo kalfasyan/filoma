@@ -328,11 +328,11 @@ class TestFdFinder:
             pytest.skip("fd not available")
 
         # Test finding Python files
-        py_files = searcher.find_files(pattern=".*\\.py$", directory=test_directory)
+        py_files = searcher.find_files(pattern=".*\\.py$", path=test_directory)
         assert len(py_files) >= 3  # test.py, main.py, nested/deep.py
 
         # Test finding by extension
-        json_files = searcher.find_by_extension([".json"], directory=test_directory)
+        json_files = searcher.find_by_extension([".json"], path=test_directory)
         assert len(json_files) >= 1  # config.json
 
     def test_fd_finder_patterns(self, test_directory):
@@ -342,15 +342,15 @@ class TestFdFinder:
             pytest.skip("fd not available")
 
         # Test glob pattern
-        py_files_glob = searcher.find_files(pattern="*.py", directory=test_directory, use_glob=True)
+        py_files_glob = searcher.find_files(pattern="*.py", path=test_directory, use_glob=True)
         assert len(py_files_glob) >= 2
 
         # Test regex pattern
-        py_files_regex = searcher.find_files(pattern=".*\\.py$", directory=test_directory, use_glob=False)
+        py_files_regex = searcher.find_files(pattern=".*\\.py$", path=test_directory, use_glob=False)
         assert len(py_files_regex) >= 2
 
         # Test case insensitive
-        readme_files = searcher.find_files(pattern="readme", directory=test_directory, case_sensitive=False)
+        readme_files = searcher.find_files(pattern="readme", path=test_directory, case_sensitive=False)
         assert len(readme_files) >= 1
 
     def test_fd_finder_directories(self, test_directory):
@@ -360,7 +360,7 @@ class TestFdFinder:
             pytest.skip("fd not available")
 
         # Find directories
-        dirs = searcher.find_directories(pattern="nested", directory=test_directory)
+        dirs = searcher.find_directories(pattern="nested", path=test_directory)
         assert len(dirs) >= 1
         assert any("nested" in str(d) for d in dirs)
 
@@ -371,7 +371,7 @@ class TestFdFinder:
             pytest.skip("fd not available")
 
         # Find hidden files
-        hidden_files = searcher.find_files(pattern=".*", directory=test_directory, hidden=True)
+        hidden_files = searcher.find_files(pattern=".*", path=test_directory, hidden=True)
 
         # Should find at least our .hidden.txt file
         hidden_names = [Path(f).name for f in hidden_files]

@@ -20,7 +20,7 @@ def test_find_files_passes_threads(monkeypatch):
 
     searcher = FdFinder()
     # Call with threads=2 and assert CommandRunner got --threads 2
-    searcher.find_files(pattern=".*", directory=".", threads=2)
+    searcher.find_files(pattern=".*", path=".", threads=2)
 
     assert "--threads" in captured["cmd"]
     assert "2" in captured["cmd"]
