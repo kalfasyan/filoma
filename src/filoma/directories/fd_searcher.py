@@ -13,6 +13,14 @@ from loguru import logger
 
 from ..core import FdIntegration
 
+try:
+    from ..dataframe import DataFrame as FilomaDataFrame
+
+    _HAS_DF = True
+except Exception:
+    FilomaDataFrame = None
+    _HAS_DF = False
+
 
 class FdSearcher:
     """Direct interface to fd for search operations."""
@@ -39,6 +47,7 @@ class FdSearcher:
         max_depth: Optional[int] = None,
         hidden: bool = False,
         case_sensitive: Optional[bool] = None,
+        threads: Optional[int] = None,
         **fd_options,
     ) -> List[str]:
         r"""
@@ -68,11 +77,23 @@ class FdSearcher:
                 max_depth=max_depth,
                 search_hidden=hidden,
                 case_sensitive=case_sensitive if case_sensitive is not None else True,
+                threads=threads,
                 **fd_options,  # Pass through additional fd options including use_glob
             )
         except Exception as e:
             logger.warning(f"FdSearcher.find_files failed for directory '{directory}': {e}")
             return []  # Return empty list instead of raising
+
+    def to_dataframe(self, pattern: str = "", directory: Union[str, Path] = ".", threads: Optional[int] = None, **fd_options):
+        """
+        Convenience: run an fd search and return a `filoma.DataFrame` of results.
+
+        If the DataFrame feature isn't available (polars missing), returns a list of paths.
+        """
+        paths = self.find_files(pattern=pattern, directory=directory, threads=threads, **fd_options)
+        if _HAS_DF and FilomaDataFrame is not None:
+            return FilomaDataFrame(paths)
+        return paths
 
     def find_directories(
         self, pattern: str = "", directory: Union[str, Path] = ".", max_depth: Optional[int] = None, hidden: bool = False, **fd_options
@@ -97,6 +118,7 @@ class FdSearcher:
                 file_types=["d"],
                 max_depth=max_depth,
                 search_hidden=hidden,
+                threads=fd_options.pop("threads", None),
                 **fd_options,  # Pass through additional fd options
             )
         except Exception as e:
@@ -148,6 +170,7 @@ class FdSearcher:
                     file_types=["f"],
                     max_depth=max_depth,
                     use_glob=True,
+                    threads=fd_options.pop("threads", None),
                 )
                 all_files.extend(files)
 
@@ -199,7 +222,11 @@ class FdSearcher:
             >>> searcher = FdSearcher()
             >>> large_files = searcher.find_large_files(min_size="10M")
         """
-        return self.fd.search(root_path=directory, file_type="f", size=f"+{min_size}", max_depth=max_depth, **fd_options)
+        try:
+            return self.fd.search(root_path=directory, file_type="f", size=f"+{min_size}", max_depth=max_depth, **fd_options)
+        except Exception as e:
+            logger.warning(f"FdSearcher.find_large_files failed for directory '{directory}': {e}")
+            return []
 
     def find_empty_directories(self, directory: Union[str, Path] = ".", **fd_options) -> List[str]:
         """
@@ -212,7 +239,11 @@ class FdSearcher:
         Returns:
             List of empty directory paths
         """
-        return self.fd.find_empty_directories(root_path=directory, **fd_options)
+        try:
+            return self.fd.find_empty_directories(root_path=directory, **fd_options)
+        except Exception as e:
+            logger.warning(f"FdSearcher.find_empty_directories failed for directory '{directory}': {e}")
+            return []
 
     def count_files(self, pattern: str = "", directory: Union[str, Path] = ".", **fd_options) -> int:
         """
@@ -226,7 +257,11 @@ class FdSearcher:
         Returns:
             Number of matching files
         """
-        return self.fd.count_files(pattern=pattern or None, root_path=directory, **fd_options)
+        try:
+            return self.fd.count_files(pattern=pattern or None, root_path=directory, **fd_options)
+        except Exception as e:
+            logger.warning(f"FdSearcher.count_files failed for directory '{directory}': {e}")
+            return 0
 
     def execute_on_results(
         self, pattern: str, command: List[str], directory: Union[str, Path] = ".", parallel: bool = True, **fd_options

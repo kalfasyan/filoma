@@ -39,6 +39,7 @@ class FdIntegration:
         self,
         pattern: str = ".",
         base_path: str = ".",
+        root_path: Optional[Union[str, Path]] = None,
         max_depth: Optional[int] = None,
         file_types: Optional[List[str]] = None,
         exclude_patterns: Optional[List[str]] = None,
@@ -48,6 +49,8 @@ class FdIntegration:
         max_results: Optional[int] = None,
         absolute_paths: bool = False,
         use_glob: bool = False,
+        threads: Optional[int] = None,
+        **kwargs,
     ) -> List[str]:
         """
         Search for files/directories using fd.
@@ -76,14 +79,16 @@ class FdIntegration:
         if not self.available:
             raise RuntimeError("fd command not available")
 
+        # Determine base/root path (accept both names)
+        chosen_path = root_path if root_path is not None else base_path
         # Validate base_path exists
-        base_path_obj = Path(base_path)
+        base_path_obj = Path(chosen_path)
         if not base_path_obj.exists():
             logger.warning(f"Base path does not exist: {base_path}")
             return []  # Return empty list instead of failing
 
         if not base_path_obj.is_dir():
-            logger.warning(f"Base path is not a directory: {base_path}")
+            logger.warning(f"Base path is not a directory: {chosen_path}")
             return []
 
         cmd = ["fd"]
@@ -100,13 +105,34 @@ class FdIntegration:
             cmd.append(".")
 
         # Add search path if provided
-        if base_path and base_path != ".":
-            cmd.append(str(base_path))
+        if chosen_path and chosen_path != ".":
+            cmd.append(str(chosen_path))
+
+        # Handle flexible kwargs commonly used by higher-level helpers
+        # extensions / extension -> -e
+        extensions = kwargs.pop("extension", None) or kwargs.pop("extensions", None)
+        if extensions:
+            if isinstance(extensions, (list, tuple)):
+                for ext in extensions:
+                    cmd.extend(["-e", str(ext)])
+            else:
+                cmd.extend(["-e", str(extensions)])
+
+        # file_type / file_types -> -t
+        ft = kwargs.pop("file_type", None) or kwargs.pop("file_types", None) or file_types
+        if ft:
+            if isinstance(ft, (list, tuple)):
+                for t in ft:
+                    cmd.extend(["-t", str(t)])
+            else:
+                cmd.extend(["-t", str(ft)])
+
+        # changed_within -> --changed-within
+        changed_within = kwargs.pop("changed_within", None)
+        if changed_within:
+            cmd.extend(["--changed-within", str(changed_within)])
 
         # Build command arguments
-        if file_types:
-            for file_type in file_types:
-                cmd.extend(["--type", file_type])
 
         if max_depth is not None:
             cmd.extend(["--max-depth", str(max_depth)])
@@ -129,6 +155,10 @@ class FdIntegration:
 
         if max_results is not None:
             cmd.extend(["--max-results", str(max_results)])
+
+        # Threads control: let fd decide by default, but allow override
+        if threads is not None:
+            cmd.extend(["--threads", str(threads)])
 
         try:
             result = CommandRunner.run_command(cmd)
@@ -175,8 +205,12 @@ class FdIntegration:
         kwargs.pop("max_results", None)  # Not compatible with streaming
         kwargs.pop("timeout", None)  # Handled at process level
 
-        # Build command using same logic as search()
+        # Build command using most of the logic from search()
         cmd = ["fd"]
+
+        use_glob = kwargs.pop("use_glob", False)
+        if use_glob:
+            cmd.append("--glob")
 
         if pattern:
             cmd.append(pattern)
@@ -184,8 +218,23 @@ class FdIntegration:
         if root_path:
             cmd.append(str(root_path))
 
-        # Add other arguments (simplified for now)
-        # In a full implementation, you'd replicate the argument building logic
+        # Pass through threads if provided
+        threads = kwargs.pop("threads", None)
+        if threads is not None:
+            cmd.extend(["--threads", str(threads)])
+
+        # Forward other common kwargs: changed_within, extensions, file_type
+        changed_within = kwargs.pop("changed_within", None)
+        if changed_within:
+            cmd.extend(["--changed-within", str(changed_within)])
+
+        extensions = kwargs.pop("extension", None) or kwargs.pop("extensions", None)
+        if extensions:
+            if isinstance(extensions, (list, tuple)):
+                for ext in extensions:
+                    cmd.extend(["-e", str(ext)])
+            else:
+                cmd.extend(["-e", str(extensions)])
 
         return CommandRunner.run_streaming(cmd, text=True)
 

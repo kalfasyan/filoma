@@ -407,13 +407,33 @@ class DirectoryProfiler:
             root_path_obj = Path(root_path).resolve()
             all_paths = [Path(p) for p in all_files + all_dirs]
 
+            # If DataFrame building is enabled and DataFrame support is available,
+            # build a prebuilt DataFrame from the fd results and pass it to the
+            # Python probing logic to avoid rebuilding the DataFrame there.
+            prebuilt_df = None
+            if self.build_dataframe and DATAFRAME_AVAILABLE:
+                try:
+                    prebuilt_df = DataFrame([str(p) for p in all_paths])
+                except Exception:
+                    # If DataFrame construction fails for any reason, fall back
+                    # to letting _probe_paths_python collect paths itself.
+                    prebuilt_df = None
+
             if progress and task_id is not None:
                 progress.update(task_id, description="[bold yellow]Analyzing discovered files...")
                 progress.update(task_id, total=100, completed=50)
 
             # Now probe the discovered paths using Python logic
-            # Pass the existing progress to avoid conflicts
-            result = self._probe_paths_python(root_path_obj, all_paths, max_depth, existing_progress=progress, existing_task_id=task_id)
+            # Pass the existing progress to avoid conflicts. If a prebuilt DataFrame
+            # exists, provide it to avoid rebuilding the DataFrame inside the probe.
+            result = self._probe_paths_python(
+                root_path_obj,
+                all_paths,
+                max_depth,
+                existing_progress=progress,
+                existing_task_id=task_id,
+                prebuilt_dataframe=prebuilt_df,
+            )
 
             if progress and task_id is not None:
                 progress.update(task_id, description="[bold green]Analysis complete!")
@@ -426,7 +446,13 @@ class DirectoryProfiler:
                 progress.stop()
 
     def _probe_paths_python(
-        self, root_path: Path, all_paths: List[Path], max_depth: Optional[int] = None, existing_progress=None, existing_task_id=None
+        self,
+        root_path: Path,
+        all_paths: List[Path],
+        max_depth: Optional[int] = None,
+        existing_progress=None,
+        existing_task_id=None,
+        prebuilt_dataframe=None,
     ) -> Dict:
         """
         Analyze pre-discovered paths using Python logic.
@@ -454,11 +480,17 @@ class DirectoryProfiler:
         # Count the root directory at depth 0
         depth_stats[0] = 1
 
-        # Collection for DataFrame if enabled
-        dataframe_paths = [] if self.build_dataframe else None
+        # Collection for DataFrame if enabled. If a prebuilt_dataframe is provided
+        # (e.g. from fd results), skip collecting paths and attach it at the end.
+        dataframe_paths = [] if (self.build_dataframe and prebuilt_dataframe is None) else None
 
-        # Sort paths for better progress indication
-        all_paths.sort()
+        # Sort paths for better progress indication (guard against None or unsortable lists)
+        if all_paths:
+            try:
+                all_paths.sort()
+            except Exception:
+                # If sorting fails (e.g., mixed types), ignore and proceed
+                pass
 
         progress = existing_progress
         task_id = existing_task_id
@@ -577,7 +609,11 @@ class DirectoryProfiler:
 
             # Add DataFrame if enabled
             if self.build_dataframe and DATAFRAME_AVAILABLE:
-                result["dataframe"] = DataFrame(dataframe_paths)
+                if prebuilt_dataframe is not None:
+                    # Use prebuilt DataFrame supplied by caller (fd results)
+                    result["dataframe"] = prebuilt_dataframe
+                else:
+                    result["dataframe"] = DataFrame(dataframe_paths)
 
             return result
 
