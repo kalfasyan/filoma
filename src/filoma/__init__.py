@@ -23,8 +23,35 @@ __all__ = ["__version__", "core", "directories", "images", "files", "DataFrame"]
 # Convenience wrappers for quick, one-off usage. These are thin helpers that
 # instantiate the appropriate profiler and return the canonical dataclass result.
 def probe(path: str, **kwargs):
-    """Quick helper: probe a directory path and return a DirectoryAnalysis."""
-    return DirectoryProfiler(**kwargs).probe(path)
+    """Quick helper: probe a directory path and return a DirectoryAnalysis.
+
+    This wrapper accepts probe-specific keyword arguments such as
+    `max_depth` and `threads` and forwards them to
+    `DirectoryProfiler.probe`. Other kwargs are used to configure the
+    `DirectoryProfiler` constructor.
+    """
+    # Extract probe-only parameters so they are not passed to the
+    # DirectoryProfiler constructor (which doesn't accept them).
+    max_depth = kwargs.pop("max_depth", None)
+    threads = kwargs.pop("threads", None)
+
+    # If the provided path points to a file, dispatch to FileProfiler.probe
+    try:
+        from pathlib import Path
+
+        p = Path(path)
+        if p.exists() and p.is_file():
+            # Forward any file-specific kwargs (e.g., compute_hash) via kwargs
+            from .files.file_profiler import FileProfiler
+
+            return FileProfiler().probe(path, **kwargs)
+    except Exception:
+        # If any checks fail, fall back to directory probing behaviour and
+        # let the underlying profiler raise appropriate errors.
+        pass
+
+    profiler = DirectoryProfiler(**kwargs)
+    return profiler.probe(path, max_depth=max_depth, threads=threads)
 
 
 def probe_file(path: str, **kwargs):

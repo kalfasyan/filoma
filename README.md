@@ -26,10 +26,13 @@ uv add filoma  # or: pip install filoma
 ```
 
 ```python
-from filoma.directories import DirectoryProfiler
-profiler = DirectoryProfiler()
-res = profiler.probe("/")
-profiler.print_summary(res)
+import filoma
+
+# Quick one-liner to analyze a directory (returns a DirectoryAnalysis dataclass)
+analysis = filoma.probe("/path/to/inspect")
+
+# Print a short summary using the profiler's helper
+filoma.directories.DirectoryProfiler().print_summary(analysis)
 ```
 Example output:
 
@@ -64,42 +67,32 @@ Directory Analysis: / (🦀 Rust (Parallel)) - 29.56s
 
 ## Examples
 
-### Directory Analysis
+### Directory Analysis (super simple)
 
-The simplest way to probe a directory and print a summary:
+Analyze a directory in one line and inspect the typed result:
 ```python
-from filoma.directories import DirectoryProfiler
+import filoma
 
-profiler = DirectoryProfiler()
-res = profiler.probe("/", max_depth=3)
-profiler.print_summary(res)
+# Analyze a directory (returns DirectoryAnalysis)
+analysis = filoma.probe("/", max_depth=3)
+
+# Programmatic access
+print(analysis.summary["total_files"])    # nested dicts remain available
+print(analysis.to_dict())                   # plain dict for JSON or tooling
 ```
 
-### Async (opt-in) — good for network filesystems
+### Network filesystems — recommended approach
 
-If traversing NFS/SMB, remote mounts, cloud-fuse, etc., enable async mode to parallelize filesystem calls and improve throughput.
+For NFS/SMB/cloud-fuse or other network-mounted filesystems, prefer a two-step strategy:
 
-```python
-# Async (opt‑in) scanning for network / high‑latency filesystems
-# Enable when traversing NFS/SMB, remote mounts, cloud-fuse, etc.
-from filoma.directories import DirectoryProfiler
+1. Try `fd` with multithreading first: fast discovery with controlled parallelism often gives the best performance with fewer issues.
+    - Example: `DirectoryProfiler(use_fd=True, threads=8)` or set `search_backend='fd'`.
+2. If you still need higher concurrency for high-latency mounts, enable the Rust async scanner as a secondary option (`use_async=True`) and tune `network_concurrency`, `network_timeout_ms`, and `network_retries`.
 
-profiler = DirectoryProfiler(
-    use_async=True,
-    network_concurrency=32,    # Parallel in-flight filesystem ops
-    network_timeout_ms=3000,   # Per op timeout (ms)
-    network_retries=2          # Retries for transient errors
-)
-
-result = profiler.probe("/mnt/nfs/share")
-profiler.print_summary(result)
-```
-
-Tips:
-- Lower network_concurrency if the server throttles you; raise for high-latency links.
-- Increase network_timeout_ms for very slow metadata calls.
-- Retries help with flaky mounts; set to 0 for strict mode.
-- Fallback: omit use_async for local SSDs (sync is usually faster there).
+Short tips:
+- Start with `use_fd` + a modest `threads` (4–16) and validate server load.
+- Use async only when fd + multithreading isn't sufficient for your latency profile.
+- Reduce concurrency if the server throttles or shows instability; increase timeout for very slow metadata calls.
 
 ### Smart File Search
 
@@ -136,26 +129,27 @@ python_files = df.filter_by_extension('.py')
 df.save_csv("analysis.csv")
 ```
 
-### File & Image Profiling
-Individual file profiling with metadata and image analysis:
+### File & Image Profiling (one-liners)
+
+File metadata and image analysis are easy with the top-level helpers:
+
 ```python
-from filoma.files import FileProfiler
-from filoma.images import PngProfiler
+import filoma
+import numpy as np
 
-# File metadata
-file_profiler = FileProfiler()
+# File profiling (returns Filo dataclass)
+filo = filoma.probe_file("/path/to/file.txt", compute_hash=False)
+print(filo.path, filo.size)
+print(filo.to_dict())
 
-# returns a `Filo` dataclass with attribute access
-#    `compute_hash=True` will compute a SHA256 fingerprint (optional/expensive)
-filo = file_profiler.probe("/path/to/file.txt", compute_hash=True)
-print(filo)               # dataclass repr; access fields like filo.path, filo.sha256
-print(filo.sha256)        # full SHA256 (if computed)
-print(filo.to_dict())     # convert to plain dict
+# Image profiling from file (dispatches to PNG/NPY/TIF/ZARR profilers)
+img_report = filoma.probe_image("/path/to/image.png")
+print(img_report.file_type, img_report.shape)
 
-# Image analysis
-img_profiler = PngProfiler()
-img_report = img_profiler.probe("/path/to/image.png")
-print(img_report)  # Shape, dtype, stats, etc.
+# Or analyze a numpy array directly
+arr = np.zeros((64, 64), dtype=np.uint8)
+img_report2 = filoma.probe_image(arr)
+print(img_report2.to_dict())
 ```
 
 ## Performance

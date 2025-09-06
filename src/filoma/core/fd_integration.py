@@ -45,6 +45,7 @@ class FdIntegration:
         case_sensitive: bool = True,
         follow_links: bool = False,
         search_hidden: bool = False,
+        no_ignore: bool = False,
         max_results: Optional[int] = None,
         absolute_paths: bool = False,
         use_glob: bool = False,
@@ -136,6 +137,10 @@ class FdIntegration:
 
         if search_hidden:
             cmd.append("--hidden")
+
+        # Allow caller to disable fd's ignore-file behavior to match raw traversal
+        if no_ignore:
+            cmd.append("--no-ignore")
 
         if absolute_paths:
             cmd.append("--absolute-path")

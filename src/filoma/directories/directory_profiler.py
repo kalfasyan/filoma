@@ -50,6 +50,10 @@ try:
 except ImportError:
     FD_AVAILABLE = False
 
+# Sentinel to detect when optional boolean flags are omitted by callers.
+# Define at module scope so it's always available regardless of fd import outcome.
+_NOT_SET = object()
+
 
 def _is_interactive_environment():
     """Detect if running in IPython/Jupyter or other interactive environment."""
@@ -158,10 +162,10 @@ class DirectoryProfiler:
 
     def __init__(
         self,
-        use_rust: bool = True,
+        use_rust: object = _NOT_SET,
         use_parallel: bool = True,
         use_async: bool = False,
-        use_fd: bool = True,
+        use_fd: object = _NOT_SET,
         search_backend: str = "auto",  # "rust", "python", "fd", "auto"
         parallel_threshold: int = 1000,
         build_dataframe: bool = False,
@@ -196,8 +200,60 @@ class DirectoryProfiler:
             fast_path_only: Internal flag to use fast path (no metadata) in Rust backend.
         """
         self.console = Console()
-        self.use_rust = use_rust and RUST_AVAILABLE
+
+        # Resolve backend preference from the user's explicit flags and the
+        # search_backend hint. Use sentinel detection so callers that explicitly
+        # pass one of the `use_*` flags override the other default.
+        self.search_backend = search_backend
+
+        rust_provided = use_rust is not _NOT_SET
+        fd_provided = use_fd is not _NOT_SET
+        requested_use_rust = bool(use_rust) if rust_provided else None
+        requested_use_fd = bool(use_fd) if fd_provided else None
+
+        chosen_preference: Optional[str] = None
+        if self.search_backend in ("rust", "fd", "python"):
+            # Explicit backend override from the search_backend parameter
+            chosen_preference = self.search_backend
+        else:
+            # Infer preference using explicit flags when provided.
+            if requested_use_rust is True and requested_use_fd is not True:
+                chosen_preference = "rust"
+            elif requested_use_fd is True and requested_use_rust is not True:
+                chosen_preference = "fd"
+            elif requested_use_rust is True and requested_use_fd is True:
+                # Both explicitly requested: prefer fd but inform the user
+                chosen_preference = "fd"
+                self.console.print(
+                    (
+                        "[yellow]Note: both use_rust and use_fd were enabled; "
+                        "treating this as a preference for fd. Set search_backend='rust' "
+                        "to prefer Rust instead.[/yellow]"
+                    )
+                )
+            elif requested_use_rust is False and requested_use_fd is False:
+                chosen_preference = "python"
+            elif requested_use_rust is False and requested_use_fd is None:
+                chosen_preference = "fd"
+            elif requested_use_fd is False and requested_use_rust is None:
+                chosen_preference = "rust"
+            else:
+                # No explicit preference provided: default to Rust -> fd -> python
+                if RUST_AVAILABLE:
+                    chosen_preference = "rust"
+                elif FD_AVAILABLE:
+                    chosen_preference = "fd"
+                else:
+                    chosen_preference = "python"
+
+        # Final flags reflect chosen preference but also the actual availability
+        # of the underlying implementations.
+        self.use_rust = (chosen_preference == "rust") and RUST_AVAILABLE
+        self.use_fd = (chosen_preference == "fd") and FD_AVAILABLE
+
+        # Parallel Rust depends on Rust being chosen and available
         self.use_parallel = use_parallel and RUST_PARALLEL_AVAILABLE and self.use_rust
+
         # User-visible async toggle for the Rust network-optimized scanner.
         # Off by default because async can be slower on local SSD/HDD.
         self.use_async = use_async
@@ -372,9 +428,10 @@ class DirectoryProfiler:
         Returns:
             Backend name: "fd", "rust", or "python"
         """
-        # If use_rust=False explicitly set, prefer the Python backend
-        # unless search_backend is explicitly specified
-        if self.search_backend == "auto" and not self.use_rust:
+        # If search_backend is 'auto' and neither rust nor fd are requested
+        # by the resolved preferences, prefer the Python backend. This avoids
+        # forcing Python when the user specifically preferred fd.
+        if self.search_backend == "auto" and not (self.use_rust or self.use_fd):
             return "python"
 
         if self.search_backend == "fd":
@@ -394,18 +451,14 @@ class DirectoryProfiler:
 
         # Auto selection logic
         if self.search_backend == "auto":
-            # Based on cold cache benchmarks:
-            # Rust is fastest for both file discovery (3.16s) and DataFrame building (4.16s)
-            # fd is competitive (4.80s for both) but consistently slower
-            # Python is comprehensive but slowest (8.11s)
-            # Prefer fd when explicitly enabled by the user and available.
-            # This allows users who want fast discovery via fd to opt into it
-            # without having to disable Rust explicitly.
-            if self.use_fd and FD_AVAILABLE:
-                return "fd"
-            elif self.use_rust:
-                # Rust is the next-best option
+            # Based on cold cache benchmarks Rust tends to be the fastest
+            # general-purpose backend. Prefer Rust when available; fall back
+            # to fd when Rust is not enabled/available but fd is explicitly
+            # enabled by the user.
+            if self.use_rust and RUST_AVAILABLE:
                 return "rust"
+            elif self.use_fd and FD_AVAILABLE:
+                return "fd"
             else:
                 return "python"
 
@@ -478,13 +531,19 @@ class DirectoryProfiler:
             # are included, when a max_depth is provided for the probe we
             # increase the file search depth by 1.
             file_max_depth = None if max_depth is None else max_depth + 1
-            all_files = self.fd_integration.find(
-                path=path,
-                file_types=["f"],  # Files only
-                max_depth=file_max_depth,
-                absolute_paths=True,
-                threads=threads,
-            )
+            # When using fd in auto mode, prefer flags that match a raw
+            # traversal (include hidden files, don't honor ignore files, follow symlinks)
+            fd_find_kwargs = {
+                "path": path,
+                "file_types": ["f"],
+                "max_depth": file_max_depth,
+                "absolute_paths": True,
+                "threads": threads,
+            }
+            if self.search_backend == "auto":
+                fd_find_kwargs.update({"search_hidden": True, "no_ignore": True, "follow_links": True})
+
+            all_files = self.fd_integration.find(**fd_find_kwargs)
 
             if progress and task_id is not None:
                 progress.update(task_id, description="[bold blue]Finding directories...")
@@ -495,6 +554,9 @@ class DirectoryProfiler:
                 max_depth=max_depth,
                 absolute_paths=True,
                 threads=threads,
+                search_hidden=True if self.search_backend == "auto" else False,
+                no_ignore=True if self.search_backend == "auto" else False,
+                follow_links=True if self.search_backend == "auto" else False,
             )
 
             # Convert to Path objects for analysis
@@ -548,6 +610,54 @@ class DirectoryProfiler:
         finally:
             if progress:
                 progress.stop()
+
+    def sample_paths(self, path: str, sample_size: int = 20) -> Dict[str, List[str]]:
+        """Return small samples of paths for quick backend-diffing.
+
+        Returns a dict with keys 'fd_files', 'fd_dirs', 'python_files'. Rust currently
+        does not expose a path list in the public API so it is omitted (you can
+        re-run the Rust prober separately if needed).
+        """
+        samples = {"fd_files": [], "fd_dirs": [], "python_files": []}
+        try:
+            if FD_AVAILABLE:
+                fd = FdIntegration()
+                samples["fd_files"] = fd.find(
+                    path=path,
+                    file_types=["f"],
+                    max_results=sample_size,
+                    search_hidden=True,
+                    no_ignore=True,
+                    follow_links=True,
+                    absolute_paths=True,
+                )
+                samples["fd_dirs"] = fd.find(
+                    path=path,
+                    file_types=["d"],
+                    max_results=sample_size,
+                    search_hidden=True,
+                    no_ignore=True,
+                    follow_links=True,
+                    absolute_paths=True,
+                )
+        except Exception:
+            samples["fd_files"] = []
+            samples["fd_dirs"] = []
+
+        # Python sample
+        try:
+            root = Path(path)
+            python_files = []
+            for i, p in enumerate(root.rglob("*")):
+                if p.is_file():
+                    python_files.append(str(p.resolve()))
+                if len(python_files) >= sample_size:
+                    break
+            samples["python_files"] = python_files
+        except Exception:
+            samples["python_files"] = []
+
+        return samples
 
     def _probe_paths_python(
         self,
