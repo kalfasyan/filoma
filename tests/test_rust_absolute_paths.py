@@ -10,7 +10,6 @@ import pytest
 
 def _rust_core_available():
     try:
-        from filoma.filoma_core import probe_directory_rust
 
         return True
     except Exception:

@@ -98,7 +98,7 @@ This minimal surface area (probe, probe_to_df, probe_file, probe_image) covers m
 
 
 
-## A bit more in-depth examples
+## Going Deeper (lower-level APIs)
 
 ### Super simple directory analysis  
 
