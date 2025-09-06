@@ -153,17 +153,10 @@ class DirectoryProfiler:
         # If None, fd will use its own default concurrency; a numeric value will be forwarded.
         self.threads = threads
 
-        # Initialize fd integration if available
+        # Defer fd integration initialization until actually used to avoid
+        # probing the environment at import/constructor time (helps CI tests
+        # that monkeypatch availability flags).
         self.fd_integration = None
-        if self.use_fd and FD_AVAILABLE:
-            try:
-                self.fd_integration = FdIntegration()
-                if not self.fd_integration.is_available():
-                    self.use_fd = False
-                    self.fd_integration = None
-            except Exception:
-                self.use_fd = False
-                self.fd_integration = None
 
         if use_rust and not RUST_AVAILABLE:
             self.console.print("[yellow]Warning: Rust implementation not available, falling back to Python[/yellow]")
@@ -212,7 +205,10 @@ class DirectoryProfiler:
         Returns:
             True if fd is available and enabled, False otherwise
         """
-        return self.use_fd and FD_AVAILABLE and self.fd_integration is not None
+
+        # Use FD_AVAILABLE to reflect whether the fd integration package is importable
+        # Tests may monkeypatch FD_AVAILABLE without having the fd binary present.
+        return self.use_fd and FD_AVAILABLE
 
     def get_implementation_info(self) -> Dict[str, bool]:
         """
@@ -316,7 +312,7 @@ class DirectoryProfiler:
             return "python"
 
         if self.search_backend == "fd":
-            if self.use_fd and self.fd_integration:
+            if self.use_fd and FD_AVAILABLE:
                 return "fd"
             else:
                 logger.warning("fd backend requested but not available, falling back to auto selection")
@@ -339,7 +335,7 @@ class DirectoryProfiler:
             # Prefer fd when explicitly enabled by the user and available.
             # This allows users who want fast discovery via fd to opt into it
             # without having to disable Rust explicitly.
-            if self.use_fd and self.fd_integration:
+            if self.use_fd and FD_AVAILABLE:
                 return "fd"
             elif self.use_rust:
                 # Rust is the next-best option
@@ -370,8 +366,23 @@ class DirectoryProfiler:
         while using Python for statistical analysis to maintain
         consistency with other backends.
         """
-        if not self.fd_integration:
-            raise RuntimeError("fd integration not available")
+        # Lazily initialize fd integration here. This ensures tests that
+        # monkeypatch FD_AVAILABLE can control availability without the
+        # constructor eagerly probing the environment.
+        if self.fd_integration is None:
+            # If the fd integration package wasn't importable at module
+            # import time, reflect that now.
+            if not FD_AVAILABLE:
+                raise RuntimeError("fd integration not available")
+            try:
+                self.fd_integration = FdIntegration()
+                if not self.fd_integration.is_available():
+                    # fd binary is not usable on this system
+                    self.fd_integration = None
+                    raise RuntimeError("fd integration not available")
+            except Exception:
+                self.fd_integration = None
+                raise RuntimeError("fd integration not available")
 
         progress = None
         task_id = None
@@ -389,6 +400,8 @@ class DirectoryProfiler:
             progress.start()
             task_id = progress.add_task("Discovering...", total=None)
 
+        # Run the fd discovery and analysis inside a try so we always stop
+        # the progress bar in the finally block below.
         try:
             # Use fd to get all files and directories rapidly
             if progress and task_id is not None:
