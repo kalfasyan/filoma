@@ -57,6 +57,7 @@ class DataFrame:
 
         # If it's a method that returns a DataFrame, wrap it
         if callable(attr):
+
             def wrapper(*args, **kwargs):
                 result = attr(*args, **kwargs)
                 # If the result is a Polars DataFrame with a 'path' column, wrap it
@@ -64,6 +65,7 @@ class DataFrame:
                     return DataFrame(result)
                 # Otherwise return the result as-is
                 return result
+
             return wrapper
         else:
             # For properties and non-callable attributes, return as-is
@@ -101,12 +103,14 @@ class DataFrame:
         Returns:
             New DataFrame with additional path component columns
         """
-        df_with_components = self._df.with_columns([
-            pl.col("path").map_elements(lambda x: str(Path(x).parent), return_dtype=pl.String).alias("parent"),
-            pl.col("path").map_elements(lambda x: Path(x).name, return_dtype=pl.String).alias("name"),
-            pl.col("path").map_elements(lambda x: Path(x).stem, return_dtype=pl.String).alias("stem"),
-            pl.col("path").map_elements(lambda x: Path(x).suffix, return_dtype=pl.String).alias("suffix"),
-        ])
+        df_with_components = self._df.with_columns(
+            [
+                pl.col("path").map_elements(lambda x: str(Path(x).parent), return_dtype=pl.String).alias("parent"),
+                pl.col("path").map_elements(lambda x: Path(x).name, return_dtype=pl.String).alias("name"),
+                pl.col("path").map_elements(lambda x: Path(x).stem, return_dtype=pl.String).alias("stem"),
+                pl.col("path").map_elements(lambda x: Path(x).suffix, return_dtype=pl.String).alias("suffix"),
+            ]
+        )
         return DataFrame(df_with_components)
 
     def add_file_stats(self) -> "DataFrame":
@@ -116,6 +120,7 @@ class DataFrame:
         Returns:
             New DataFrame with file statistics columns
         """
+
         def get_file_stats(path_str: str) -> Dict[str, Any]:
             """Get file statistics for a given path."""
             try:
@@ -124,8 +129,8 @@ class DataFrame:
                     stat = path.stat()
                     return {
                         "size_bytes": stat.st_size,
-                        "modified_time": str(datetime.datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')),
-                        "created_time": str(datetime.datetime.fromtimestamp(stat.st_ctime).strftime('%Y-%m-%d %H:%M:%S')),
+                        "modified_time": str(datetime.datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")),
+                        "created_time": str(datetime.datetime.fromtimestamp(stat.st_ctime).strftime("%Y-%m-%d %H:%M:%S")),
                         "is_file": True,
                         "is_dir": False,
                     }
@@ -158,13 +163,16 @@ class DataFrame:
         stats_data = [get_file_stats(path) for path in self._df["path"].to_list()]
 
         # Create a DataFrame from the stats
-        stats_df = pl.DataFrame(stats_data, schema={
-            "size_bytes": pl.Int64,
-            "modified_time": pl.String,
-            "created_time": pl.String,
-            "is_file": pl.Boolean,
-            "is_dir": pl.Boolean,
-        })
+        stats_df = pl.DataFrame(
+            stats_data,
+            schema={
+                "size_bytes": pl.Int64,
+                "modified_time": pl.String,
+                "created_time": pl.String,
+                "is_file": pl.Boolean,
+                "is_dir": pl.Boolean,
+            },
+        )
 
         # Concatenate with the original DataFrame
         df_with_stats = pl.concat([self._df, stats_df], how="horizontal")
@@ -211,9 +219,7 @@ class DataFrame:
                 # Path is not relative to the provided root path
                 return len(Path(path_str).parts)
 
-        df_with_depth = self._df.with_columns([
-            pl.col("path").map_elements(calculate_depth, return_dtype=pl.Int64).alias("depth")
-        ])
+        df_with_depth = self._df.with_columns([pl.col("path").map_elements(calculate_depth, return_dtype=pl.Int64).alias("depth")])
         return DataFrame(df_with_depth)
 
     def filter_by_extension(self, extensions: Union[str, List[str]]) -> "DataFrame":
@@ -232,16 +238,11 @@ class DataFrame:
         # Normalize extensions (ensure they start with a dot)
         normalized_extensions = []
         for ext in extensions:
-            if not ext.startswith('.'):
-                ext = '.' + ext
+            if not ext.startswith("."):
+                ext = "." + ext
             normalized_extensions.append(ext.lower())
 
-        filtered_df = self._df.filter(
-            pl.col("path").map_elements(
-                lambda x: Path(x).suffix.lower() in normalized_extensions,
-                return_dtype=pl.Boolean
-            )
-        )
+        filtered_df = self._df.filter(pl.col("path").map_elements(lambda x: Path(x).suffix.lower() in normalized_extensions, return_dtype=pl.Boolean))
         return DataFrame(filtered_df)
 
     def filter_by_pattern(self, pattern: str) -> "DataFrame":
@@ -264,12 +265,13 @@ class DataFrame:
         Returns:
             Polars DataFrame with extension counts
         """
-        df_with_ext = self._df.with_columns([
-            pl.col("path").map_elements(
-                lambda x: Path(x).suffix.lower() if Path(x).suffix else "<no extension>",
-                return_dtype=pl.String
-            ).alias("extension")
-        ])
+        df_with_ext = self._df.with_columns(
+            [
+                pl.col("path")
+                .map_elements(lambda x: Path(x).suffix.lower() if Path(x).suffix else "<no extension>", return_dtype=pl.String)
+                .alias("extension")
+            ]
+        )
         return df_with_ext.group_by("extension").len().sort("len", descending=True)
 
     def group_by_directory(self) -> pl.DataFrame:
@@ -279,12 +281,9 @@ class DataFrame:
         Returns:
             Polars DataFrame with directory counts
         """
-        df_with_parent = self._df.with_columns([
-            pl.col("path").map_elements(
-                lambda x: str(Path(x).parent),
-                return_dtype=pl.String
-            ).alias("parent_dir")
-        ])
+        df_with_parent = self._df.with_columns(
+            [pl.col("path").map_elements(lambda x: str(Path(x).parent), return_dtype=pl.String).alias("parent_dir")]
+        )
         return df_with_parent.group_by("parent_dir").len().sort("len", descending=True)
 
     def to_polars(self) -> pl.DataFrame:
