@@ -28,6 +28,9 @@ class ImageReport(Mapping):
             d["shape"] = tuple(self.shape)
         return d
 
+    def as_dict(self) -> dict:
+        return self.to_dict()
+
     # Mapping protocol for dict access
     def _as_dict(self) -> dict:
         return self.to_dict()

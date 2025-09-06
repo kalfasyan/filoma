@@ -13,5 +13,74 @@ Features:
 from . import core, directories, files, images
 from ._version import __version__
 from .dataframe import DataFrame
+from .directories.directory_profiler import DirectoryProfiler
+from .files.file_profiler import FileProfiler
+from .images.image_profiler import ImageProfiler
 
 __all__ = ["__version__", "core", "directories", "images", "files", "DataFrame"]
+
+
+# Convenience wrappers for quick, one-off usage. These are thin helpers that
+# instantiate the appropriate profiler and return the canonical dataclass result.
+def probe(path: str, **kwargs):
+    """Quick helper: probe a directory path and return a DirectoryAnalysis."""
+    return DirectoryProfiler(**kwargs).probe(path)
+
+
+def probe_file(path: str, **kwargs):
+    """Quick helper: probe a single file and return a Filo dataclass."""
+    return FileProfiler().probe(path, **kwargs)
+
+
+def probe_image(arg, **kwargs):
+    """Quick helper: analyze an image. If `arg` is a numpy array, ImageProfiler.probe is used;
+    if it's a path-like, attempt to locate an image-specific profiler or load it to numpy and analyze.
+    This wrapper favors simplicity for interactive use; for advanced control instantiate profilers directly.
+    """
+    # Lazy import to avoid heavy image dependencies at import time
+    try:
+        from pathlib import Path
+
+        import numpy as _np
+    except Exception:
+        _np = None
+
+    # If it's a numpy array, use ImageProfiler directly
+    if _np is not None and hasattr(_np, "ndarray") and isinstance(arg, _np.ndarray):
+        return ImageProfiler().probe(arg)
+
+    # If path-like, try to dispatch to specialized profilers by extension
+    p = Path(arg)
+    suffix = p.suffix.lower() if p.suffix else ""
+
+    try:
+        # Use images package specializers when available
+        from .images import NpyProfiler, PngProfiler, TifProfiler, ZarrProfiler
+
+        if suffix == ".png":
+            return PngProfiler().probe(p)
+        if suffix == ".npy":
+            return NpyProfiler().probe(p)
+        if suffix in (".tif", ".tiff"):
+            return TifProfiler().probe(p)
+        if suffix == ".zarr":
+            return ZarrProfiler().probe(p)
+    except Exception:
+        # If specialist creation fails, fall back to generic loader below
+        pass
+
+    # Generic fallback: try Pillow + numpy loader
+    try:
+        from PIL import Image as _PILImage
+
+        img = _PILImage.open(p)
+        arr = _np.array(img) if _np is not None else None
+        if arr is not None:
+            return ImageProfiler().probe(arr)
+    except Exception:
+        pass
+
+    # Last resort: return an ImageReport with status explaining failure
+    from .images.image_profiler import ImageReport
+
+    return ImageReport(path=str(p), status="failed_to_load_or_unsupported_format")

@@ -129,6 +129,9 @@ class DirectoryAnalysis(Mapping):
     def to_df(self) -> Optional["DataFrame"]:
         return self.dataframe
 
+    def as_dict(self) -> Dict:
+        return self.to_dict()
+
     # Mapping protocol implementations so callers can still use dict-like access
     # (e.g., result['summary']) even though the canonical return type is a dataclass.
     def _as_dict(self) -> Dict:
