@@ -1,4 +1,8 @@
-# filoma
+<p align="center">
+    <img src="images/logo.png" alt="filoma logo" width="260">
+</p>  
+
+<h1 align="center">filoma</h1>
 
 [![PyPI version](https://badge.fury.io/py/filoma.svg)](https://badge.fury.io/py/filoma) ![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-blueviolet) ![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat) [![Tests](https://github.com/kalfasyan/filoma/actions/workflows/ci.yml/badge.svg)](https://github.com/kalfasyan/filoma/actions/workflows/ci.yml)
 
