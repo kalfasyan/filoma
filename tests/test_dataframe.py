@@ -7,17 +7,17 @@ import sys
 import tempfile
 from pathlib import Path
 
+# Add the src directory to the path (must happen before importing filoma modules)
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
 import pytest
+
+from filoma.dataframe import DataFrame
+from filoma.directories.directory_profiler import DirectoryProfiler
 
 # Skip tests on CI where external discovery tools (fd) are not available by default
 CI = os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true"
 pytestmark = pytest.mark.skipif(CI, reason="Skip on CI where fd may be unavailable")
-
-# Add the src directory to the path (must happen before importing filoma modules)
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-from filoma.dataframe import DataFrame
-from filoma.directories.directory_profiler import DirectoryProfiler
 
 
 class TestDataFrameFunctionality:
