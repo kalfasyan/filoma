@@ -1,5 +1,7 @@
 import time
 from collections import Counter, defaultdict
+from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
@@ -67,6 +69,79 @@ def _is_interactive_environment():
         return True
 
     return False
+
+
+@dataclass
+class DirectoryAnalysis(Mapping):
+    """Structured container for directory analysis results.
+
+    This is the canonical, dataclass-first return value for directory probes.
+    Use :meth:`to_dict` to convert to a plain dict and :meth:`to_df`
+    to access the optional DataFrame. The class exists to provide a typed,
+    ergonomic API for programmatic consumption.
+    """
+
+    path: str
+    summary: Dict
+    file_extensions: Dict
+    common_folder_names: Dict
+    empty_folders: List[str]
+    top_folders_by_file_count: List
+    depth_distribution: Dict
+    dataframe: Optional["DataFrame"] = None
+    timing: Optional[Dict] = None
+    dataframe_note: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, d: Dict) -> "DirectoryAnalysis":
+        return cls(
+            path=d.get("path"),
+            summary=d.get("summary", {}),
+            file_extensions=d.get("file_extensions", {}),
+            common_folder_names=d.get("common_folder_names", {}),
+            empty_folders=d.get("empty_folders", []),
+            top_folders_by_file_count=d.get("top_folders_by_file_count", []),
+            depth_distribution=d.get("depth_distribution", {}),
+            dataframe=d.get("dataframe"),
+            timing=d.get("timing"),
+            dataframe_note=d.get("dataframe_note"),
+        )
+
+    def to_dict(self) -> Dict:
+        # Convert to a plain dict shape
+        d = {
+            "path": self.path,
+            "summary": self.summary,
+            "file_extensions": self.file_extensions,
+            "common_folder_names": self.common_folder_names,
+            "empty_folders": self.empty_folders,
+            "top_folders_by_file_count": self.top_folders_by_file_count,
+            "depth_distribution": self.depth_distribution,
+        }
+        if self.dataframe is not None:
+            d["dataframe"] = self.dataframe
+        if self.timing is not None:
+            d["timing"] = self.timing
+        if self.dataframe_note is not None:
+            d["dataframe_note"] = self.dataframe_note
+        return d
+
+    def to_df(self) -> Optional["DataFrame"]:
+        return self.dataframe
+
+    # Mapping protocol implementations so callers can still use dict-like access
+    # (e.g., result['summary']) even though the canonical return type is a dataclass.
+    def _as_dict(self) -> Dict:
+        return self.to_dict()
+
+    def __getitem__(self, key):
+        return self._as_dict()[key]
+
+    def __iter__(self):
+        return iter(self._as_dict())
+
+    def __len__(self):
+        return len(self._as_dict())
 
 
 class DirectoryProfiler:
@@ -232,20 +307,7 @@ class DirectoryProfiler:
             "python_fallback": not (self.use_rust or self.use_fd),
         }
 
-    def probe_directory(self, path: str, max_depth: Optional[int] = None) -> Dict:
-        """
-        Alias for probe() method for backward compatibility.
-
-        Args:
-            path: Path to the root directory to probe
-            max_depth: Maximum depth to traverse (None for unlimited)
-
-        Returns:
-            Dictionary containing analysis results
-        """
-        return self.probe(path, max_depth)
-
-    def probe(self, path: str, max_depth: Optional[int] = None, threads: Optional[int] = None) -> Dict:
+    def probe(self, path: str, max_depth: Optional[int] = None, threads: Optional[int] = None) -> "DirectoryAnalysis":
         """
         Analyze a directory tree and return comprehensive statistics.
 
@@ -254,7 +316,7 @@ class DirectoryProfiler:
             max_depth: Maximum depth to traverse (None for unlimited)
 
         Returns:
-            Dictionary containing analysis results
+            A :class:`DirectoryAnalysis` instance containing analysis results
         """
         start_time = time.time()
 
@@ -292,7 +354,8 @@ class DirectoryProfiler:
                 "items_per_second": total_items / elapsed_time if elapsed_time > 0 else 0,
             }
 
-            return result
+            # Return a structured dataclass by default for easier programmatic use
+            return DirectoryAnalysis.from_dict(result)
 
         except Exception as e:
             elapsed_time = time.time() - start_time
@@ -306,7 +369,7 @@ class DirectoryProfiler:
         Returns:
             Backend name: "fd", "rust", or "python"
         """
-        # Legacy parameter support: if use_rust=False explicitly set, force Python backend
+        # If use_rust=False explicitly set, prefer the Python backend
         # unless search_backend is explicitly specified
         if self.search_backend == "auto" and not self.use_rust:
             return "python"
@@ -974,22 +1037,25 @@ class DirectoryProfiler:
             if progress:
                 progress.stop()
 
-    def print_summary(self, analysis: Dict):
-        """Print a summary of the directory analysis."""
-        summary = analysis["summary"]
-        timing = analysis.get("timing", {})
+    def print_summary(self, analysis: "DirectoryAnalysis"):
+        """Print a summary of the directory analysis (expects DirectoryAnalysis)."""
+        if not isinstance(analysis, DirectoryAnalysis):
+            raise TypeError("print_summary expects a DirectoryAnalysis instance")
+
+        summary = analysis.summary
+        timing = analysis.timing or {}
 
         # Show which implementation was used with more detail
         impl_type = timing.get("implementation", "Unknown")
 
         # Add DataFrame indicator
-        if self.build_dataframe and "dataframe" in analysis:
+        if self.build_dataframe and analysis.dataframe is not None:
             impl_type += " + 📊 DataFrame"
 
         # Main summary table
-        title = f"Directory Analysis: {analysis.get('path', '')} ({impl_type})"
+        title = f"Directory Analysis: {analysis.path} ({impl_type})"
         if timing:
-            title += f" - {timing['elapsed_seconds']:.2f}s"
+            title += f" - {timing.get('elapsed_seconds', 0):.2f}s"
 
         table = Table(title=title)
         table.add_column("Metric", style="bold cyan")
@@ -1003,8 +1069,8 @@ class DirectoryProfiler:
         table.add_row("Empty Folders", str(summary["empty_folder_count"]))
 
         # Add DataFrame info if available
-        if self.build_dataframe and "dataframe" in analysis:
-            df = analysis["dataframe"]
+        if self.build_dataframe and analysis.dataframe is not None:
+            df = analysis.dataframe
             table.add_row("DataFrame Rows", f"{len(df):,}")
 
         # Add timing information if available
@@ -1016,17 +1082,19 @@ class DirectoryProfiler:
         self.console.print(table)
         self.console.print()
 
-    def get_dataframe(self, analysis: Dict) -> Optional["DataFrame"]:
+    def get_dataframe(self, analysis: "DirectoryAnalysis") -> Optional["DataFrame"]:
         """
         Get the DataFrame from analysis results.
 
         Args:
-            analysis: Analysis results dictionary
+            analysis: :class:`DirectoryAnalysis` instance
 
         Returns:
             DataFrame object if available, None otherwise
         """
-        return analysis.get("dataframe")
+        if not isinstance(analysis, DirectoryAnalysis):
+            raise TypeError("get_dataframe expects a DirectoryAnalysis instance")
+        return analysis.to_df()
 
     def is_dataframe_enabled(self) -> bool:
         """
@@ -1070,9 +1138,12 @@ class DirectoryProfiler:
         # Fallback: try os.statvfs and map f_fsid is not portable; return None
         return None
 
-    def print_file_extensions(self, analysis: Dict, top_n: int = 10):
-        """Print the most common file extensions."""
-        extensions = analysis["file_extensions"]
+    def print_file_extensions(self, analysis: "DirectoryAnalysis", top_n: int = 10):
+        """Print the most common file extensions (expects DirectoryAnalysis)."""
+        if not isinstance(analysis, DirectoryAnalysis):
+            raise TypeError("print_file_extensions expects a DirectoryAnalysis instance")
+
+        extensions = analysis.file_extensions
 
         if not extensions:
             return
@@ -1081,8 +1152,7 @@ class DirectoryProfiler:
         table.add_column("Extension", style="bold magenta")
         table.add_column("Count", style="white")
         table.add_column("Percentage", style="green")
-
-        total_files = analysis["summary"]["total_files"]
+        total_files = analysis.summary["total_files"]
 
         for ext, count in list(extensions.items())[:top_n]:
             percentage = (count / total_files * 100) if total_files > 0 else 0
@@ -1091,9 +1161,12 @@ class DirectoryProfiler:
         self.console.print(table)
         self.console.print()
 
-    def print_folder_patterns(self, analysis: Dict, top_n: int = 10):
-        """Print the most common folder names."""
-        folder_names = analysis["common_folder_names"]
+    def print_folder_patterns(self, analysis: "DirectoryAnalysis", top_n: int = 10):
+        """Print the most common folder names (expects DirectoryAnalysis)."""
+        if not isinstance(analysis, DirectoryAnalysis):
+            raise TypeError("print_folder_patterns expects a DirectoryAnalysis instance")
+
+        folder_names = analysis.common_folder_names
 
         if not folder_names:
             return
@@ -1108,9 +1181,12 @@ class DirectoryProfiler:
         self.console.print(table)
         self.console.print()
 
-    def print_empty_folders(self, analysis: Dict, max_show: int = 20):
-        """Print empty folders found."""
-        empty_folders = analysis["empty_folders"]
+    def print_empty_folders(self, analysis: "DirectoryAnalysis", max_show: int = 20):
+        """Print empty folders found (expects DirectoryAnalysis)."""
+        if not isinstance(analysis, DirectoryAnalysis):
+            raise TypeError("print_empty_folders expects a DirectoryAnalysis instance")
+
+        empty_folders = analysis.empty_folders
 
         if not empty_folders:
             self.console.print("[green]✓ No empty folders found![/green]")
@@ -1128,8 +1204,15 @@ class DirectoryProfiler:
         self.console.print(table)
         self.console.print()
 
-    def print_report(self, analysis: Dict):
-        """Print a comprehensive report of the directory analysis."""
+    def print_report(self, analysis: "DirectoryAnalysis"):
+        """Print a comprehensive report of the directory analysis.
+
+        Expects a :class:`DirectoryAnalysis` instance. Use :meth:`to_dict`
+        if you need a plain dict shape for downstream tooling.
+        """
+        if not isinstance(analysis, DirectoryAnalysis):
+            raise TypeError("print_report expects a DirectoryAnalysis instance")
+
         self.print_summary(analysis)
         self.print_file_extensions(analysis)
         self.print_folder_patterns(analysis)

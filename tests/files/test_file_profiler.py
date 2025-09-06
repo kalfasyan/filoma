@@ -6,7 +6,8 @@ def test_file_profiler_basic(tmp_path):
     file_path = tmp_path / "testfile.txt"
     file_path.write_text("hello world")
     profiler = FileProfiler()
-    report = profiler.probe(str(file_path))
+    filo = profiler.probe(str(file_path))
+    report = filo.to_dict()
     assert report["path"] == str(file_path)
     assert report["size"] == 11
     assert report["is_file"] is True
@@ -25,7 +26,8 @@ def test_file_profiler_symlink(tmp_path):
     symlink_path = tmp_path / "link.txt"
     symlink_path.symlink_to(file_path)
     profiler = FileProfiler()
-    report = profiler.probe(str(symlink_path))
+    filo = profiler.probe(str(symlink_path))
+    report = filo.to_dict()
     assert report["is_symlink"] is True
     assert report["target_is_file"] is True  # symlink points to file
     assert report["target_is_dir"] is False

@@ -3,6 +3,7 @@ import grp
 import os
 import pwd
 import stat
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -18,13 +19,13 @@ class FileProfiler:
     Also reports current user's access rights.
     """
 
-    def probe(self, path: str) -> dict:
-        # Use pathlib for path handling and return resolved full path
-        # compute_hash: optional boolean to compute SHA256 (may be slow for large files)
-        compute_hash = False
-        if isinstance(path, tuple) or isinstance(path, list):
-            # legacy callers might send (path, compute_hash)
-            path, compute_hash = path
+    def probe(self, path: str, compute_hash: bool = False) -> "Filo":
+        """Profile a file and return a `Filo` dataclass.
+
+        Args:
+            path: filesystem path to probe
+            compute_hash: whether to compute SHA256 (may be slow)
+        """
 
         path_obj = Path(path)
         full_path = str(path_obj.resolve(strict=False))
@@ -72,7 +73,7 @@ class FileProfiler:
         except Exception:
             report["mode_str"] = None
 
-        # Optional SHA256 (turn on by passing a tuple like (path, True) or using compute_hash variable)
+        # Optional SHA256
         if compute_hash:
             report["sha256"] = self._compute_sha256(full_path)
         else:
@@ -86,20 +87,17 @@ class FileProfiler:
         else:
             report["is_file"] = is_file
             report["is_dir"] = is_dir
-        return report
 
-    def probe_filo(self, path: str, compute_hash: bool = False) -> "Filo":
-        """Return a Filo dataclass instance containing the collected stats.
-
-        This is a convenience wrapper that keeps `probe` unchanged for
-        backward compatibility while offering a structured return type.
-        """
-        # call existing probe which supports the (path, compute_hash) tuple hack
-        report = self.probe((path, compute_hash))
+        # Convert to dataclass (preferred structured return)
         return Filo.from_report(report)
 
-    def print_report(self, report: dict):
+    def print_report(self, report: "Filo"):
+        """Print a human-friendly report for a `Filo` dataclass."""
+        if not isinstance(report, Filo):
+            raise TypeError("print_report expects a Filo dataclass")
+
         console = Console()
+        report = report.to_dict()
         table = Table(title=f"File Profile: {report['path']}")
         table.add_column("Field", style="bold cyan")
         table.add_column("Value", style="white")
@@ -159,7 +157,7 @@ class FileProfiler:
 
 
 @dataclass
-class Filo:
+class Filo(Mapping):
     """Structured container for file metadata collected by FileProfiler.
 
     `path` is a pathlib.Path and date fields are datetime.datetime objects.
@@ -242,3 +240,20 @@ class Filo:
             else:
                 d[key] = None
         return d
+
+    # alias for requested API: as_dict()
+    def as_dict(self) -> dict:
+        return self.to_dict()
+
+    # Mapping protocol so dict-style access (report['path']) keeps working
+    def _as_dict(self) -> dict:
+        return self.to_dict()
+
+    def __getitem__(self, key):
+        return self._as_dict()[key]
+
+    def __iter__(self):
+        return iter(self._as_dict())
+
+    def __len__(self):
+        return len(self._as_dict())
