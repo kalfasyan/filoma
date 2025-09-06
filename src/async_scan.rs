@@ -171,7 +171,8 @@ fn scan_dir_recursive(
 }
 
 #[pyfunction]
-pub(crate) fn probe_directory_rust_async(path_root: &str, max_depth: Option<u32>, concurrency_limit: Option<usize>, timeout_ms: Option<u64>, retries: Option<u8>, fast_path_only: Option<bool>) -> PyResult<PyObject> {
+#[pyo3(signature = (path_root, max_depth=None, concurrency_limit=None, timeout_ms=None, retries=None, fast_path_only=None, follow_links=None, search_hidden=None, no_ignore=None))]
+pub(crate) fn probe_directory_rust_async(path_root: &str, max_depth: Option<u32>, concurrency_limit: Option<usize>, timeout_ms: Option<u64>, retries: Option<u8>, fast_path_only: Option<bool>, follow_links: Option<bool>, search_hidden: Option<bool>, no_ignore: Option<bool>) -> PyResult<PyObject> {
     let root = PathBuf::from(path_root);
 
     if !root.exists() {
@@ -184,7 +185,9 @@ pub(crate) fn probe_directory_rust_async(path_root: &str, max_depth: Option<u32>
     // Build config
     let config = AnalysisConfig {
         max_depth,
-        follow_links: false,
+        follow_links: follow_links.unwrap_or(true),
+        search_hidden: search_hidden.unwrap_or(true),
+        no_ignore: no_ignore.unwrap_or(true),
         parallel: true,
         parallel_threshold: 1000,
         log_progress: false,

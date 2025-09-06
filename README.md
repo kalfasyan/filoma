@@ -16,42 +16,6 @@ Analyze directory structures, profile files, and inspect image data with automat
 
 **Source Code**: https://github.com/kalfasyan/filoma
 
----
-
-## Quick Start
-
-```bash
-# Install
-uv add filoma  # or: pip install filoma
-```
-
-```python
-import filoma
-
-# Quick one-liner to analyze a directory (returns a DirectoryAnalysis dataclass)
-analysis = filoma.probe("/path/to/inspect")
-
-# Print a short summary using the profiler's helper
-filoma.directories.DirectoryProfiler().print_summary(analysis)
-```
-Example output:
-
-```text
-Directory Analysis: / (🦀 Rust (Parallel)) - 29.56s
-┌───────────────────────────┬──────────────────┐
-│ Metric                    │ Value            │
-├───────────────────────────┼──────────────────┤
-│ Total Files               │ 2,186,785        │
-│ Total Folders             │ 209,401          │
-│ Total Size                │ 135,050,621.82 MB│
-│ Average Files per Folder  │ 10.44            │
-│ Maximum Depth             │ 21               │
-│ Empty Folders             │ 7,930            │
-│ Analysis Time             │ 29.56 s          │
-│ Processing Speed          │ 81,074 items/sec │
-└───────────────────────────┴──────────────────┘
-```
-
 ## Key Features
 
 
@@ -63,23 +27,91 @@ Directory Analysis: / (🦀 Rust (Parallel)) - 29.56s
 - **📁 File Profiling** - System metadata, permissions, timestamps, symlink analysis
 - **🎨 Rich Terminal Output** - Beautiful progress bars and formatted reports
 
-**\*** *According to [benchmarks](docs/benchmarks.md)*
+**\*** *According to [benchmarks](docs/benchmarks.md)*  
 
-## Examples
+---
 
-### Directory Analysis (super simple)
+## Quick Start  
 
-Analyze a directory in one line and inspect the typed result:
-```python
-import filoma
+With just a few lines of code, you can analyze directories, convert results to DataFrames, and profile files and images.
 
-# Analyze a directory (returns DirectoryAnalysis)
-analysis = filoma.probe("/", max_depth=3)
-
-# Programmatic access
-print(analysis.summary["total_files"])    # nested dicts remain available
-print(analysis.to_dict())                   # plain dict for JSON or tooling
+```bash
+# Install
+uv add filoma  # or: pip install filoma
 ```
+#### Scan a directory and inspect the typed result:
+```python
+from filoma import probe
+
+analysis = probe('.')
+analysis.print_summary()
+```
+Output:
+```text
+Directory Analysis: /project (🦀 Rust (Parallel)) - 0.27s
+Total Files: 17,330    Total Folders: 2,427    Analysis Time: 0.27 s
+```
+You can just as easily print a report of the full analysis:
+```python
+analysis.print_report()
+```
+
+
+#### Convert your scan results to a Polars DataFrame for further exploration:
+```python
+from filoma import probe_to_df
+
+df = probe_to_df('.', use_rust=True)
+print(df.select(['path','depth','is_file']).head(5))
+```
+Output (other columns omitted, e.g., *parent, name, stem, suffix, size_bytes, modified_time, created_time, is_dir*):
+```text
+┌────────────────────────┬──────┬─────────┐
+│ path                   │ depth│ is_file │
+├────────────────────────┼──────┼─────────┤
+│ pyproject.toml         │ 1    │ True    │
+│ scripts                │ 1    │ False   │
+│ .pytest_cache          │ 1    │ False   │
+│ .vscode                │ 1    │ False   │
+│ Makefile               │ 1    │ True    │
+└────────────────────────┴──────┴─────────┘
+```
+#### Profile individual files and images with one-liners, and get a dataclass with rich metadata:
+```python
+from filoma import probe_file, probe_image
+
+filo = probe_file('README.md')
+print(filo.path, filo.size)  
+
+img = probe_image('images/logo.png')
+print(img.file_type, getattr(img, 'shape', None))
+```
+Output:
+```text
+README.md 12.3 KB
+png (1024, 256)
+```
+> **`filo`** includes attributes like `path`, `size`, `mode`, `owner`, `group`, `created`, `modified`, `is_dir`, `is_file`, `sha256`, and more, while **`img`** includes `file_type`, `shape`, `dtype`, `min`, `max`, `mean`, `nans`, `infs`, and more.
+
+
+This minimal surface area (probe, probe_to_df, probe_file, probe_image) covers most needs: typed outputs, optional DataFrame workflows, and built-in pretty printers — ready for scripts, demos, and REPLs.
+
+
+
+## A bit more in-depth examples
+
+### Super simple directory analysis  
+
+Analyze a directory in one line and inspect the returned dataclass, or print a summary or full report:
+```python
+from filoma.directories import DirectoryProfiler
+
+# Analyze a directory (returns DirectoryAnalysis object)
+analysis = DirectoryProfiler().probe("/", max_depth=3)
+analysis.print_summary()
+analysis.print_report()
+```
+The DirectoryProfiler class offers extensive customization and control over backends, concurrency, and filtering. See [advanced usage](docs/advanced-usage.md) for details.
 
 ### Network filesystems — recommended approach
 

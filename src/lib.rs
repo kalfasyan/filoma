@@ -15,6 +15,8 @@ use std::time::Instant;
 pub struct AnalysisConfig {
     pub max_depth: Option<u32>,
     pub follow_links: bool,
+    pub search_hidden: bool,
+    pub no_ignore: bool,
     pub parallel: bool,
     pub parallel_threshold: usize,
     pub log_progress: bool,
@@ -26,6 +28,8 @@ impl Default for AnalysisConfig {
         Self {
             max_depth: None,
             follow_links: false,
+            search_hidden: true,
+            no_ignore: true,
             parallel: true,
             parallel_threshold: 1000, // Use parallel processing for directories with >1000 entries
             log_progress: false,
@@ -261,6 +265,24 @@ mod analysis {
 
 use analysis::*;
 
+/// Convert an entry path to an absolute path string relative to the probe root.
+/// If `follow_links` is true we attempt to canonicalize the entry path (resolving
+/// symlinks). If canonicalize fails or follow_links is false, we compose an absolute
+/// path by joining the canonicalized probe root with the entry's path relative to the root.
+pub fn make_absolute_path_str(entry_path: &std::path::Path, root: &std::path::Path, root_abs: &std::path::Path, follow_links: bool) -> String {
+    if follow_links {
+        if let Ok(canon) = entry_path.canonicalize() {
+            return canon.to_string_lossy().to_string();
+        }
+        // Fall through to path composition if canonicalize fails
+    }
+
+    match entry_path.strip_prefix(root) {
+        Ok(rel) => root_abs.join(rel).to_string_lossy().to_string(),
+        Err(_) => entry_path.to_string_lossy().to_string(),
+    }
+}
+
 // Async scanner module
 mod async_scan;
 use async_scan::probe_directory_rust_async;
@@ -275,7 +297,9 @@ mod sequential {
     ) -> Result<DirectoryStats, String> {
         let start_time = Instant::now();
         let mut stats = DirectoryStats::new();
-        let mut walker = WalkDir::new(path_root).follow_links(config.follow_links);
+    // Pre-compute absolute root used to construct absolute paths for entries
+    let root_abs = path_root.canonicalize().unwrap_or_else(|_| path_root.to_path_buf());
+    let mut walker = WalkDir::new(path_root).follow_links(config.follow_links);
 
         // Set max_depth on the walker if specified
         if let Some(max_d) = config.max_depth {
@@ -311,7 +335,7 @@ mod sequential {
 
                 // Check if empty
                 if is_empty_directory(&entry) {
-                    stats.empty_folders.push(entry.path().to_string_lossy().to_string());
+                    stats.empty_folders.push(make_absolute_path_str(entry.path(), path_root, &root_abs, config.follow_links));
                 }
 
                 // Count folder name
@@ -321,7 +345,7 @@ mod sequential {
 
                 // Initialize folder file count
                 stats.files_per_folder.entry(
-                    entry.path().to_string_lossy().to_string()
+                    make_absolute_path_str(entry.path(), path_root, &root_abs, config.follow_links)
                 ).or_insert(0);
 
             } else if entry.file_type().is_file() {
@@ -341,7 +365,7 @@ mod sequential {
                 // Count file in its parent directory
                 if let Some(parent) = entry.path().parent() {
                     *stats.files_per_folder.entry(
-                        parent.to_string_lossy().to_string()
+                        make_absolute_path_str(parent, path_root, &root_abs, config.follow_links)
                     ).or_insert(0) += 1;
                 }
             }
@@ -365,7 +389,9 @@ mod parallel {
         let start_time = Instant::now();
         let stats = Arc::new(ParallelDirectoryStats::new());
         
-    // First, probe the root directory itself
+    // First, compute absolute root used for path composition
+    let root_abs = path_root.canonicalize().unwrap_or_else(|_| path_root.to_path_buf());
+    // Probe the root directory itself
     probe_root_directory(path_root, &stats, config)?;
         
         // Get immediate subdirectories for parallel processing
@@ -377,18 +403,20 @@ mod parallel {
         
         if should_parallelize && subdirs.len() > 1 {
             // Process subdirectories in parallel
+            let root_clone = path_root.to_path_buf();
+            let root_abs_clone = root_abs.clone();
             subdirs.par_iter().for_each(|subdir| {
-                let _ = probe_subdirectory_recursive(subdir, &stats, config, 1);
+                let _ = probe_subdirectory_recursive(subdir, &stats, config, 1, &root_clone, &root_abs_clone);
             });
         } else {
             // Fall back to sequential processing for small directories
             for subdir in subdirs {
-                let _ = probe_subdirectory_recursive(&subdir, &stats, config, 1);
+                let _ = probe_subdirectory_recursive(&subdir, &stats, config, 1, path_root, &root_abs);
             }
         }
         
-        let elapsed = start_time.elapsed();
-        let mut result = stats.to_directory_stats();
+    let elapsed = start_time.elapsed();
+    let mut result = stats.to_directory_stats();
         result.set_timing(elapsed.as_secs_f64());
         
         Ok(result)
@@ -417,6 +445,8 @@ mod parallel {
         stats: &Arc<ParallelDirectoryStats>,
         config: &AnalysisConfig,
         current_depth: u32,
+        root: &Path,
+        root_abs: &Path,
     ) -> Result<(), String> {
         // Check depth limit
         if let Some(max_depth) = config.max_depth {
@@ -435,7 +465,7 @@ mod parallel {
             walker = walker.max_depth(remaining_depth as usize + 1);
         }
 
-        for entry in walker {
+    for entry in walker {
             let entry = match entry {
                 Ok(entry) => entry,
                 Err(_) => continue,
@@ -444,6 +474,15 @@ mod parallel {
             let relative_depth = entry.depth() as u32;
             let absolute_depth = current_depth + relative_depth;
 
+            // Skip hidden entries unless search_hidden is enabled
+            if !config.search_hidden {
+                if let Some(name) = entry.file_name().to_str() {
+                    if name.starts_with('.') {
+                        continue;
+                    }
+                }
+            }
+
             if entry.file_type().is_dir() {
                 let is_empty = is_empty_directory(&entry);
                 
@@ -451,7 +490,7 @@ mod parallel {
                     stats.add_folder(
                         name.to_string(),
                         is_empty,
-                        entry.path().to_string_lossy().to_string(),
+                        make_absolute_path_str(entry.path(), root, root_abs, config.follow_links),
                         absolute_depth,
                     );
                 }
@@ -460,8 +499,17 @@ mod parallel {
                 let size = if config.fast_path_only { 0 } else {
                     entry.metadata().map(|m| m.len()).unwrap_or(0)
                 };
+                // Skip hidden files unless requested
+                if !config.search_hidden {
+                    if let Some(fname) = entry.file_name().to_str() {
+                        if fname.starts_with('.') {
+                            continue;
+                        }
+                    }
+                }
+
                 let parent_path = entry.path().parent()
-                    .map(|p| p.to_string_lossy().to_string())
+                    .map(|p| make_absolute_path_str(p, root, root_abs, config.follow_links))
                     .unwrap_or_default();
                 stats.add_file(size, ext, parent_path, config.fast_path_only);
             }
@@ -479,18 +527,23 @@ mod parallel {
 
 /// Python interface functions
 #[pyfunction]
-fn probe_directory_rust(path_root: &str, max_depth: Option<u32>, fast_path_only: Option<bool>) -> PyResult<PyObject> {
-    probe_directory_rust_with_config(path_root, max_depth, None, fast_path_only)
+#[pyo3(signature = (path_root, max_depth=None, fast_path_only=None, follow_links=None, search_hidden=None, no_ignore=None))]
+fn probe_directory_rust(path_root: &str, max_depth: Option<u32>, fast_path_only: Option<bool>, follow_links: Option<bool>, search_hidden: Option<bool>, no_ignore: Option<bool>) -> PyResult<PyObject> {
+    probe_directory_rust_with_config(path_root, max_depth, None, fast_path_only, follow_links, search_hidden, no_ignore)
 }
 
 #[pyfunction]
+#[pyo3(signature = (path_root, max_depth=None, parallel_threshold=None, fast_path_only=None, follow_links=None, search_hidden=None, no_ignore=None))]
 fn probe_directory_rust_parallel(
     path_root: &str, 
     max_depth: Option<u32>,
     parallel_threshold: Option<usize>,
-    fast_path_only: Option<bool>
+    fast_path_only: Option<bool>,
+    follow_links: Option<bool>,
+    search_hidden: Option<bool>,
+    no_ignore: Option<bool>,
 ) -> PyResult<PyObject> {
-    probe_directory_rust_with_config(path_root, max_depth, parallel_threshold, fast_path_only)
+    probe_directory_rust_with_config(path_root, max_depth, parallel_threshold, fast_path_only, follow_links, search_hidden, no_ignore)
 }
 
 fn probe_directory_rust_with_config(
@@ -498,6 +551,9 @@ fn probe_directory_rust_with_config(
     max_depth: Option<u32>,
     parallel_threshold: Option<usize>,
     fast_path_only: Option<bool>,
+    follow_links: Option<bool>,
+    search_hidden: Option<bool>,
+    no_ignore: Option<bool>,
 ) -> PyResult<PyObject> {
     let root = Path::new(path_root);
     
@@ -517,7 +573,9 @@ fn probe_directory_rust_with_config(
     // Configure analysis
     let config = AnalysisConfig {
         max_depth,
-        follow_links: false,
+        follow_links: follow_links.unwrap_or(true),
+        search_hidden: search_hidden.unwrap_or(true),
+        no_ignore: no_ignore.unwrap_or(true),
         parallel: parallel_threshold.is_some(),
         parallel_threshold: parallel_threshold.unwrap_or(1000),
         log_progress: false,
@@ -525,6 +583,8 @@ fn probe_directory_rust_with_config(
     };
 
     // Choose analysis method based on configuration and directory size
+    // Use the root_abs as the canonical absolute probe root for Python consumers
+    let root_abs = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
     let stats = if should_use_parallel_analysis(root, &config) {
         parallel::probe_directory_parallel(root, &config)
     } else {
@@ -533,7 +593,7 @@ fn probe_directory_rust_with_config(
 
     let stats = stats.map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
     
-    Python::with_gil(|py| stats.to_py_dict(py, path_root))
+    Python::with_gil(|py| stats.to_py_dict(py, root_abs.to_string_lossy().as_ref()))
 }
 
 /// Intelligent decision making for when to use parallel processing

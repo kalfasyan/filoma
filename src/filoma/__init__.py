@@ -17,7 +17,7 @@ from .directories.directory_profiler import DirectoryProfiler
 from .files.file_profiler import FileProfiler
 from .images.image_profiler import ImageProfiler
 
-__all__ = ["__version__", "core", "directories", "images", "files", "DataFrame"]
+__all__ = ["__version__", "core", "directories", "images", "files", "DataFrame", "probe_to_df"]
 
 
 # Convenience wrappers for quick, one-off usage. These are thin helpers that
@@ -111,3 +111,56 @@ def probe_image(arg, **kwargs):
     from .images.image_profiler import ImageReport
 
     return ImageReport(path=str(p), status="failed_to_load_or_unsupported_format")
+
+
+def probe_to_df(path: str, to_pandas: bool = False, enrich: bool = True, **kwargs):
+    """Convenience helper: return a Polars DataFrame (or pandas if to_pandas=True).
+
+    This forces DataFrame building on the profiler and optionally runs a small
+    enrichment chain: .add_depth_column(path).add_path_components().add_file_stats().
+
+    Args:
+        path: directory path to probe
+        to_pandas: if True, return a pandas.DataFrame instead of a Polars DataFrame
+        enrich: if True, run the enrichment chain on the DataFrame wrapper
+        **kwargs: forwarded to DirectoryProfiler constructor (probe-only kwargs
+                  like max_depth and threads are accepted and forwarded)
+
+    Returns:
+        polars.DataFrame or pandas.DataFrame depending on to_pandas
+
+    Raises:
+        RuntimeError if DataFrame support is not available or building failed.
+    """
+    # Extract probe-only parameters
+    max_depth = kwargs.pop("max_depth", None)
+    threads = kwargs.pop("threads", None)
+
+    # Lazy import to avoid heavy deps at module import time
+    from .directories import DirectoryProfiler
+
+    profiler = DirectoryProfiler(build_dataframe=True, **kwargs)
+    analysis = profiler.probe(path, max_depth=max_depth, threads=threads)
+
+    df_wrapper = analysis.to_df()
+    if df_wrapper is None:
+        raise RuntimeError("DataFrame was not built. Ensure 'polars' is installed and that DataFrame building is enabled (build_dataframe=True).")
+
+    # Optionally enrich the DataFrame wrapper with useful columns/stats
+    df_enriched = df_wrapper
+    if enrich:
+        try:
+            df_enriched = df_enriched.add_depth_column(path).add_path_components().add_file_stats()
+        except Exception:
+            # If enrichment fails for any reason, fall back to the raw DataFrame
+            pass
+
+    # Return requested format: Polars DataFrame or pandas
+    pl_df = df_enriched.df
+    if to_pandas:
+        try:
+            return pl_df.to_pandas()
+        except Exception as e:
+            raise RuntimeError(f"Failed to convert Polars DataFrame to pandas: {e}")
+
+    return pl_df

@@ -136,6 +136,31 @@ class DirectoryAnalysis(Mapping):
     def as_dict(self) -> Dict:
         return self.to_dict()
 
+    # Convenience printing helpers so callers can write `analysis.print_summary()`
+    # or `analysis.print_report()` without importing DirectoryProfiler. These
+    # delegate to the existing DirectoryProfiler rich printers for consistency.
+    def print_summary(self, profiler: "DirectoryProfiler" = None):
+        """Pretty-print a short summary using the rich-based DirectoryProfiler printer.
+
+        If `profiler` is provided it will be used (useful to customize show_progress,
+        console, or other profiler settings); otherwise a default profiler is created.
+        """
+        # Local import to avoid import cycles at module import time
+        if profiler is None:
+            profiler = DirectoryProfiler()
+        profiler.print_summary(self)
+
+    def print_report(self, profiler: "DirectoryProfiler" = None):
+        """Pretty-print the full report (summary + extras) via DirectoryProfiler.
+
+        This is an alias for `print_summary` + additional report sections; kept
+        as a separate method name for discoverability and symmetry with other
+        profilers in the project.
+        """
+        if profiler is None:
+            profiler = DirectoryProfiler()
+        profiler.print_report(self)
+
     # Mapping protocol implementations so callers can still use dict-like access
     # (e.g., result['summary']) even though the canonical return type is a dataclass.
     def _as_dict(self) -> Dict:
@@ -169,6 +194,7 @@ class DirectoryProfiler:
         search_backend: str = "auto",  # "rust", "python", "fd", "auto"
         parallel_threshold: int = 1000,
         build_dataframe: bool = False,
+        return_absolute_paths: bool = False,
         show_progress: bool = True,
         progress_callback: Optional[Callable[[str, int, int], None]] = None,
         fast_path_only: bool = False,
@@ -263,10 +289,14 @@ class DirectoryProfiler:
             self.console = self.console if hasattr(self, "console") else Console()
             self.console.print("[yellow]Warning: Rust async implementation not available, async disabled[/yellow]")
             self.use_async = False
+
+        # Apply remaining constructor arguments to instance state
         self.use_fd = use_fd and FD_AVAILABLE
         self.search_backend = search_backend
         self.parallel_threshold = parallel_threshold
         self.build_dataframe = build_dataframe and DATAFRAME_AVAILABLE
+        # Control whether final results use absolute paths (True) or relative paths (False)
+        self.return_absolute_paths = bool(return_absolute_paths)
 
         # Automatically disable progress bars in interactive environments to avoid conflicts
         if _is_interactive_environment() and show_progress:
@@ -362,6 +392,7 @@ class DirectoryProfiler:
             "using_async": bool(self.use_async and RUST_ASYNC_AVAILABLE),
             "using_fd": self.use_fd,
             "using_dataframe": self.build_dataframe,
+            "return_absolute_paths": self.return_absolute_paths,
             "search_backend": self.search_backend,
             "python_fallback": not (self.use_rust or self.use_fd),
         }
@@ -537,7 +568,7 @@ class DirectoryProfiler:
                 "path": path,
                 "file_types": ["f"],
                 "max_depth": file_max_depth,
-                "absolute_paths": True,
+                "absolute_paths": self.return_absolute_paths,
                 "threads": threads,
             }
             if self.search_backend == "auto":
@@ -552,7 +583,7 @@ class DirectoryProfiler:
                 path=path,
                 file_types=["d"],  # Directories only
                 max_depth=max_depth,
-                absolute_paths=True,
+                absolute_paths=self.return_absolute_paths,
                 threads=threads,
                 search_hidden=True if self.search_backend == "auto" else False,
                 no_ignore=True if self.search_backend == "auto" else False,
@@ -629,7 +660,7 @@ class DirectoryProfiler:
                     search_hidden=True,
                     no_ignore=True,
                     follow_links=True,
-                    absolute_paths=True,
+                    absolute_paths=self.return_absolute_paths,
                 )
                 samples["fd_dirs"] = fd.find(
                     path=path,
@@ -638,7 +669,7 @@ class DirectoryProfiler:
                     search_hidden=True,
                     no_ignore=True,
                     follow_links=True,
-                    absolute_paths=True,
+                    absolute_paths=self.return_absolute_paths,
                 )
         except Exception:
             samples["fd_files"] = []
@@ -878,6 +909,16 @@ class DirectoryProfiler:
             if is_network_fs and self.use_async:
                 # Default concurrency limit can be tuned; use configured values
                 if RUST_ASYNC_AVAILABLE:
+                    # Decide Rust flag defaults: when search_backend is 'auto', prefer fd-like semantics
+                    if self.search_backend == "auto":
+                        follow = True
+                        hidden = True
+                        no_ignore = True
+                    else:
+                        follow = None
+                        hidden = None
+                        no_ignore = None
+
                     result = probe_directory_rust_async(
                         path,
                         max_depth,
@@ -885,29 +926,109 @@ class DirectoryProfiler:
                         self.network_timeout_ms,
                         self.network_retries,
                         fast_path_only,
+                        follow_links=follow,
+                        search_hidden=hidden,
+                        no_ignore=no_ignore,
                     )
                 else:
                     # Async variant not available; fall back to parallel or sequential Rust
                     if self.use_parallel and RUST_PARALLEL_AVAILABLE:
-                        result = probe_directory_rust_parallel(path, max_depth, self.parallel_threshold, fast_path_only)
+                        if self.search_backend == "auto":
+                            follow = True
+                            hidden = True
+                            no_ignore = True
+                        else:
+                            follow = None
+                            hidden = None
+                            no_ignore = None
+
+                        result = probe_directory_rust_parallel(
+                            path,
+                            max_depth,
+                            self.parallel_threshold,
+                            fast_path_only,
+                            follow_links=follow,
+                            search_hidden=hidden,
+                            no_ignore=no_ignore,
+                        )
                     else:
                         result = probe_directory_rust(path, max_depth, fast_path_only)
             elif is_network_fs and not self.use_async:
                 # User explicitly disabled async; prefer parallel or sequential Rust
                 if self.use_parallel and RUST_PARALLEL_AVAILABLE:
-                    result = probe_directory_rust_parallel(path, max_depth, self.parallel_threshold, fast_path_only)
+                    if self.search_backend == "auto":
+                        follow = True
+                        hidden = True
+                        no_ignore = True
+                    else:
+                        follow = None
+                        hidden = None
+                        no_ignore = None
+
+                    result = probe_directory_rust_parallel(
+                        path,
+                        max_depth,
+                        self.parallel_threshold,
+                        fast_path_only,
+                        follow_links=follow,
+                        search_hidden=hidden,
+                        no_ignore=no_ignore,
+                    )
                 else:
-                    result = probe_directory_rust(path, max_depth, fast_path_only)
+                    if self.search_backend == "auto":
+                        follow = True
+                        hidden = True
+                        no_ignore = True
+                    else:
+                        follow = None
+                        hidden = None
+                        no_ignore = None
+
+                    result = probe_directory_rust(
+                        path,
+                        max_depth,
+                        fast_path_only,
+                        follow_links=follow,
+                        search_hidden=hidden,
+                        no_ignore=no_ignore,
+                    )
             else:
-                if self.use_parallel and RUST_PARALLEL_AVAILABLE:
-                    result = probe_directory_rust_parallel(path, max_depth, self.parallel_threshold, fast_path_only)
+                if self.search_backend == "auto":
+                    follow = True
+                    hidden = True
+                    no_ignore = True
                 else:
-                    result = probe_directory_rust(path, max_depth, fast_path_only)
+                    follow = None
+                    hidden = None
+                    no_ignore = None
+
+                if self.use_parallel and RUST_PARALLEL_AVAILABLE:
+                    result = probe_directory_rust_parallel(
+                        path,
+                        max_depth,
+                        self.parallel_threshold,
+                        fast_path_only,
+                        follow_links=follow,
+                        search_hidden=hidden,
+                        no_ignore=no_ignore,
+                    )
+                else:
+                    result = probe_directory_rust(
+                        path,
+                        max_depth,
+                        fast_path_only,
+                        follow_links=follow,
+                        search_hidden=hidden,
+                        no_ignore=no_ignore,
+                    )
 
             # Update progress to show completion
             if progress and task_id is not None:
                 progress.update(task_id, description="[bold green]Analysis complete!")
                 progress.update(task_id, total=100, completed=100)
+
+            # Rust now returns absolute (or canonicalized when follow_links=True) paths,
+            # so Python-side normalization is no longer necessary here.
 
             # If DataFrame building is enabled, we need to collect file paths
             # since the Rust implementation doesn't return them

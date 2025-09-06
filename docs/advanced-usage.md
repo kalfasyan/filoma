@@ -1,5 +1,74 @@
 # Advanced Usage
 
+## Profiler Quick Reference
+
+This section shows the three main profilers (`DirectoryProfiler`, `FileProfiler`, `ImageProfiler`), short examples, and the most important constructor/probe arguments with notes about which backend(s) honor them.
+
+DirectoryProfiler — high-level directory analysis (counts, extensions, empty folders, timing)
+
+```python
+from filoma.directories import DirectoryProfiler
+
+profiler = DirectoryProfiler(
+    search_backend='auto',   # 'auto'|'rust'|'fd'|'python'
+    use_async=False,         # Rust async scanner (network-optimized)
+    build_dataframe=True,    # collect paths into a DataFrame (Polars)
+    show_progress=True,
+)
+result = profiler.probe('.')
+profiler.print_summary(result)
+```
+
+Key arguments (what they do & which backend(s) support them):
+- `search_backend` — choose preferred backend. Supported values: `rust`, `fd`, `python`, `auto` (default). All profilers use this to decide implementation.
+- `use_async` — enable Rust async scanner (when `search_backend` allows Rust and tokio-enabled build). Backend: Rust (async only).
+- `use_parallel` / `parallel_threshold` — prefer parallel Rust scanning when available; adjusts parallel decision heuristics. Backend: Rust (parallel only).
+- `build_dataframe` — collect discovered paths into a Polars DataFrame for downstream analysis. Backend: works with any discovery backend; building is done in Python when using Rust/fd.
+- `max_depth` — limit recursion depth. Honored by all backends.
+- `follow_links` — whether to follow symlinks. Backend support: Rust (explicit flag), fd (discovery flag), Python (depends on os.walk behaviour but passed through by the profiler).
+- `search_hidden` — include hidden files/dirs. Backend support: Rust, fd, Python (profiler passes preference).
+- `no_ignore` — ignore .gitignore and similar ignore files (fd/Rust option). Backend support: fd, Rust.
+- `threads` — number of threads forwarded to `fd` (if used). Backend: fd.
+- `fast_path_only` — Rust-only mode to skip expensive metadata collection and only gather file paths (useful for very large trees).
+
+Notes: when `search_backend='auto'` filoma chooses the most efficient backend available and applies fd-like defaults (follow hidden, do not respect ignore files) unless you explicitly override flags.
+
+FileProfiler — probe a single file for metadata and optional hash
+
+```python
+from filoma.files import FileProfiler
+
+filo = FileProfiler().probe('README.md', compute_hash=False)
+print(filo.to_dict())
+```
+
+Key arguments:
+- `compute_hash` (bool) — compute content hash (sha256). Supported by: FileProfiler (Python implementation) and internal Rust file profilers when enabled; computing a hash may be slower for large files.
+- `follow_links` — when probing a path that is a symlink, whether to resolve it. Supported by: FileProfiler (behavior depends on implementation; FileProfiler forwards to low-level routines).
+
+ImageProfiler — high-level entry point that dispatches to specialized image profilers (PNG, TIF, NPY, ZARR or in-memory numpy arrays)
+
+```python
+from filoma.images import ImageProfiler
+
+# File path
+img_report = ImageProfiler().probe('images/logo.png')
+
+# Or pass a numpy array directly
+import numpy as np
+arr = np.zeros((64,64), dtype=np.uint8)
+img_report2 = ImageProfiler().probe(arr)
+```
+
+Key arguments & notes:
+- `path` or numpy array input — ImageProfiler accepts either a path-like (dispatches by extension) or an ndarray directly.
+- `compute_stats` — compute pixel-level statistics (min/max/mean/std) and simple histograms. Supported by: image profilers implemented in Python; some heavy operations may call compiled helpers.
+- `load_lazy` / `fast` — some backends/profilers may provide a fast/low-memory mode for very large images (TIF/ZARR). Backend support: varies by specific image profiler (Tif/Zarr profilers often support chunked/lazy reading).
+
+Assumptions & compatibility
+- The doc lists commonly available options; exact flag names and behavior are implemented in the specific profiler classes. When unspecified, `DirectoryProfiler` attempts to forward preferences to the chosen backend (`rust`/`fd`/`python`).
+- If you'd like, I can add a small matrix table (argument vs backend) documenting the precise per-backend support for each flag.
+
 ## Smart File Discovery
 
 ### FdFinder Interface
@@ -35,10 +104,10 @@ hidden_files = searcher.find_files(pattern=".*", hidden=True)
 readme_files = searcher.find_files(pattern="readme", case_sensitive=False)
 
 # Recent files (if fd supports time filters)
-recent_files = searcher.find_recent_files(timeframe="1d", path="/logs")
+recent_files = searcher.find_recent_files(changed_within="1d", path="/logs")
 
 # Large files
-large_files = searcher.find_large_files(size=">1M", path="/data")
+large_files = searcher.find_large_files(min_size="1M", path="/data")
 ```
 
 ### Direct fd Integration
@@ -228,7 +297,8 @@ if fd.is_available():
 ```python
 from filoma.directories import DirectoryProfiler
 
-# All backends support progress bars
+# Most profilers support progress bars via `show_progress=True` (behavior may
+# differ depending on backend availability and interactive environment)
 profiler = DirectoryProfiler(show_progress=True)
 result = profiler.probe("/path/to/large/directory")
 profiler.print_summary(result)
