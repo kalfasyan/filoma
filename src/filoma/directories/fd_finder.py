@@ -72,7 +72,7 @@ class FdFinder:
         try:
             return self.fd.find(
                 pattern=pattern or ".",
-                base_path=str(path),
+                path=str(path),
                 file_types=["f"],
                 max_depth=max_depth,
                 search_hidden=hidden,
@@ -125,7 +125,7 @@ class FdFinder:
         try:
             return self.fd.find(
                 pattern=pattern or ".",
-                base_path=str(path),
+                path=str(path),
                 file_types=["d"],
                 max_depth=max_depth,
                 search_hidden=hidden,
@@ -182,7 +182,7 @@ class FdFinder:
             for pattern in patterns:
                 files = self.fd.find(
                     pattern=pattern,
-                    base_path=str(path),
+                    path=str(path),
                     file_types=["f"],
                     max_depth=max_depth,
                     use_glob=True,
@@ -224,7 +224,7 @@ class FdFinder:
             fd_options["extension"] = extension
 
         try:
-            return self.fd.find_recent_files(root_path=path, changed_within=changed_within, **fd_options)
+            return self.fd.find_recent_files(path=path, changed_within=changed_within, **fd_options)
         except Exception as e:
             logger.warning(f"FdFinder.find_recent_files failed for path '{path}': {e}")
             return []
@@ -253,7 +253,7 @@ class FdFinder:
             >>> large_files = searcher.find_large_files(min_size="10M")
         """
         try:
-            return self.fd.find(root_path=path, file_type="f", size=f"+{min_size}", max_depth=max_depth, **fd_options)
+            return self.fd.find(path=path, file_type="f", size=f"+{min_size}", max_depth=max_depth, **fd_options)
         except Exception as e:
             logger.warning(f"FdFinder.find_large_files failed for path '{path}': {e}")
             return []
@@ -270,7 +270,7 @@ class FdFinder:
             List of empty directory paths
         """
         try:
-            return self.fd.find_empty_directories(root_path=path, **fd_options)
+            return self.fd.find_empty_directories(path=path, **fd_options)
         except Exception as e:
             logger.warning(f"FdFinder.find_empty_directories failed for path '{path}': {e}")
             return []
@@ -288,7 +288,7 @@ class FdFinder:
             Number of matching files
         """
         try:
-            return self.fd.count_files(pattern=pattern or None, root_path=path, **fd_options)
+            return self.fd.count_files(pattern=pattern or None, path=path, **fd_options)
         except Exception as e:
             logger.warning(f"FdFinder.count_files failed for path '{path}': {e}")
             return 0
@@ -365,8 +365,8 @@ class FdFinder:
             return {"file_count": 0, "directory_count": 0, "error": "fd not available"}
 
         try:
-            file_count = self.fd.count_files(root_path=path, file_type="f")
-            dir_count = self.fd.count_files(root_path=path, file_type="d")
+            file_count = self.fd.count_files(path=path, file_type="f")
+            dir_count = self.fd.count_files(path=path, file_type="d")
 
             return {
                 "file_count": file_count,

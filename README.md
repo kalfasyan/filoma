@@ -110,7 +110,7 @@ searcher = FdFinder()
 python_files = searcher.find_files(pattern=r"\.py$", max_depth=2)
 
 # Find by multiple extensions
-code_files = searcher.find_by_extension(['py', 'rs', 'js'], directory=".")
+code_files = searcher.find_by_extension(['py', 'rs', 'js'], path=".")
 
 # Glob patterns
 config_files = searcher.find_files(pattern="*.{json,yaml}", use_glob=True)

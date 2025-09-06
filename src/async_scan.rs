@@ -13,7 +13,7 @@ use crate::{analysis::get_file_extension, AnalysisConfig, ParallelDirectoryStats
 // Async scanning implementation tuned for higher-latency filesystems (NFS/CIFS)
 
 pub async fn probe_directory_async_internal(
-    root_path: PathBuf,
+    path_root: PathBuf,
     config: AnalysisConfig,
     concurrency_limit: usize,
     timeout_ms: u64,
@@ -28,15 +28,15 @@ pub async fn probe_directory_async_internal(
     // Count the root directory only if it is non-empty. If the root is empty, the
     // recursive scanner will record it via the `is_empty` branch; adding it here
     // unconditionally would double-count the root for empty directories.
-    if let Some(name) = root_path.file_name().and_then(|n| n.to_str()) {
-        let is_empty = crate::analysis::estimate_directory_size(&root_path, 1) == 0;
+    if let Some(name) = path_root.file_name().and_then(|n| n.to_str()) {
+        let is_empty = crate::analysis::estimate_directory_size(&path_root, 1) == 0;
         if !is_empty {
-            stats.add_folder(name.to_string(), false, root_path.to_string_lossy().to_string(), 0);
+            stats.add_folder(name.to_string(), false, path_root.to_string_lossy().to_string(), 0);
         }
     }
 
     // Kick off scanning from root
-    let root_clone = root_path.clone();
+    let root_clone = path_root.clone();
     let stats_clone = stats.clone();
     let config_clone = config.clone();
 
@@ -171,14 +171,14 @@ fn scan_dir_recursive(
 }
 
 #[pyfunction]
-pub(crate) fn probe_directory_rust_async(root_path: &str, max_depth: Option<u32>, concurrency_limit: Option<usize>, timeout_ms: Option<u64>, retries: Option<u8>, fast_path_only: Option<bool>) -> PyResult<PyObject> {
-    let root = PathBuf::from(root_path);
+pub(crate) fn probe_directory_rust_async(path_root: &str, max_depth: Option<u32>, concurrency_limit: Option<usize>, timeout_ms: Option<u64>, retries: Option<u8>, fast_path_only: Option<bool>) -> PyResult<PyObject> {
+    let root = PathBuf::from(path_root);
 
     if !root.exists() {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!("Path does not exist: {}", root_path)));
+        return Err(pyo3::exceptions::PyValueError::new_err(format!("Path does not exist: {}", path_root)));
     }
     if !root.is_dir() {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!("Path is not a directory: {}", root_path)));
+        return Err(pyo3::exceptions::PyValueError::new_err(format!("Path is not a directory: {}", path_root)));
     }
 
     // Build config
@@ -208,5 +208,5 @@ pub(crate) fn probe_directory_rust_async(root_path: &str, max_depth: Option<u32>
 
     let stats = stats.map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
 
-    Python::with_gil(|py| stats.to_py_dict(py, root_path))
+    Python::with_gil(|py| stats.to_py_dict(py, path_root))
 }

@@ -38,8 +38,7 @@ class FdIntegration:
     def find(
         self,
         pattern: str = ".",
-        base_path: str = ".",
-        root_path: Optional[Union[str, Path]] = None,
+        path: str = ".",
         max_depth: Optional[int] = None,
         file_types: Optional[List[str]] = None,
         exclude_patterns: Optional[List[str]] = None,
@@ -57,7 +56,7 @@ class FdIntegration:
 
         Args:
             pattern: Search pattern (regex by default, glob if use_glob=True)
-            base_path: Root directory to search in (default: current directory)
+            path: Root directory to search in (default: current directory)
             max_depth: Maximum search depth
             file_types: Filter by type ('f'=file, 'd'=directory, 'l'=symlink, etc.)
             exclude_patterns: Patterns to exclude
@@ -79,16 +78,14 @@ class FdIntegration:
         if not self.available:
             raise RuntimeError("fd command not available")
 
-        # Determine base/root path (accept both names)
-        chosen_path = root_path if root_path is not None else base_path
-        # Validate base_path exists
-        base_path_obj = Path(chosen_path)
-        if not base_path_obj.exists():
-            logger.warning(f"Base path does not exist: {base_path}")
+        # Validate path exists
+        path_obj = Path(path)
+        if not path_obj.exists():
+            logger.warning(f"Path does not exist: {path}")
             return []  # Return empty list instead of failing
 
-        if not base_path_obj.is_dir():
-            logger.warning(f"Base path is not a directory: {chosen_path}")
+        if not path_obj.is_dir():
+            logger.warning(f"Path is not a directory: {path}")
             return []
 
         cmd = ["fd"]
@@ -105,8 +102,8 @@ class FdIntegration:
             cmd.append(".")
 
         # Add search path if provided
-        if chosen_path and chosen_path != ".":
-            cmd.append(str(chosen_path))
+        if path and path != ".":
+            cmd.append(str(path))
 
         # Handle flexible kwargs commonly used by higher-level helpers
         # extensions / extension -> -e
@@ -175,7 +172,7 @@ class FdIntegration:
                 logger.error(f"stderr: {e.stderr}")
             raise
 
-    def search_streaming(self, pattern: Optional[str] = None, root_path: Optional[Union[str, Path]] = None, **kwargs) -> subprocess.Popen:
+    def search_streaming(self, pattern: Optional[str] = None, path: Optional[Union[str, Path]] = None, **kwargs) -> subprocess.Popen:
         """
         Search for files using fd with streaming output.
 
@@ -184,7 +181,7 @@ class FdIntegration:
 
         Args:
             pattern: Search pattern
-            root_path: Root directory to search in
+            path: Root directory to search in
             **kwargs: Same arguments as search()
 
         Returns:
@@ -215,8 +212,8 @@ class FdIntegration:
         if pattern:
             cmd.append(pattern)
 
-        if root_path:
-            cmd.append(str(root_path))
+        if path:
+            cmd.append(str(path))
 
         # Pass through threads if provided
         threads = kwargs.pop("threads", None)
@@ -238,13 +235,13 @@ class FdIntegration:
 
         return CommandRunner.run_streaming(cmd, text=True)
 
-    def find_by_extension(self, extensions: Union[str, List[str]], root_path: Union[str, Path] = ".", **kwargs) -> List[str]:
+    def find_by_extension(self, extensions: Union[str, List[str]], path: Union[str, Path] = ".", **kwargs) -> List[str]:
         """
         Find files by extension(s).
 
         Args:
             extensions: File extension(s) to search for
-            root_path: Root directory to search in
+            path: Root directory to search in
             **kwargs: Additional arguments passed to search()
 
         Returns:
@@ -252,17 +249,17 @@ class FdIntegration:
         """
         return self.find(
             extension=extensions,
-            root_path=root_path,
+            path=path,
             file_type="f",  # Only files
             **kwargs,
         )
 
-    def find_recent_files(self, root_path: Union[str, Path] = ".", changed_within: str = "1d", **kwargs) -> List[str]:
+    def find_recent_files(self, path: Union[str, Path] = ".", changed_within: str = "1d", **kwargs) -> List[str]:
         """
         Find recently modified files.
 
         Args:
-            root_path: Root directory to search in
+            path: Root directory to search in
             changed_within: Time period (e.g., '1d', '2h', '30min')
             **kwargs: Additional arguments passed to search()
 
@@ -270,30 +267,30 @@ class FdIntegration:
             List of file paths
         """
         return self.find(
-            root_path=root_path,
+            path=path,
             changed_within=changed_within,
             file_type="f",  # Only files
             **kwargs,
         )
 
-    def find_empty_directories(self, root_path: Union[str, Path] = ".", **kwargs) -> List[str]:
+    def find_empty_directories(self, path: Union[str, Path] = ".", **kwargs) -> List[str]:
         """
         Find empty directories.
 
         Args:
-            root_path: Root directory to search in
+            path: Root directory to search in
             **kwargs: Additional arguments passed to search()
 
         Returns:
             List of directory paths
         """
         return self.find(
-            root_path=root_path,
+            path=path,
             file_type="e",  # Empty
             **kwargs,
         )
 
-    def count_files(self, pattern: Optional[str] = None, root_path: Optional[Union[str, Path]] = None, **kwargs) -> int:
+    def count_files(self, pattern: Optional[str] = None, path: Optional[Union[str, Path]] = None, **kwargs) -> int:
         """
         Count files matching criteria without returning the full list.
 
@@ -301,7 +298,7 @@ class FdIntegration:
 
         Args:
             pattern: Search pattern
-            root_path: Root directory to search in
+            path: Root directory to search in
             **kwargs: Additional arguments passed to search()
 
         Returns:
@@ -309,7 +306,7 @@ class FdIntegration:
         """
         # Use streaming approach to count without loading all results
         try:
-            with self.search_streaming(pattern=pattern, root_path=root_path, **kwargs) as proc:
+            with self.search_streaming(pattern=pattern, path=path, **kwargs) as proc:
                 count = 0
                 for line in proc.stdout:
                     if line.strip():
@@ -320,5 +317,5 @@ class FdIntegration:
 
         except Exception:
             # Fallback to regular search if streaming fails
-            results = self.find(pattern=pattern, root_path=root_path, **kwargs)
+            results = self.find(pattern=pattern, path=path, **kwargs)
             return len(results)

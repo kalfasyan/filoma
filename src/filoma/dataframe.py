@@ -170,21 +170,21 @@ class DataFrame:
         df_with_stats = pl.concat([self._df, stats_df], how="horizontal")
         return DataFrame(df_with_stats)
 
-    def add_depth_column(self, root_path: Optional[Union[str, Path]] = None) -> "DataFrame":
+    def add_depth_column(self, path: Optional[Union[str, Path]] = None) -> "DataFrame":
         """
         Add a depth column showing the nesting level of each path.
 
         Args:
-            root_path: The root path to calculate depth from. If None, uses the common root.
+            path: The path to calculate depth from. If None, uses the common root.
 
         Returns:
             New DataFrame with depth column
         """
-        if root_path is None:
+        if path is None:
             # Find the common root path
             paths = [Path(p) for p in self._df["path"].to_list()]
             if not paths:
-                root_path = Path()
+                path = Path()
             else:
                 # Find common parent
                 common_parts = []
@@ -194,18 +194,21 @@ class DataFrame:
                         common_parts.append(part)
                     else:
                         break
-                root_path = Path(*common_parts) if common_parts else Path()
+                path = Path(*common_parts) if common_parts else Path()
         else:
-            root_path = Path(root_path)
+            path = Path(path)
+
+        # Use a different local name to avoid shadowing the parameter inside calculate_depth
+        path_root = path
 
         def calculate_depth(path_str: str) -> int:
-            """Calculate the depth of a path relative to root_path."""
+            """Calculate the depth of a path relative to the provided root path."""
             try:
-                path = Path(path_str)
-                relative_path = path.relative_to(root_path)
-                return len(relative_path.parts) - 1 if relative_path.parts != ('.',) else 0
+                p = Path(path_str)
+                relative_path = p.relative_to(path_root)
+                return len(relative_path.parts)
             except ValueError:
-                # Path is not relative to root_path
+                # Path is not relative to the provided root path
                 return len(Path(path_str).parts)
 
         df_with_depth = self._df.with_columns([

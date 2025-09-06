@@ -11,12 +11,12 @@ from filoma.directories import FdFinder
 searcher = FdFinder()
 
 # Find Python files
-python_files = searcher.find_files(pattern=r"\.py$", directory=".", max_depth=3)
+python_files = searcher.find_files(pattern=r"\.py$", path=".", max_depth=3)
 print(f"Found {len(python_files)} Python files")
 
 # Find files by extension
-code_files = searcher.find_by_extension(['py', 'rs', 'js'], directory=".")
-image_files = searcher.find_by_extension(['.jpg', '.png', '.tif'], directory=".")
+code_files = searcher.find_by_extension(['py', 'rs', 'js'], path=".")
+image_files = searcher.find_by_extension(['.jpg', '.png', '.tif'], path=".")
 
 # Find directories
 test_dirs = searcher.find_directories(pattern="test", max_depth=2)
@@ -35,10 +35,10 @@ hidden_files = searcher.find_files(pattern=".*", hidden=True)
 readme_files = searcher.find_files(pattern="readme", case_sensitive=False)
 
 # Recent files (if fd supports time filters)
-recent_files = searcher.find_recent_files(timeframe="1d", directory="/logs")
+recent_files = searcher.find_recent_files(timeframe="1d", path="/logs")
 
 # Large files
-large_files = searcher.find_large_files(size=">1M", directory="/data")
+large_files = searcher.find_large_files(size=">1M", path="/data")
 ```
 
 ### Direct fd Integration
@@ -52,7 +52,7 @@ if fd.is_available():
     print(f"fd version: {fd.get_version()}")
     
     # Regex pattern search
-    py_files = fd.find(pattern=r"\.py$", base_path="/src", max_depth=2)
+    py_files = fd.find(pattern=r"\.py$", path="/src", max_depth=2)
     
     # Glob pattern search  
     config_files = fd.find(pattern="*.json", use_glob=True, max_results=10)
@@ -195,7 +195,7 @@ if fd.is_available():
     # Complex regex patterns
     test_files = fd.find(
         pattern=r"test.*\.py$",
-        base_path="/src",
+        path="/src",
         max_depth=3,
         case_sensitive=False
     )
@@ -246,7 +246,7 @@ profiler_benchmark = DirectoryProfiler(show_progress=False)
 
 ```python
 {
-    "root_path": "/probed/path",
+    "path": "/probed/path",
     "summary": {
         "total_files": 150,
         "total_folders": 25,

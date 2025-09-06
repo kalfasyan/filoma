@@ -92,7 +92,7 @@ def clear_filesystem_cache():
                    input='3\n', text=True, stdout=subprocess.DEVNULL, check=True)
     time.sleep(1)  # Let cache clear settle
 
-def benchmark_backend(backend_name, directory, iterations=3):
+def benchmark_backend(backend_name, path, iterations=3):
     """Benchmark a specific backend with cold cache."""
     profiler = DirectoryProfiler(search_backend=backend_name, show_progress=False)
     
@@ -107,7 +107,7 @@ def benchmark_backend(backend_name, directory, iterations=3):
     for i in range(iterations):
         clear_filesystem_cache()
         start = time.time()
-        result = profiler.probe(directory)
+    result = profiler.probe(path)
         elapsed = time.time() - start
         times.append(elapsed)
         

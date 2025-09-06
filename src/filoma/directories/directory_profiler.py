@@ -236,25 +236,25 @@ class DirectoryProfiler:
             "python_fallback": not (self.use_rust or self.use_fd),
         }
 
-    def probe_directory(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
+    def probe_directory(self, path: str, max_depth: Optional[int] = None) -> Dict:
         """
         Alias for probe() method for backward compatibility.
 
         Args:
-            root_path: Path to the root directory to probe
+            path: Path to the root directory to probe
             max_depth: Maximum depth to traverse (None for unlimited)
 
         Returns:
             Dictionary containing analysis results
         """
-        return self.probe(root_path, max_depth)
+        return self.probe(path, max_depth)
 
-    def probe(self, root_path: str, max_depth: Optional[int] = None, threads: Optional[int] = None) -> Dict:
+    def probe(self, path: str, max_depth: Optional[int] = None, threads: Optional[int] = None) -> Dict:
         """
         Analyze a directory tree and return comprehensive statistics.
 
         Args:
-            root_path: Path to the root directory to probe
+            path: Path to the root directory to probe
             max_depth: Maximum depth to traverse (None for unlimited)
 
         Returns:
@@ -267,17 +267,17 @@ class DirectoryProfiler:
 
         # Log the start of analysis
         impl_type = self._get_impl_display_name(backend)
-        logger.info(f"Starting directory analysis of '{root_path}' using {impl_type} implementation")
+        logger.info(f"Starting directory analysis of '{path}' using {impl_type} implementation")
 
         try:
             if backend == "fd":
                 # threads param overrides instance threads when provided
                 chosen_threads = threads if threads is not None else self.threads
-                result = self._probe_fd(root_path, max_depth, threads=chosen_threads)
+                result = self._probe_fd(path, max_depth, threads=chosen_threads)
             elif backend == "rust":
-                result = self._probe_rust(root_path, max_depth, fast_path_only=self._fast_path_only)
+                result = self._probe_rust(path, max_depth, fast_path_only=self._fast_path_only)
             else:
-                result = self._probe_python(root_path, max_depth)
+                result = self._probe_python(path, max_depth)
 
             # Calculate and log timing
             elapsed_time = time.time() - start_time
@@ -362,7 +362,7 @@ class DirectoryProfiler:
         else:
             return "🐍 Python"
 
-    def _probe_fd(self, root_path: str, max_depth: Optional[int] = None, threads: Optional[int] = None) -> Dict:
+    def _probe_fd(self, path: str, max_depth: Optional[int] = None, threads: Optional[int] = None) -> Dict:
         """
         Use fd for file discovery + Python for analysis.
 
@@ -400,7 +400,7 @@ class DirectoryProfiler:
             # increase the file search depth by 1.
             file_max_depth = None if max_depth is None else max_depth + 1
             all_files = self.fd_integration.find(
-                base_path=root_path,
+                path=path,
                 file_types=["f"],  # Files only
                 max_depth=file_max_depth,
                 absolute_paths=True,
@@ -411,7 +411,7 @@ class DirectoryProfiler:
                 progress.update(task_id, description="[bold blue]Finding directories...")
 
             all_dirs = self.fd_integration.find(
-                base_path=root_path,
+                path=path,
                 file_types=["d"],  # Directories only
                 max_depth=max_depth,
                 absolute_paths=True,
@@ -419,7 +419,7 @@ class DirectoryProfiler:
             )
 
             # Convert to Path objects for analysis
-            root_path_obj = Path(root_path).resolve()
+            root_path_obj = Path(path).resolve()
             all_paths = [Path(p) for p in all_files + all_dirs]
 
             # If DataFrame building is enabled and DataFrame support is available,
@@ -438,17 +438,27 @@ class DirectoryProfiler:
                 progress.update(task_id, description="[bold yellow]Analyzing discovered files...")
                 progress.update(task_id, total=100, completed=50)
 
-            # Now probe the discovered paths using Python logic
-            # Pass the existing progress to avoid conflicts. If a prebuilt DataFrame
-            # exists, provide it to avoid rebuilding the DataFrame inside the probe.
-            result = self._probe_paths_python(
-                root_path_obj,
-                all_paths,
-                max_depth,
-                existing_progress=progress,
-                existing_task_id=task_id,
-                prebuilt_dataframe=prebuilt_df,
-            )
+                # Now probe the discovered paths using Python logic
+                # Pass the existing progress to avoid conflicts. If a prebuilt DataFrame
+                # exists, provide it to avoid rebuilding the DataFrame inside the probe.
+                result = self._probe_paths_python(
+                    root_path_obj,
+                    all_paths,
+                    max_depth,
+                    existing_progress=progress,
+                    existing_task_id=task_id,
+                    prebuilt_dataframe=prebuilt_df,
+                )
+            else:
+                # No progress provided; run probe without progress integration
+                result = self._probe_paths_python(
+                    root_path_obj,
+                    all_paths,
+                    max_depth,
+                    existing_progress=None,
+                    existing_task_id=None,
+                    prebuilt_dataframe=prebuilt_df,
+                )
 
             if progress and task_id is not None:
                 progress.update(task_id, description="[bold green]Analysis complete!")
@@ -462,7 +472,7 @@ class DirectoryProfiler:
 
     def _probe_paths_python(
         self,
-        root_path: Path,
+        path_root: Path,
         all_paths: List[Path],
         max_depth: Optional[int] = None,
         existing_progress=None,
@@ -476,7 +486,7 @@ class DirectoryProfiler:
         the statistical analysis to maintain consistency with the Python backend.
 
         Args:
-            root_path: Root directory being probed
+            path: Root directory being probed
             all_paths: List of paths to probe
             max_depth: Maximum depth for analysis
             existing_progress: Existing progress bar to reuse (avoids conflicts)
@@ -545,7 +555,7 @@ class DirectoryProfiler:
 
                 # Calculate current depth
                 try:
-                    depth = len(current_path.relative_to(root_path).parts)
+                    depth = len(current_path.relative_to(path_root).parts)
                 except ValueError:
                     depth = 0
 
@@ -605,7 +615,7 @@ class DirectoryProfiler:
 
             # Build result dictionary
             result = {
-                "root_path": str(root_path),
+                "path": str(path_root),
                 "summary": {
                     "total_files": file_count,
                     "total_folders": folder_count,
@@ -636,7 +646,7 @@ class DirectoryProfiler:
             if progress and progress_owned:
                 progress.stop()
 
-    def _probe_rust(self, root_path: str, max_depth: Optional[int] = None, fast_path_only: bool = False) -> Dict:
+    def _probe_rust(self, path: str, max_depth: Optional[int] = None, fast_path_only: bool = False) -> Dict:
         """
         Use the Rust implementation for analysis.
 
@@ -663,7 +673,7 @@ class DirectoryProfiler:
         try:
             # Choose Rust variant: async for network filesystems, sync otherwise
             try:
-                fs_type = self._detect_filesystem_type(root_path)
+                fs_type = self._detect_filesystem_type(path)
             except Exception:
                 fs_type = None
 
@@ -680,7 +690,7 @@ class DirectoryProfiler:
                 # Default concurrency limit can be tuned; use configured values
                 if RUST_ASYNC_AVAILABLE:
                     result = probe_directory_rust_async(
-                        root_path,
+                        path,
                         max_depth,
                         self.network_concurrency,
                         self.network_timeout_ms,
@@ -690,20 +700,20 @@ class DirectoryProfiler:
                 else:
                     # Async variant not available; fall back to parallel or sequential Rust
                     if self.use_parallel and RUST_PARALLEL_AVAILABLE:
-                        result = probe_directory_rust_parallel(root_path, max_depth, self.parallel_threshold, fast_path_only)
+                        result = probe_directory_rust_parallel(path, max_depth, self.parallel_threshold, fast_path_only)
                     else:
-                        result = probe_directory_rust(root_path, max_depth, fast_path_only)
+                        result = probe_directory_rust(path, max_depth, fast_path_only)
             elif is_network_fs and not self.use_async:
                 # User explicitly disabled async; prefer parallel or sequential Rust
                 if self.use_parallel and RUST_PARALLEL_AVAILABLE:
-                    result = probe_directory_rust_parallel(root_path, max_depth, self.parallel_threshold, fast_path_only)
+                    result = probe_directory_rust_parallel(path, max_depth, self.parallel_threshold, fast_path_only)
                 else:
-                    result = probe_directory_rust(root_path, max_depth, fast_path_only)
+                    result = probe_directory_rust(path, max_depth, fast_path_only)
             else:
                 if self.use_parallel and RUST_PARALLEL_AVAILABLE:
-                    result = probe_directory_rust_parallel(root_path, max_depth, self.parallel_threshold, fast_path_only)
+                    result = probe_directory_rust_parallel(path, max_depth, self.parallel_threshold, fast_path_only)
                 else:
-                    result = probe_directory_rust(root_path, max_depth, fast_path_only)
+                    result = probe_directory_rust(path, max_depth, fast_path_only)
 
             # Update progress to show completion
             if progress and task_id is not None:
@@ -716,7 +726,7 @@ class DirectoryProfiler:
                 if progress and task_id is not None:
                     progress.update(task_id, description="[bold yellow]Building DataFrame...")
 
-                root_path_obj = Path(root_path)
+                root_path_obj = Path(path)
                 all_paths = []
                 permission_errors_encountered = False
 
@@ -739,7 +749,7 @@ class DirectoryProfiler:
                 except (OSError, PermissionError, FileNotFoundError):
                     # If rglob fails entirely, provide DataFrame with whatever we collected
                     self.console.print("[yellow]Warning: Some paths couldn't be accessed for DataFrame building[/yellow]")
-                    logger.warning(f"DataFrame building encountered permission errors on {root_path}, providing partial results")
+                    logger.warning(f"DataFrame building encountered permission errors on {path}, providing partial results")
                     permission_errors_encountered = True
 
                 # Add DataFrame to the result (may be partial if there were permission errors)
@@ -757,15 +767,15 @@ class DirectoryProfiler:
             if progress:
                 progress.stop()
 
-    def _probe_python(self, root_path: str, max_depth: Optional[int] = None) -> Dict:
+    def _probe_python(self, path: str, max_depth: Optional[int] = None) -> Dict:
         """
         Pure Python implementation with enhanced DataFrame support and progress indication.
         """
-        root_path = Path(root_path)
-        if not root_path.exists():
-            raise ValueError(f"Path does not exist: {root_path}")
-        if not root_path.is_dir():
-            raise ValueError(f"Path is not a directory: {root_path}")
+        path_root = Path(path)
+        if not path_root.exists():
+            raise ValueError(f"Path does not exist: {path_root}")
+        if not path_root.is_dir():
+            raise ValueError(f"Path is not a directory: {path_root}")
 
         # Initialize counters and collections
         file_count = 0
@@ -791,7 +801,7 @@ class DirectoryProfiler:
 
         if self.show_progress:
             # Quick estimation pass
-            total_items = sum(1 for _ in root_path.rglob("*"))
+            total_items = sum(1 for _ in path_root.rglob("*"))
 
             progress = Progress(
                 SpinnerColumn(),
@@ -809,7 +819,7 @@ class DirectoryProfiler:
         try:
             # Walk through directory tree using pathlib for consistency
             try:
-                for current_path in root_path.rglob("*"):
+                for current_path in path_root.rglob("*"):
                     try:
                         processed_items += 1
 
@@ -824,7 +834,7 @@ class DirectoryProfiler:
 
                         # Calculate current depth
                         try:
-                            depth = len(current_path.relative_to(root_path).parts)
+                            depth = len(current_path.relative_to(path_root).parts)
                         except ValueError:
                             depth = 0
 
@@ -891,10 +901,10 @@ class DirectoryProfiler:
 
             except (OSError, PermissionError):
                 # If rglob fails entirely, we can't probe this directory
-                self.console.print(f"[yellow]Warning: Cannot access directory {root_path} - insufficient permissions[/yellow]")
+                self.console.print(f"[yellow]Warning: Cannot access directory {path_root} - insufficient permissions[/yellow]")
                 # Return minimal result
                 return {
-                    "root_path": str(root_path),
+                    "path": str(path_root),
                     "summary": {
                         "total_files": 0,
                         "total_folders": 0,
@@ -924,7 +934,7 @@ class DirectoryProfiler:
 
             # Build result dictionary
             result = {
-                "root_path": str(root_path),
+                "path": str(path_root),
                 "summary": {
                     "total_files": file_count,
                     "total_folders": folder_count,
@@ -964,7 +974,7 @@ class DirectoryProfiler:
             impl_type += " + 📊 DataFrame"
 
         # Main summary table
-        title = f"Directory Analysis: {analysis['root_path']} ({impl_type})"
+        title = f"Directory Analysis: {analysis.get('path', '')} ({impl_type})"
         if timing:
             title += f" - {timing['elapsed_seconds']:.2f}s"
 

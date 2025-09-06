@@ -152,10 +152,11 @@ impl DirectoryStats {
         self.elapsed_seconds = elapsed_seconds;
     }
 
-    fn to_py_dict(&self, py: Python, root_path: &str) -> PyResult<PyObject> {
+    fn to_py_dict(&self, py: Python, path_root: &str) -> PyResult<PyObject> {
         let dict = PyDict::new(py);
         
-        dict.set_item("root_path", root_path)?;
+        // Return the probed path under the key 'path' for Python consistency
+    dict.set_item("path", path_root)?;
         
         // Summary
         let summary = PyDict::new(py);
@@ -269,12 +270,12 @@ mod sequential {
     use super::*;
 
     pub fn probe_directory_sequential(
-        root_path: &Path,
+        path_root: &Path,
         config: &AnalysisConfig,
     ) -> Result<DirectoryStats, String> {
         let start_time = Instant::now();
         let mut stats = DirectoryStats::new();
-        let mut walker = WalkDir::new(root_path).follow_links(config.follow_links);
+        let mut walker = WalkDir::new(path_root).follow_links(config.follow_links);
 
         // Set max_depth on the walker if specified
         if let Some(max_d) = config.max_depth {
@@ -346,7 +347,7 @@ mod sequential {
             }
         }
 
-        let elapsed = start_time.elapsed();
+    let elapsed = start_time.elapsed();
         stats.set_timing(elapsed.as_secs_f64());
 
         Ok(stats)
@@ -358,20 +359,20 @@ mod parallel {
     use super::*;
 
     pub fn probe_directory_parallel(
-        root_path: &Path,
+        path_root: &Path,
         config: &AnalysisConfig,
     ) -> Result<DirectoryStats, String> {
         let start_time = Instant::now();
         let stats = Arc::new(ParallelDirectoryStats::new());
         
-        // First, probe the root directory itself
-        probe_root_directory(root_path, &stats, config)?;
+    // First, probe the root directory itself
+    probe_root_directory(path_root, &stats, config)?;
         
         // Get immediate subdirectories for parallel processing
-        let subdirs = get_subdirectories(root_path, config);
+    let subdirs = get_subdirectories(path_root, config);
         
         // Decide whether to use parallel processing
-        let should_parallelize = subdirs.len() > 4 && 
+    let should_parallelize = subdirs.len() > 4 && 
             estimate_total_size(&subdirs) > config.parallel_threshold;
         
         if should_parallelize && subdirs.len() > 1 {
@@ -394,17 +395,17 @@ mod parallel {
     }
 
     fn probe_root_directory(
-        root_path: &Path,
+        path_root: &Path,
         stats: &Arc<ParallelDirectoryStats>,
         _config: &AnalysisConfig,
     ) -> Result<(), String> {
         // Count the root directory itself
-        if let Some(name) = root_path.file_name().and_then(|n| n.to_str()) {
-            let is_empty = estimate_directory_size(root_path, 1) == 0;
+        if let Some(name) = path_root.file_name().and_then(|n| n.to_str()) {
+            let is_empty = estimate_directory_size(path_root, 1) == 0;
             stats.add_folder(
                 name.to_string(),
                 is_empty,
-                root_path.to_string_lossy().to_string(),
+                path_root.to_string_lossy().to_string(),
                 0
             );
         }
@@ -478,38 +479,38 @@ mod parallel {
 
 /// Python interface functions
 #[pyfunction]
-fn probe_directory_rust(root_path: &str, max_depth: Option<u32>, fast_path_only: Option<bool>) -> PyResult<PyObject> {
-    probe_directory_rust_with_config(root_path, max_depth, None, fast_path_only)
+fn probe_directory_rust(path_root: &str, max_depth: Option<u32>, fast_path_only: Option<bool>) -> PyResult<PyObject> {
+    probe_directory_rust_with_config(path_root, max_depth, None, fast_path_only)
 }
 
 #[pyfunction]
 fn probe_directory_rust_parallel(
-    root_path: &str, 
+    path_root: &str, 
     max_depth: Option<u32>,
     parallel_threshold: Option<usize>,
     fast_path_only: Option<bool>
 ) -> PyResult<PyObject> {
-    probe_directory_rust_with_config(root_path, max_depth, parallel_threshold, fast_path_only)
+    probe_directory_rust_with_config(path_root, max_depth, parallel_threshold, fast_path_only)
 }
 
 fn probe_directory_rust_with_config(
-    root_path: &str,
+    path_root: &str,
     max_depth: Option<u32>,
     parallel_threshold: Option<usize>,
     fast_path_only: Option<bool>,
 ) -> PyResult<PyObject> {
-    let root = Path::new(root_path);
+    let root = Path::new(path_root);
     
     // Validate input
     if !root.exists() {
         return Err(pyo3::exceptions::PyValueError::new_err(
-            format!("Path does not exist: {}", root_path)
+            format!("Path does not exist: {}", path_root)
         ));
     }
     
     if !root.is_dir() {
         return Err(pyo3::exceptions::PyValueError::new_err(
-            format!("Path is not a directory: {}", root_path)
+            format!("Path is not a directory: {}", path_root)
         ));
     }
 
@@ -532,7 +533,7 @@ fn probe_directory_rust_with_config(
 
     let stats = stats.map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
     
-    Python::with_gil(|py| stats.to_py_dict(py, root_path))
+    Python::with_gil(|py| stats.to_py_dict(py, path_root))
 }
 
 /// Intelligent decision making for when to use parallel processing

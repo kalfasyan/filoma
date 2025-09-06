@@ -9,13 +9,13 @@ from pathlib import Path
 
 
 # Create a test directory structure
-def create_test_structure(base_path: Path, num_dirs: int = 100, num_files_per_dir: int = 50):
+def create_test_structure(path: Path, num_dirs: int = 100, num_files_per_dir: int = 50):
     """Create a test directory structure for benchmarking."""
     print(f"Creating test structure with {num_dirs} directories and {num_files_per_dir} files each...")
 
     for i in range(num_dirs):
-        dir_path = base_path / f"test_dir_{i:03d}"
-        dir_path.mkdir(exist_ok=True)
+        dir_path = path / f"test_dir_{i:03d}"
+        dir_path.mkdir(parents=True, exist_ok=True)
 
         for j in range(num_files_per_dir):
             file_path = dir_path / f"file_{j:03d}.{['txt', 'py', 'rs', 'md', 'json'][j % 5]}"
