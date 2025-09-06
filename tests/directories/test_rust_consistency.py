@@ -1,7 +1,14 @@
+import os
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from filoma.directories import DirectoryProfiler
+
+# Skip these filesystem-heavy tests on CI where external tools like `fd` may be missing
+CI = os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true"
+pytestmark = pytest.mark.skipif(CI, reason="Skip on CI where fd may be unavailable")
 
 
 def test_rust_python_consistency():

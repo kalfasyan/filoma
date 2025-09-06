@@ -4,11 +4,18 @@ Test script to demonstrate the new progress indication and timing features
 for the directory profiler.
 """
 
+import os
 import tempfile
 import time
 from pathlib import Path
 
+import pytest
+
 from filoma.directories import DirectoryProfiler
+
+# Skip on CI where external tools like `fd` may be missing
+CI = os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true"
+pytestmark = pytest.mark.skipif(CI, reason="Skip on CI where fd may be unavailable")
 
 # Use print instead of logger for standalone test script
 
