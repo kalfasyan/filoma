@@ -8,7 +8,7 @@
 
 **Fast, multi-backend Python tool for directory analysis and file profiling.**
 
-Analyze directory structures, profile files, and inspect image data with automatic performance optimization through Rust, fd, or Python backends.
+Analyze directory structures, profile files, and inspect image data with automatic performance optimization through Rust (rayon, tokio, walkdir), [fd](https://github.com/sharkdp/fd) tool, or pure Python backends.
 
 ---
 
