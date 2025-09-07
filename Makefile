@@ -48,6 +48,25 @@ dev-install:  ## Install package in development mode with dev dependencies
 benchmark:  ## Run performance benchmark (Python vs Rust)
 	python scripts/benchmark.py
 
+# Documentation targets
+.PHONY: docs-deps docs-build docs-serve docs-clean
+
+docs-deps:  ## Install docs dependencies
+	@echo "📦 Installing docs dependencies..."
+	uv pip install -r docs/requirements-docs.txt
+
+docs-build: docs-deps  ## Build documentation site
+	@echo "📚 Building documentation site..."
+	uv run mkdocs build --clean
+
+docs-serve: docs-deps  ## Serve documentation locally
+	@echo "🔁 Serving documentation at http://127.0.0.1:8000 ..."
+	uv run mkdocs serve --dev-addr=127.0.0.1:8000
+
+docs-clean:  ## Clean built docs
+	@echo "🧹 Cleaning built docs..."
+	rm -rf site/
+
 publish:  ## Publish to PyPI (manual - normally done by GitHub Actions)
 	@echo "⚠️  Note: Publishing is normally automated via GitHub Actions"
 	@echo "🚀 To publish: git tag vX.Y.Z && git push --tags"
