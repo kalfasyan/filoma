@@ -4,7 +4,7 @@
 
 <h1 align="center">filoma</h1>
 
-[![PyPI version](https://badge.fury.io/py/filoma.svg)](https://badge.fury.io/py/filoma) ![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-blueviolet) ![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat) [![Tests](https://github.com/kalfasyan/filoma/actions/workflows/ci.yml/badge.svg)](https://github.com/kalfasyan/filoma/actions/workflows/ci.yml)
+[![PyPI version](https://badge.fury.io/py/filoma.svg)](https://badge.fury.io/py/filoma) ![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-blueviolet) ![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat) [![Tests](https://github.com/filoma/filoma/actions/workflows/ci.yml/badge.svg)](https://github.com/filoma/filoma/actions/workflows/ci.yml)
 
 **Fast, multi-backend Python tool for directory analysis and file profiling.**
 
@@ -14,7 +14,7 @@ Analyze directory structures, profile files, and inspect image data with automat
 
 **Documentation**: [Installation](docs/installation.md) • [Backends](docs/backends.md) • [Advanced Usage](docs/advanced-usage.md) • [Benchmarks](docs/benchmarks.md)
 
-**Source Code**: https://github.com/kalfasyan/filoma
+**Source Code**: https://github.com/filoma/filoma
 
 ## Key Features
 
@@ -266,7 +266,7 @@ This work is licensed under a
 
 ## Contributing
 
-Contributions welcome! Please check the [issues](https://github.com/kalfasyan/filoma/issues) for planned features and bug reports.
+Contributions welcome! Please check the [issues](https://github.com/filoma/filoma/issues) for planned features and bug reports.
 
 ---
 

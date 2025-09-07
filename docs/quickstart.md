@@ -47,6 +47,11 @@ Tips
 - Use `search_backend='fd'` or `search_backend='rust'` for faster scans when available.
 - In notebooks, use `probe_to_df()` and then Polars APIs for interactive filtering and plots.
 
+Lazy imports and top-level helpers
+
+- filoma keeps imports lightweight: `import filoma` is intentionally cheap and does not import heavy optional dependencies like `polars` or `Pillow` until you actually use features that need them.
+- Use the top-level helpers (`probe`, `probe_to_df`, `probe_file`, `probe_image`) for a terse, REPL-friendly API; these helpers will import required backends on demand.
+
 Building docs (local):
 
 ```bash
@@ -54,5 +59,6 @@ Building docs (local):
 uv pip install -r docs/requirements-docs.txt
 
 # Build the site
-/home/kalfasy/repos/filoma/.venv/bin/mkdocs build --clean
+# Run the local mkdocs build (use your environment's mkdocs executable)
+mkdocs build --clean
 ```

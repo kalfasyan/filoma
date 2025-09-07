@@ -30,4 +30,4 @@ markdown_extensions:
       permalink: true
 
 extra:
-  repo_url: https://github.com/kalfasyan/filoma
+  repo_url: https://github.com/filoma/filoma
