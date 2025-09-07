@@ -20,7 +20,8 @@ dev = [
     "pre-commit>=4.2.0",
     "maturin>=1.9.0",
     "twine>=6.1.0",
-    "ipython>=9.2.0",
+    "ipython>=9.4.0",
+    "ipykernel>=6.30.1",
 ]
 
 [build-system]
@@ -50,6 +51,7 @@ module-name = "filoma.filoma_core"
 # Use manylinux for PyPI compatibility
 compatibility = "manylinux2014"
 features = ["pyo3/extension-module"]
+# to build with maturin, run: maturin develop --bindings pyo3 --release --manifest-path Cargo.toml -v
 
 [tool.pytest.ini_options]
 # Suppress the informational Rust progress warning in CI logs
