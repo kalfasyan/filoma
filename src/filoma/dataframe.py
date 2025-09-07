@@ -37,10 +37,12 @@ class DataFrame:
                 - None for an empty DataFrame
         """
         if data is None:
+            # Default empty DataFrame with a path column for filesystem use-cases
             self._df = pl.DataFrame({"path": []}, schema={"path": pl.String})
         elif isinstance(data, pl.DataFrame):
-            if "path" not in data.columns:
-                raise ValueError("DataFrame must contain a 'path' column")
+            # Accept any Polars DataFrame schema. Some operations (path helpers)
+            # expect a 'path' column, but group/aggregation helpers return
+            # summary tables without 'path' and should still be wrapped.
             self._df = data
         elif isinstance(data, list):
             # Convert to string paths
@@ -58,13 +60,13 @@ class DataFrame:
         """
         attr = getattr(self._df, name)
 
-        # If it's a method that returns a DataFrame, wrap it
+        # If it's a method that returns a DataFrame, wrap Polars DataFrame
         if callable(attr):
 
             def wrapper(*args, **kwargs):
                 result = attr(*args, **kwargs)
-                # If the result is a Polars DataFrame with a 'path' column, wrap it
-                if isinstance(result, pl.DataFrame) and "path" in result.columns:
+                # If the result is a Polars DataFrame, wrap it in filoma.DataFrame
+                if isinstance(result, pl.DataFrame):
                     return DataFrame(result)
                 # Otherwise return the result as-is
                 return result
@@ -317,7 +319,8 @@ class DataFrame:
                 .alias("extension")
             ]
         )
-        return df_with_ext.group_by("extension").len().sort("len", descending=True)
+        result = df_with_ext.group_by("extension").len().sort("len", descending=True)
+        return DataFrame(result)
 
     def group_by_directory(self) -> pl.DataFrame:
         """
@@ -329,7 +332,8 @@ class DataFrame:
         df_with_parent = self._df.with_columns(
             [pl.col("path").map_elements(lambda x: str(Path(x).parent), return_dtype=pl.String).alias("parent_dir")]
         )
-        return df_with_parent.group_by("parent_dir").len().sort("len", descending=True)
+        result = df_with_parent.group_by("parent_dir").len().sort("len", descending=True)
+        return DataFrame(result)
 
     def to_polars(self) -> pl.DataFrame:
         """Get the underlying Polars DataFrame."""
