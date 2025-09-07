@@ -17,16 +17,16 @@ def test_chaining_filter_depth_group_by_extension(tmp_path):
     df = DataFrame(paths)
 
     # Chain operations: filter_by_extension -> add_depth_col -> group_by_extension
-    chained = df.filter_by_extension('.py').add_depth_col(path=p).group_by_extension()
+    chained = df.filter_by_extension(".py").add_depth_col(path=p).group_by_extension()
 
     # group_by_extension should return a filoma.DataFrame wrapper
     assert isinstance(chained, DataFrame)
 
     # Convert to polars and check expected extensions and counts
     pl_df = chained.to_polars()
-    assert 'extension' in pl_df.columns
-    assert 'len' in pl_df.columns
+    assert "extension" in pl_df.columns
+    assert "len" in pl_df.columns
 
     # Python files count should be 2
-    py_row = pl_df.filter(pl.col('extension') == '.py')
-    assert py_row.select(pl.col('len')).to_series()[0] == 2
+    py_row = pl_df.filter(pl.col("extension") == ".py")
+    assert py_row.select(pl.col("len")).to_series()[0] == 2
