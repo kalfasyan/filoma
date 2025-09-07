@@ -26,6 +26,7 @@ Analyze directory structures, profile files, and inspect image data with automat
 - **🖼️ Image Analysis** - Profile .tif, .png, .npy, .zarr files with metadata and statistics
 - **📁 File Profiling** - System metadata, permissions, timestamps, symlink analysis
 - **🎨 Rich Terminal Output** - Beautiful progress bars and formatted reports
+- **🔀 ML-Friendly Splits** - Deterministic train/val/test splits grouped by path or filename tokens
 
 **\*** *According to [benchmarks](docs/benchmarks.md)*  
 
@@ -156,7 +157,7 @@ result = profiler.probe(".")
 df = profiler.get_dataframe(result)
 
 # Add path components and probe
-df = df.add_path_components().add_file_stats()
+df = df.add_path_components().add_file_stats_cols()
 python_files = df.filter_by_extension('.py')
 df.save_csv("analysis.csv")
 ```
@@ -183,6 +184,34 @@ arr = np.zeros((64, 64), dtype=np.uint8)
 img_report2 = filoma.probe_image(arr)
 print(img_report2.to_dict())
 ```
+
+### ML-Friendly Splitting  
+
+Deterministic train/val/test splits grouped by filename or path-derived features (prevents related files leaking across sets).
+
+```python
+from filoma import probe_to_df, ml
+
+# Create DataFrame from directory
+df = probe_to_df('.') # DataFrame with 'path'
+# A method can discover filename tokens that can be used for grouping
+# e.g., 'sample1_imageA.png' -> token1='sample1', token2='imageA'
+df = ml.discover_filename_features(df, sep='_', prefix=None)  # adds token1, token2, ...
+
+# `auto_split` can now use these tokens to group files
+train, val, test = ml.auto_split(df, train_val_test=(70,15,15))
+print(len(train), len(val), len(test))
+
+# Or group by parent folder instead (parts index -2)
+train_p, val_p, test_p = ml.auto_split(df, how='parts', parts=(-2,), seed=42)
+
+# You can also choose what return type you want (filoma, polars or pandas)
+# with 'filoma' being the default, you can also make use of cool methods like `.add_file_stats_cols()`
+# that uses the filoma file profiling under the hood
+train_f, val_f, test_f = ml.auto_split(df, return_type='filoma')
+```
+Notes: hash-based & deterministic; if splits drift from the ratios requested, then a warning is logged. Use `verbose=False` to silence.  
+To see some example usage, check out the [ml_examples notebook](notebooks/ml_examples.ipynb).
 
 ## Performance
 

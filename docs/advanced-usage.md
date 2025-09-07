@@ -165,10 +165,10 @@ extension_counts = df.group_by_extension()
 directory_counts = df.group_by_directory()
 
 # Add file statistics
-df = df.add_file_stats()  # size, timestamps, etc.
+df = df.add_file_stats_cols()  # size, timestamps, etc.
 
 # Add depth information
-df = df.add_depth_column()
+df = df.add_depth_col()
 
 # Export for further analysis
 df.save_csv("file_analysis.csv")
@@ -180,8 +180,8 @@ df.save_parquet("file_analysis.parquet")
 ```python
 # Path manipulation
 df.add_path_components()     # Add parent, name, stem, suffix columns
-df.add_depth_column()        # Add directory depth column
-df.add_file_stats()          # Add size, timestamps, file type info
+df.add_depth_col()        # Add directory depth column
+df.add_file_stats_cols()          # Add size, timestamps, file type info
 
 # Filtering
 df.filter_by_extension('.py')              # Filter by single extension

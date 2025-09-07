@@ -3,11 +3,14 @@ DataFrame module for filoma - provides enhanced data manipulation capabilities
 for file and directory analysis results using Polars.
 """
 
-import datetime
+import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 import polars as pl
+from loguru import logger
+
+from .files.file_profiler import FileProfiler
 
 
 class DataFrame:
@@ -113,56 +116,92 @@ class DataFrame:
         )
         return DataFrame(df_with_components)
 
-    def add_file_stats(self) -> "DataFrame":
+    def add_file_stats_cols(self, path: str = "path", base_path: Optional[Union[str, Path]] = None) -> "DataFrame":
         """
-        Add file statistics columns (size, modified time, etc.).
+        Add file statistics columns (size, modified time, etc.) based on a column
+        containing filesystem paths.
+
+        Args:
+            path: Name of the column containing file system paths.
+            base_path: Optional base path. If provided, any non-absolute paths in the
+                       path column are resolved relative to this base.
 
         Returns:
-            New DataFrame with file statistics columns
+            New DataFrame with file statistics columns added.
+
+        Raises:
+            ValueError: If the specified path column does not exist.
         """
+        if path not in self._df.columns:
+            raise ValueError(f"Column '{path}' not found in DataFrame")
+
+        # Resolve base path if provided
+        base = Path(base_path) if base_path is not None else None
+
+        # Use filoma's FileProfiler to collect rich file metadata
+        profiler = FileProfiler()
 
         def get_file_stats(path_str: str) -> Dict[str, Any]:
-            """Get file statistics for a given path."""
             try:
-                path = Path(path_str)
-                if path.exists() and path.is_file():
-                    stat = path.stat()
-                    return {
-                        "size_bytes": stat.st_size,
-                        "modified_time": str(datetime.datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")),
-                        "created_time": str(datetime.datetime.fromtimestamp(stat.st_ctime).strftime("%Y-%m-%d %H:%M:%S")),
-                        "is_file": True,
-                        "is_dir": False,
-                    }
-                elif path.exists() and path.is_dir():
+                p = Path(path_str)
+                if base is not None and not p.is_absolute():
+                    p = base / p
+                full_path = str(p)
+                if not p.exists():
+                    logger.warning(f"Path does not exist: {full_path}")
                     return {
                         "size_bytes": None,
-                        "modified_time": "",
-                        "created_time": "",
-                        "is_file": False,
-                        "is_dir": True,
+                        "modified_time": None,
+                        "created_time": None,
+                        "is_file": None,
+                        "is_dir": None,
+                        "owner": None,
+                        "group": None,
+                        "mode_str": None,
+                        "inode": None,
+                        "nlink": None,
+                        "sha256": None,
+                        "xattrs": "{}",
                     }
-                else:
-                    return {
-                        "size_bytes": None,
-                        "modified_time": "",
-                        "created_time": "",
-                        "is_file": False,
-                        "is_dir": False,
-                    }
-            except (OSError, IOError):
+
+                # Use the profiler; let it handle symlinks and permissions
+                filo = profiler.probe(full_path, compute_hash=False)
+                row = filo.as_dict()
+
+                # Normalize keys to a stable schema used by this helper
+                return {
+                    "size_bytes": row.get("size"),
+                    "modified_time": row.get("modified"),
+                    "created_time": row.get("created"),
+                    "is_file": row.get("is_file"),
+                    "is_dir": row.get("is_dir"),
+                    "owner": row.get("owner"),
+                    "group": row.get("group"),
+                    "mode_str": row.get("mode_str"),
+                    "inode": row.get("inode"),
+                    "nlink": row.get("nlink"),
+                    "sha256": row.get("sha256"),
+                    "xattrs": json.dumps(row.get("xattrs") or {}),
+                }
+            except Exception:
+                # On any error, return a row of Nones/empties preserving schema
                 return {
                     "size_bytes": None,
-                    "modified_time": "",
-                    "created_time": "",
-                    "is_file": False,
-                    "is_dir": False,
+                    "modified_time": None,
+                    "created_time": None,
+                    "is_file": None,
+                    "is_dir": None,
+                    "owner": None,
+                    "group": None,
+                    "mode_str": None,
+                    "inode": None,
+                    "nlink": None,
+                    "sha256": None,
+                    "xattrs": "{}",
                 }
 
-        # Extract stats for each path
-        stats_data = [get_file_stats(path) for path in self._df["path"].to_list()]
+        stats_data = [get_file_stats(p) for p in self._df[path].to_list()]
 
-        # Create a DataFrame from the stats
         stats_df = pl.DataFrame(
             stats_data,
             schema={
@@ -171,14 +210,20 @@ class DataFrame:
                 "created_time": pl.String,
                 "is_file": pl.Boolean,
                 "is_dir": pl.Boolean,
+                "owner": pl.String,
+                "group": pl.String,
+                "mode_str": pl.String,
+                "inode": pl.Int64,
+                "nlink": pl.Int64,
+                "sha256": pl.String,
+                "xattrs": pl.String,
             },
         )
 
-        # Concatenate with the original DataFrame
         df_with_stats = pl.concat([self._df, stats_df], how="horizontal")
         return DataFrame(df_with_stats)
 
-    def add_depth_column(self, path: Optional[Union[str, Path]] = None) -> "DataFrame":
+    def add_depth_col(self, path: Optional[Union[str, Path]] = None) -> "DataFrame":
         """
         Add a depth column showing the nesting level of each path.
 

@@ -232,12 +232,12 @@ class TestStandaloneDataFrame:
         grouped = df.group_by_directory()
         assert len(grouped) == 2  # Two different parent directories
 
-    def test_add_depth_column(self):
+    def test_add_depth_col(self):
         """Test adding depth column."""
         paths = ["/home/user/file.txt", "/home/user/docs/readme.md", "/home/user/docs/deep/nested/file.py"]
         df = DataFrame(paths)
 
-        df_with_depth = df.add_depth_column("/home")
+        df_with_depth = df.add_depth_col("/home")
         assert "depth" in df_with_depth.df.columns
 
     def test_polars_method_delegation(self):

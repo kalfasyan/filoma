@@ -10,14 +10,14 @@ Features:
 """
 
 # Make main modules easily accessible
-from . import core, directories, files, images
+from . import core, directories, files, images, ml
 from ._version import __version__
 from .dataframe import DataFrame
 from .directories.directory_profiler import DirectoryProfiler
 from .files.file_profiler import FileProfiler
 from .images.image_profiler import ImageProfiler
 
-__all__ = ["__version__", "core", "directories", "images", "files", "DataFrame", "probe_to_df"]
+__all__ = ["__version__", "core", "directories", "images", "files", "DataFrame", "probe_to_df", "ml"]
 
 
 # Convenience wrappers for quick, one-off usage. These are thin helpers that
@@ -117,7 +117,7 @@ def probe_to_df(path: str, to_pandas: bool = False, enrich: bool = True, **kwarg
     """Convenience helper: return a Polars DataFrame (or pandas if to_pandas=True).
 
     This forces DataFrame building on the profiler and optionally runs a small
-    enrichment chain: .add_depth_column(path).add_path_components().add_file_stats().
+    enrichment chain: .add_depth_col(path).add_path_components().add_file_stats_cols().
 
     Args:
         path: directory path to probe
@@ -150,7 +150,7 @@ def probe_to_df(path: str, to_pandas: bool = False, enrich: bool = True, **kwarg
     df_enriched = df_wrapper
     if enrich:
         try:
-            df_enriched = df_enriched.add_depth_column(path).add_path_components().add_file_stats()
+            df_enriched = df_enriched.add_depth_col(path).add_path_components().add_file_stats_cols()
         except Exception:
             # If enrichment fails for any reason, fall back to the raw DataFrame
             pass

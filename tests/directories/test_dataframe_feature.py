@@ -63,7 +63,7 @@ def test_dataframe_functionality():
                 print(py_files.head())
 
             # Add depth information
-            df_with_depth = df.add_depth_column(current_dir)
+            df_with_depth = df.add_depth_col(current_dir)
             print("\n📏 Added depth column")
             print(df_with_depth.head())
 
