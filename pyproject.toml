@@ -29,6 +29,14 @@ ml = [
     "pyarrow>=12.0.0",
 ]
 
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.0.0",
+    "mkdocstrings>=0.23.0",
+    "mkdocstrings-python>=0.23.0",
+    "pymdown-extensions",
+]
+
 [build-system]
 requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
@@ -62,4 +70,13 @@ features = ["pyo3/extension-module"]
 # Suppress the informational Rust progress warning in CI logs
 filterwarnings = [
     "ignore::UserWarning:filoma.directories.directory_profiler",
+]
+
+[dependency-groups]
+dev = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.6.19",
+    "mkdocstrings>=0.30.0",
+    "mkdocstrings-python>=1.18.2",
+    "pymdown-extensions>=10.16.1",
 ]

@@ -131,6 +131,21 @@ class DirectoryAnalysis(Mapping):
         return d
 
     def to_df(self) -> Optional["DataFrame"]:
+        """Return the attached DataFrame wrapper or log a helpful warning when absent.
+
+        This method used to silently return None when no DataFrame was built which
+        often confused interactive users calling ``analysis.to_df()``. We now log a
+        warning explaining the likely causes (DataFrame building disabled or polars
+        not installed) to surface actionable next steps.
+        """
+        if self.dataframe is None:
+            # Emit a helpful, actionable warning rather than silently returning None
+            logger.warning(
+                "No DataFrame available for analysis at path {path!s}. "
+                "DataFrame building is disabled by default or 'polars' is not installed. "
+                "Call DirectoryProfiler(build_dataframe=True) or use filoma.probe_to_df(...) to obtain a DataFrame.",
+                path=self.path,
+            )
         return self.dataframe
 
     def as_dict(self) -> Dict:

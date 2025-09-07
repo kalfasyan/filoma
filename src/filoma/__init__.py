@@ -9,6 +9,8 @@ Features:
 - Modular, extensible codebase
 """
 
+from typing import Any
+
 # Make main modules easily accessible
 from . import core, directories, files, images, ml
 from ._version import __version__
@@ -22,7 +24,7 @@ __all__ = ["__version__", "core", "directories", "images", "files", "DataFrame",
 
 # Convenience wrappers for quick, one-off usage. These are thin helpers that
 # instantiate the appropriate profiler and return the canonical dataclass result.
-def probe(path: str, **kwargs):
+def probe(path: str, **kwargs: Any) -> Any:
     """Quick helper: probe a directory path and return a DirectoryAnalysis.
 
     This wrapper accepts probe-specific keyword arguments such as
@@ -54,12 +56,12 @@ def probe(path: str, **kwargs):
     return profiler.probe(path, max_depth=max_depth, threads=threads)
 
 
-def probe_file(path: str, **kwargs):
+def probe_file(path: str, **kwargs: Any) -> Any:
     """Quick helper: probe a single file and return a Filo dataclass."""
     return FileProfiler().probe(path, **kwargs)
 
 
-def probe_image(arg, **kwargs):
+def probe_image(arg: Any, **kwargs: Any) -> Any:
     """Quick helper: analyze an image. If `arg` is a numpy array, ImageProfiler.probe is used;
     if it's a path-like, attempt to locate an image-specific profiler or load it to numpy and analyze.
     This wrapper favors simplicity for interactive use; for advanced control instantiate profilers directly.
@@ -113,7 +115,7 @@ def probe_image(arg, **kwargs):
     return ImageReport(path=str(p), status="failed_to_load_or_unsupported_format")
 
 
-def probe_to_df(path: str, to_pandas: bool = False, enrich: bool = True, **kwargs):
+def probe_to_df(path: str, to_pandas: bool = False, enrich: bool = True, **kwargs: Any) -> Any:
     """Convenience helper: return a Polars DataFrame (or pandas if to_pandas=True).
 
     This forces DataFrame building on the profiler and optionally runs a small
@@ -130,7 +132,7 @@ def probe_to_df(path: str, to_pandas: bool = False, enrich: bool = True, **kwarg
         polars.DataFrame or pandas.DataFrame depending on to_pandas
 
     Raises:
-        RuntimeError if DataFrame support is not available or building failed.
+        RuntimeError: if DataFrame support is not available or building failed.
     """
     # Extract probe-only parameters
     max_depth = kwargs.pop("max_depth", None)
