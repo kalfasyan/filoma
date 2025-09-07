@@ -5,7 +5,7 @@ for file and directory analysis results using Polars.
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import polars as pl
 from loguru import logger
@@ -412,3 +412,52 @@ class DataFrame:
         """
         result = self._df.sort(by, descending=descending)
         return DataFrame(result)
+
+    # -------------------- ML convenience API -------------------- #
+    def auto_split(
+        self,
+        train_val_test: Tuple[int, int, int] = (80, 10, 10),
+        how: str = "parts",
+        parts: Optional[Iterable[int]] = (-1,),
+        seed: Optional[int] = None,
+        discover: bool = False,
+        sep: str = "_",
+        feat_prefix: str = "feat",
+        max_tokens: Optional[int] = None,
+        include_parent: bool = False,
+        include_all_parts: bool = False,
+        token_names: Optional[Union[str, Sequence[str]]] = None,
+        path_col: str = "path",
+        verbose: bool = True,
+        return_type: str = "filoma",
+    ):
+        """Deterministically split this filoma DataFrame into train/val/test.
+
+        This is a thin wrapper around ``filoma.ml.auto_split`` so you can call
+        ``df.auto_split(...)`` directly on a filoma DataFrame instance.
+
+        Args mirror :func:`filoma.ml.auto_split` except ``df`` is implicit.
+
+        By default ``return_type='filoma'`` so the three returned objects are
+        filoma.DataFrame wrappers.
+        """
+        # Local import to avoid loading ml utilities unless used
+        from . import ml  # type: ignore
+
+        return ml.auto_split(
+            self,
+            train_val_test=train_val_test,
+            how=how,
+            parts=parts,
+            seed=seed,
+            discover=discover,
+            sep=sep,
+            feat_prefix=feat_prefix,
+            max_tokens=max_tokens,
+            include_parent=include_parent,
+            include_all_parts=include_all_parts,
+            token_names=token_names,
+            path_col=path_col,
+            verbose=verbose,
+            return_type=return_type,
+        )

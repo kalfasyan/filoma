@@ -129,3 +129,18 @@ def test_pandas_return_type_conversion():
     for part in (tr, va, te):
         assert isinstance(part, pd.DataFrame)
         assert "path" in part.columns
+
+
+def test_filoma_dataframe_auto_split_wrapper():
+    from filoma.dataframe import DataFrame as FDF
+
+    paths = [f"dir/sub/file_{i}.txt" for i in range(12)]
+    fdf = FDF(pl.DataFrame({"path": paths}))
+    train, val, test = fdf.auto_split(train_val_test=(60, 20, 20), seed=0)
+    # Should return filoma.DataFrame wrappers by default
+    for part in (train, val, test):
+        assert hasattr(part, "df")
+        assert isinstance(part.df, pl.DataFrame)
+    # Check deterministic repeat
+    train2, val2, test2 = fdf.auto_split(train_val_test=(60, 20, 20), seed=0)
+    assert set(train.df["path"].to_list()) == set(train2.df["path"].to_list())
