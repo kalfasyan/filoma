@@ -62,3 +62,8 @@ uv pip install -r docs/requirements-docs.txt
 # Run the local mkdocs build (use your environment's mkdocs executable)
 mkdocs build --clean
 ```
+
+Hosting and publishing
+
+- For public projects we recommend deploying the built site to GitHub Pages, Netlify, or Vercel. This repository includes a GitHub Actions workflow that builds the docs and deploys the `site/` output to GitHub Pages on push to `main`.
+- Locally you can use the Makefile targets: `make docs-deps`, `make docs-build`, and `make docs-serve` to install docs deps, build, and preview the site.
