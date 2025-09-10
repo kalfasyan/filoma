@@ -6,12 +6,13 @@ Test script for parallel directory/file profiling (originally in scripts/).
 import time
 from pathlib import Path
 
-from filoma.directories import DirectoryProfiler
+from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
 
 
 def test_parallel():
     print("Testing parallel directory profiling...")
-    profiler = DirectoryProfiler(use_rust=True, use_parallel=True, show_progress=True)
+    cfg = DirectoryProfilerConfig(use_rust=True, use_parallel=True, show_progress=True)
+    profiler = DirectoryProfiler(cfg)
     test_dir = Path.cwd()
     start = time.time()
     result = profiler.probe(str(test_dir), max_depth=2)

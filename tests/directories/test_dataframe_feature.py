@@ -18,10 +18,10 @@ def test_dataframe_functionality():
     print("Testing DataFrame functionality in DirectoryProfiler...")
 
     # Test with DataFrame enabled
-    profiler = DirectoryProfiler(
-        use_rust=False,  # Use Python implementation for testing
-        build_dataframe=True,
-    )
+    from filoma.directories import DirectoryProfilerConfig
+
+    cfg = DirectoryProfilerConfig(search_backend="auto", build_dataframe=True, show_progress=False)
+    profiler = DirectoryProfiler(cfg)
 
     print(f"DataFrame enabled: {profiler.is_dataframe_enabled()}")
     print(f"Implementation info: {profiler.get_implementation_info()}")

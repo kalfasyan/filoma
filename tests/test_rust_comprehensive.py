@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from filoma.directories import DirectoryProfiler
+from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
 
 
 class TestRustBackend:
@@ -49,7 +49,7 @@ class TestRustBackend:
 
     def test_rust_backend_availability(self):
         """Test if Rust backend is available and working."""
-        profiler = DirectoryProfiler(search_backend="rust", show_progress=False)
+        profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust", show_progress=False))
 
         # Try to use Rust backend
         try:
@@ -65,14 +65,14 @@ class TestRustBackend:
     def test_rust_vs_python_performance(self, large_test_structure):
         """Compare Rust vs Python performance on larger dataset."""
         # Test Python
-        profiler_py = DirectoryProfiler(search_backend="python", show_progress=False)
+        profiler_py = DirectoryProfiler(DirectoryProfilerConfig(search_backend="python", show_progress=False))
         start_py = time.time()
         result_py = profiler_py.probe(large_test_structure)
         time_py = time.time() - start_py
 
         # Test Rust (if available)
         try:
-            profiler_rust = DirectoryProfiler(search_backend="rust", show_progress=False)
+            profiler_rust = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust", show_progress=False))
             start_rust = time.time()
             result_rust = profiler_rust.probe(large_test_structure)
             time_rust = time.time() - start_rust
@@ -97,13 +97,13 @@ class TestRustBackend:
         """Test Rust parallel vs sequential performance if both are available."""
         try:
             # Test with parallel disabled
-            profiler_seq = DirectoryProfiler(search_backend="rust", use_parallel=False, show_progress=False)
+            profiler_seq = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust", use_parallel=False, show_progress=False))
             start_seq = time.time()
             result_seq = profiler_seq.probe(large_test_structure)
             time_seq = time.time() - start_seq
 
             # Test with parallel enabled
-            profiler_par = DirectoryProfiler(search_backend="rust", use_parallel=True, show_progress=False)
+            profiler_par = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust", use_parallel=True, show_progress=False))
             start_par = time.time()
             result_par = profiler_par.probe(large_test_structure)
             time_par = time.time() - start_par
@@ -127,13 +127,13 @@ class TestRustBackend:
         """Test Rust fast path mode vs full analysis."""
         try:
             # Test full analysis
-            profiler_full = DirectoryProfiler(search_backend="rust", fast_path_only=False, show_progress=False)
+            profiler_full = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust", fast_path_only=False, show_progress=False))
             start_full = time.time()
             result_full = profiler_full.probe(large_test_structure)
             time_full = time.time() - start_full
 
             # Test fast path
-            profiler_fast = DirectoryProfiler(search_backend="rust", fast_path_only=True, show_progress=False)
+            profiler_fast = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust", fast_path_only=True, show_progress=False))
             start_fast = time.time()
             result_fast = profiler_fast.probe(large_test_structure)
             time_fast = time.time() - start_fast
@@ -155,7 +155,7 @@ class TestRustBackend:
     def test_rust_max_depth_handling(self, large_test_structure):
         """Test Rust backend with different max_depth values."""
         try:
-            profiler = DirectoryProfiler(search_backend="rust", show_progress=False)
+            profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust", show_progress=False))
 
             # Test different depth limits
             depths = [1, 2, 3, None]
@@ -187,7 +187,7 @@ class TestRustBackend:
             (tmp_path / "nested_empty" / "deep_empty").mkdir(parents=True)
 
             try:
-                profiler = DirectoryProfiler(search_backend="rust", show_progress=False)
+                profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust", show_progress=False))
                 result = profiler.probe(str(tmp_path))
 
                 # Should detect empty directories
@@ -214,7 +214,7 @@ class TestRustBackend:
             (tmp_path / "large.txt").write_text("x" * 1000000)  # 1MB
 
             try:
-                profiler = DirectoryProfiler(search_backend="rust", show_progress=False)
+                profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust", show_progress=False))
                 result = profiler.probe(str(tmp_path))
 
                 # Should handle all files
@@ -233,7 +233,7 @@ class TestRustBackend:
     def test_rust_extension_detection(self, large_test_structure):
         """Test Rust backend extension detection accuracy."""
         try:
-            profiler = DirectoryProfiler(search_backend="rust", show_progress=False)
+            profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust", show_progress=False))
             result = profiler.probe(large_test_structure)
 
             # Should detect the extensions we created
@@ -254,7 +254,7 @@ class TestRustBackend:
     def test_rust_error_handling(self):
         """Test Rust backend error handling for edge cases."""
         try:
-            profiler = DirectoryProfiler(search_backend="rust", show_progress=False)
+            profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust", show_progress=False))
 
             # Test non-existent directory
             with pytest.raises(Exception):  # Should raise appropriate error

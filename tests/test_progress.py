@@ -11,13 +11,11 @@ from pathlib import Path
 
 import pytest
 
-from filoma.directories import DirectoryProfiler
+from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
 
 # Skip on CI where external tools like `fd` may be missing
 CI = os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true"
 pytestmark = pytest.mark.skipif(CI, reason="Skip on CI where fd may be unavailable")
-
-# Use print instead of logger for standalone test script
 
 
 def test_progress_features():
@@ -27,38 +25,22 @@ def test_progress_features():
     print("=" * 80)
     test_dir = Path.cwd()
     configs = [
-        {
-            "name": "Python Implementation with Progress",
-            "use_rust": False,
-            "show_progress": True,
-        },
-        {
-            "name": "Rust Sequential with Progress",
-            "use_rust": True,
-            "use_parallel": False,
-            "show_progress": True,
-        },
-        {
-            "name": "Rust Parallel with Progress",
-            "use_rust": True,
-            "use_parallel": True,
-            "show_progress": True,
-        },
-        {
-            "name": "Python Implementation without Progress",
-            "use_rust": False,
-            "show_progress": False,
-        },
+        {"name": "Python Implementation with Progress", "use_rust": False, "show_progress": True},
+        {"name": "Rust Sequential with Progress", "use_rust": True, "use_parallel": False, "show_progress": True},
+        {"name": "Rust Parallel with Progress", "use_rust": True, "use_parallel": True, "show_progress": True},
+        {"name": "Python Implementation without Progress", "use_rust": False, "show_progress": False},
     ]
+
     for config in configs:
         print(f"\n🔍 Testing: {config['name']}")
         print("-" * 50)
-        profiler = DirectoryProfiler(
+        profiler_cfg = DirectoryProfilerConfig(
             use_rust=config.get("use_rust", True),
             use_parallel=config.get("use_parallel", True),
             show_progress=config.get("show_progress", True),
             build_dataframe=False,
         )
+        profiler = DirectoryProfiler(profiler_cfg)
         impl_info = profiler.get_implementation_info()
         print(f"Implementation: {impl_info}")
         try:
@@ -88,7 +70,8 @@ def test_custom_progress_callback():
         else:
             print(f"📊 {message} - {current:,} items processed")
 
-    profiler = DirectoryProfiler(use_rust=False, show_progress=False, progress_callback=custom_callback)
+    profiler_cfg = DirectoryProfilerConfig(use_rust=False, show_progress=False, progress_callback=custom_callback)
+    profiler = DirectoryProfiler(profiler_cfg)
     test_dir = Path.cwd()
     result = profiler.probe(str(test_dir), max_depth=1)
     print("✅ Custom callback test completed!")
@@ -113,7 +96,8 @@ def test_large_directory():
                     file_path = sub_dir / f"file_{k}.txt"
                     file_path.write_text(f"Content of file {k} in {sub_dir}")
         print("Test directory structure created. Starting analysis...")
-        profiler = DirectoryProfiler(use_rust=True, use_parallel=True, show_progress=True, build_dataframe=False)
+        profiler_cfg = DirectoryProfilerConfig(use_rust=True, use_parallel=True, show_progress=True, build_dataframe=False)
+        profiler = DirectoryProfiler(profiler_cfg)
         result = profiler.probe(temp_dir)
         profiler.print_summary(result)
 

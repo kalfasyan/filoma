@@ -1,4 +1,4 @@
-from filoma.directories.directory_profiler import DirectoryProfiler
+from filoma.directories.directory_profiler import DirectoryProfiler, DirectoryProfilerConfig
 
 
 def test_sample_paths_fd_flags(monkeypatch, tmp_path):
@@ -28,7 +28,7 @@ def test_sample_paths_fd_flags(monkeypatch, tmp_path):
     monkeypatch.setattr("filoma.directories.directory_profiler.FD_AVAILABLE", True)
     monkeypatch.setattr("filoma.directories.directory_profiler.FdIntegration", SpyFd)
 
-    profiler = DirectoryProfiler(search_backend="auto")
+    profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend="auto"))
     samples = profiler.sample_paths(str(tmp_path), sample_size=2)
 
     # Basic shape
@@ -55,7 +55,7 @@ def test_sample_paths_python_sample_size(monkeypatch, tmp_path):
     # Prevent calling the real fd binary by disabling FD_AVAILABLE
     monkeypatch.setattr("filoma.directories.directory_profiler.FD_AVAILABLE", False)
 
-    profiler = DirectoryProfiler()
+    profiler = DirectoryProfiler(DirectoryProfilerConfig())
     samples = profiler.sample_paths(str(tmp_path), sample_size=3)
 
     # Python sample should include up to the requested sample_size files

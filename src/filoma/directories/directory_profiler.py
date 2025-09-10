@@ -55,6 +55,56 @@ except ImportError:
 _NOT_SET = object()
 
 
+@dataclass(frozen=True)
+class DirectoryProfilerConfig:
+    """Configuration for DirectoryProfiler (explicit, typed, no legacy kwargs).
+
+    All fields are documented and validated in __post_init__.
+    """
+
+    # Backend selection
+    use_rust: bool = False
+    use_parallel: bool = True
+    use_async: bool = False
+    use_fd: bool = False
+    search_backend: str = "auto"  # 'rust' | 'fd' | 'python' | 'auto'
+
+    # General tuning
+    parallel_threshold: int = 1000
+    build_dataframe: bool = False
+    return_absolute_paths: bool = False
+    show_progress: bool = True
+    progress_callback: Optional[Callable[[str, int, int], None]] = None
+    fast_path_only: bool = False
+
+    # Network tuning (only valid when use_async is True)
+    network_concurrency: int = 64
+    network_timeout_ms: int = 5000
+    network_retries: int = 0
+
+    # fd-specific tuning
+    threads: Optional[int] = None
+
+    def __post_init__(self):
+        # Basic validations
+        if self.search_backend not in ("auto", "rust", "fd", "python"):
+            raise ValueError("search_backend must be one of 'auto','rust','fd','python'")
+        if not isinstance(self.parallel_threshold, int) or self.parallel_threshold < 0:
+            raise ValueError("parallel_threshold must be a non-negative integer")
+        if not isinstance(self.network_concurrency, int) or self.network_concurrency <= 0:
+            raise ValueError("network_concurrency must be a positive integer")
+        if self.network_timeout_ms <= 0:
+            raise ValueError("network_timeout_ms must be positive")
+        if self.network_retries < 0:
+            raise ValueError("network_retries must be non-negative")
+
+        # Relationship validations
+        if not self.use_async and (self.network_concurrency != 64 or self.network_timeout_ms != 5000 or self.network_retries != 0):
+            raise ValueError("Network tuning parameters only apply when use_async=True")
+        if self.threads is not None and not self.use_fd:
+            raise ValueError("'threads' only applies when use_fd=True")
+
+
 def _is_interactive_environment():
     """Detect if running in IPython/Jupyter or other interactive environment."""
     try:
@@ -200,24 +250,7 @@ class DirectoryProfiler:
     when available. Supports both sequential and parallel Rust processing.
     """
 
-    def __init__(
-        self,
-        use_rust: object = _NOT_SET,
-        use_parallel: bool = True,
-        use_async: bool = False,
-        use_fd: object = _NOT_SET,
-        search_backend: str = "auto",  # "rust", "python", "fd", "auto"
-        parallel_threshold: int = 1000,
-        build_dataframe: bool = False,
-        return_absolute_paths: bool = False,
-        show_progress: bool = True,
-        progress_callback: Optional[Callable[[str, int, int], None]] = None,
-        fast_path_only: bool = False,
-        network_concurrency: int = 64,
-        network_timeout_ms: int = 5000,
-        network_retries: int = 0,
-        threads: Optional[int] = None,
-    ):
+    def __init__(self, config: "DirectoryProfilerConfig"):
         """
         Initialize the directory profiler.
 
@@ -240,124 +273,88 @@ class DirectoryProfiler:
                              Signature: callback(message: str, current: int, total: int)
             fast_path_only: Internal flag to use fast path (no metadata) in Rust backend.
         """
+        # Expect a DirectoryProfilerConfig object — no legacy kwargs supported.
+        if not hasattr(config, "__class__") or config.__class__.__name__ != "DirectoryProfilerConfig":
+            raise TypeError("DirectoryProfiler requires a DirectoryProfilerConfig instance as the sole argument")
+
         self.console = Console()
+        self.config = config
 
-        # Resolve backend preference from the user's explicit flags and the
-        # search_backend hint. Use sentinel detection so callers that explicitly
-        # pass one of the `use_*` flags override the other default.
-        self.search_backend = search_backend
+        # Set simple aliases for common flags to preserve prior attribute names
+        # Internal availability checks are still performed below.
+        self.search_backend = config.search_backend
+        self.parallel_threshold = config.parallel_threshold
+        self._fast_path_only = config.fast_path_only
+        self.progress_callback = config.progress_callback
 
-        rust_provided = use_rust is not _NOT_SET
-        fd_provided = use_fd is not _NOT_SET
-        requested_use_rust = bool(use_rust) if rust_provided else None
-        requested_use_fd = bool(use_fd) if fd_provided else None
+        # Validate availability and enforce clear relationships
+        # Use explicit booleans from the config
+        if config.use_rust and not RUST_AVAILABLE:
+            raise RuntimeError("Rust implementation requested but not available in this build")
+        if config.use_parallel and not RUST_PARALLEL_AVAILABLE:
+            raise RuntimeError("Parallel Rust requested but not available")
+        if config.use_async and not RUST_ASYNC_AVAILABLE:
+            raise RuntimeError("Async Rust prober requested but not available in this build")
+        if config.use_fd and not FD_AVAILABLE:
+            raise RuntimeError("fd integration requested but not available in this environment")
+        if config.build_dataframe and not DATAFRAME_AVAILABLE:
+            raise RuntimeError("DataFrame building requested but Polars/DataFrame support is not available")
 
-        chosen_preference: Optional[str] = None
-        if self.search_backend in ("rust", "fd", "python"):
-            # Explicit backend override from the search_backend parameter
-            chosen_preference = self.search_backend
-        else:
-            # Infer preference using explicit flags when provided.
-            if requested_use_rust is True and requested_use_fd is not True:
-                chosen_preference = "rust"
-            elif requested_use_fd is True and requested_use_rust is not True:
-                chosen_preference = "fd"
-            elif requested_use_rust is True and requested_use_fd is True:
-                # Both explicitly requested: prefer fd but inform the user
-                chosen_preference = "fd"
-                self.console.print(
-                    (
-                        "[yellow]Note: both use_rust and use_fd were enabled; "
-                        "treating this as a preference for fd. Set search_backend='rust' "
-                        "to prefer Rust instead.[/yellow]"
-                    )
-                )
-            elif requested_use_rust is False and requested_use_fd is False:
-                chosen_preference = "python"
-            elif requested_use_rust is False and requested_use_fd is None:
-                chosen_preference = "fd"
-            elif requested_use_fd is False and requested_use_rust is None:
-                chosen_preference = "rust"
+        # Network args only apply when use_async is True (explicit)
+        if not config.use_async and any((config.network_concurrency != 64, config.network_timeout_ms != 5000, config.network_retries != 0)):
+            raise ValueError("Network tuning parameters only apply when use_async=True")
+
+        # Threads only applies when use_fd is True
+        if config.threads is not None and not config.use_fd:
+            raise ValueError("'threads' setting only applies when use_fd=True")
+
+        # Decide which implementation to use based on search_backend and availability
+        backend_choice = config.search_backend
+        if backend_choice == "auto":
+            # If both explicitly requested, prefer fd for discovery speed
+            if config.use_fd and FD_AVAILABLE and config.use_rust and RUST_AVAILABLE:
+                backend_choice = "fd"
+            elif config.use_fd and FD_AVAILABLE:
+                backend_choice = "fd"
+            elif config.use_rust and RUST_AVAILABLE:
+                backend_choice = "rust"
             else:
-                # No explicit preference provided: default to Rust -> fd -> python
-                if RUST_AVAILABLE:
-                    chosen_preference = "rust"
-                elif FD_AVAILABLE:
-                    chosen_preference = "fd"
-                else:
-                    chosen_preference = "python"
+                backend_choice = "python"
 
-        # Final flags reflect chosen preference but also the actual availability
-        # of the underlying implementations.
-        self.use_rust = (chosen_preference == "rust") and RUST_AVAILABLE
-        self.use_fd = (chosen_preference == "fd") and FD_AVAILABLE
+        if backend_choice == "rust":
+            self.use_rust = True
+            self.use_fd = False
+        elif backend_choice == "fd":
+            self.use_rust = False
+            self.use_fd = True
+        else:
+            self.use_rust = False
+            self.use_fd = False
 
-        # Parallel Rust depends on Rust being chosen and available
-        self.use_parallel = use_parallel and RUST_PARALLEL_AVAILABLE and self.use_rust
+        # Parallel/async/other toggles come directly from config (already validated)
+        self.use_parallel = bool(config.use_parallel and self.use_rust)
+        self.use_async = bool(config.use_async and self.use_rust)
 
-        # User-visible async toggle for the Rust network-optimized scanner.
-        # Off by default because async can be slower on local SSD/HDD.
-        self.use_async = use_async
-        if use_async and not RUST_ASYNC_AVAILABLE:
-            # If user requested async but the native async implementation isn't
-            # available, disable it and warn.
-            self.console = self.console if hasattr(self, "console") else Console()
-            self.console.print("[yellow]Warning: Rust async implementation not available, async disabled[/yellow]")
-            self.use_async = False
-
-        # Apply remaining constructor arguments to instance state
-        self.use_fd = use_fd and FD_AVAILABLE
-        self.search_backend = search_backend
-        self.parallel_threshold = parallel_threshold
-        self.build_dataframe = build_dataframe and DATAFRAME_AVAILABLE
-        # Control whether final results use absolute paths (True) or relative paths (False)
-        self.return_absolute_paths = bool(return_absolute_paths)
-
-        # Automatically disable progress bars in interactive environments to avoid conflicts
-        if _is_interactive_environment() and show_progress:
+        # Other instance-level flags
+        self.build_dataframe = bool(config.build_dataframe)
+        self.return_absolute_paths = bool(config.return_absolute_paths)
+        # Progress handling
+        if _is_interactive_environment() and config.show_progress:
             logger.debug("Interactive environment detected, disabling progress bars to avoid conflicts")
             self.show_progress = False
         else:
-            self.show_progress = show_progress
+            self.show_progress = bool(config.show_progress)
 
-        self.progress_callback = progress_callback
-        self._fast_path_only = fast_path_only
+        # Network tuning (only valid if use_async True)
+        self.network_concurrency = config.network_concurrency
+        self.network_timeout_ms = config.network_timeout_ms
+        self.network_retries = config.network_retries
 
-        # Network tuning
-        self.network_concurrency = network_concurrency
-        self.network_timeout_ms = network_timeout_ms
-        self.network_retries = network_retries
+        # Threads forwarded to fd if using fd backend
+        self.threads = config.threads if self.use_fd else None
 
-        # Optional threads setting to pass to fd (maps to fd's --threads flag).
-        # If None, fd will use its own default concurrency; a numeric value will be forwarded.
-        self.threads = threads
-
-        # Defer fd integration initialization until actually used to avoid
-        # probing the environment at import/constructor time (helps CI tests
-        # that monkeypatch availability flags).
+        # Defer fd integration initialization until actually used
         self.fd_integration = None
-
-        if use_rust and not RUST_AVAILABLE:
-            self.console.print("[yellow]Warning: Rust implementation not available, falling back to Python[/yellow]")
-        elif use_parallel and self.use_rust and not RUST_PARALLEL_AVAILABLE:
-            self.console.print("[yellow]Warning: Rust parallel implementation not available, using sequential Rust[/yellow]")
-
-        if use_fd and not FD_AVAILABLE:
-            self.console.print("[yellow]Warning: fd command not found, fd search disabled[/yellow]")
-        elif use_fd and FD_AVAILABLE and not self.use_fd:
-            self.console.print("[yellow]Warning: fd integration failed, fd search disabled[/yellow]")
-
-        if build_dataframe and not DATAFRAME_AVAILABLE:
-            self.console.print("[yellow]Warning: DataFrame functionality not available (polars not installed), disabling DataFrame building[/yellow]")
-            self.build_dataframe = False
-        # Warn if show_progress is True and Rust is being used
-        if self.show_progress and (self.use_rust is None or self.use_rust):
-            import warnings
-
-            warnings.warn(
-                "[filoma] Progress bar updates are limited when using the Rust backend. "
-                "You will only see updates at the start and end of the scan. For live progress, use the Python backend (use_rust=False)."
-            )
 
     def is_rust_available(self) -> bool:
         """

@@ -4,7 +4,7 @@ import tempfile
 
 import pytest
 
-from filoma.directories import DirectoryProfiler
+from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
 
 try:
     from filoma.filoma_core import probe_directory_rust_async
@@ -16,7 +16,7 @@ except Exception:
 
 @pytest.mark.skipif(not ASYNC_AVAILABLE, reason="Async Rust prober not available")
 def run_parity(root):
-    profiler = DirectoryProfiler(use_rust=True, use_parallel=False, show_progress=False)
+    profiler = DirectoryProfiler(DirectoryProfilerConfig(use_rust=True, use_parallel=False, show_progress=False))
     sync_result = profiler.probe(root)
     # Use smaller concurrency/timeout for faster tests
     async_result = probe_directory_rust_async(root, None, 4, 200, 0, False)

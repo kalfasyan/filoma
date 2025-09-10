@@ -9,19 +9,17 @@ from pathlib import Path
 # Add the src directory to the path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+
 def test_basic_functionality():
     """Test basic DataFrame functionality."""
     try:
         from filoma import DataFrame
-        from filoma.directories.directory_profiler import DirectoryProfiler
+        from filoma.directories.directory_profiler import DirectoryProfiler, DirectoryProfilerConfig
 
         print("✅ Imports successful")
 
         # Test DirectoryProfiler with DataFrame
-        profiler = DirectoryProfiler(
-            use_rust=False,
-            build_dataframe=True
-        )
+        profiler = DirectoryProfiler(DirectoryProfilerConfig(use_rust=False, build_dataframe=True))
 
         print(f"✅ DataFrame enabled: {profiler.is_dataframe_enabled()}")
 
@@ -35,7 +33,7 @@ def test_basic_functionality():
         df_with_components = df.add_path_components()
         print(f"✅ Path components added: {df_with_components.df.columns}")
 
-        py_files = df.filter_by_extension('.py')
+        py_files = df.filter_by_extension(".py")
         print(f"✅ Filtering works: {len(py_files)} Python files")
 
         print("\n🎉 All tests passed!")
@@ -43,7 +41,9 @@ def test_basic_functionality():
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     test_basic_functionality()

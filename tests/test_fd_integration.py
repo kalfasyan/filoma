@@ -15,8 +15,8 @@ import pytest
 # Add src to path so we can import filoma
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from filoma.directories import DirectoryProfiler, FdFinder, DirectoryProfilerConfig
 from filoma.core import FdIntegration
-from filoma.directories import DirectoryProfiler, FdFinder
 
 # Detect Rust availability by checking module spec (avoids importing at test collection)
 RUST_AVAILABLE_LOCAL = importlib.util.find_spec("filoma.filoma_core") is not None
@@ -69,16 +69,16 @@ def test_fd_integration():
     # Test 4: DirectoryProfiler with fd backend
     print("\n4. Testing DirectoryProfiler with fd backend...")
     try:
-        profiler = DirectoryProfiler(search_backend="fd")
+        profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend="fd"))
         if not profiler.is_fd_available():
             pytest.skip("DirectoryProfiler fd backend not available")
 
-        print("   ✅ DirectoryProfiler fd backend available")
+        print("   \u2705 DirectoryProfiler fd backend available")
 
         # Quick test on current directory
         result = profiler.probe(".", max_depth=2)
-        print(f"   ✅ Analysis completed: {result['summary']['total_files']} files found")
-        print(f"   ✅ Backend used: {result['timing']['implementation']}")
+        print(f"   \u2705 Analysis completed: {result['summary']['total_files']} files found")
+        print(f"   \u2705 Backend used: {result['timing']['implementation']}")
         assert "summary" in result and "total_files" in result["summary"]
         assert result["summary"]["total_files"] >= 0
         assert "timing" in result and "implementation" in result["timing"]
@@ -158,7 +158,7 @@ def test_backend_comparison():
             # Test 4: DirectoryProfiler with fd backend
             print("\n4. Testing DirectoryProfiler with fd backend...")
             try:
-                profiler = DirectoryProfiler(search_backend="fd")
+                profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend="fd"))
                 if not profiler.is_fd_available():
                     pytest.skip("DirectoryProfiler fd backend not available")
 
@@ -188,7 +188,7 @@ def test_backend_comparison():
         # Test available backends
         for backend in ["python", "rust", "fd"]:
             try:
-                profiler = DirectoryProfiler(search_backend=backend)
+                profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend=backend))
 
                 # Check if backend is actually available
                 if backend == "fd" and not profiler.is_fd_available():
@@ -266,7 +266,7 @@ def test_backend_comparison():
 
         # The profiler emits an informational UserWarning about limited progress updates.
         with pytest.warns(UserWarning, match=WARNING_REGEX):
-            profiler = DirectoryProfiler(search_backend="rust")
+            profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust"))
             _ = profiler.probe(".", max_depth=2)
 
     def test_rust_progress_warning_suppressed():
@@ -276,7 +276,7 @@ def test_backend_comparison():
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message=WARNING_REGEX)
-            profiler = DirectoryProfiler(search_backend="rust")
+            profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust"))
             _ = profiler.probe(".", max_depth=2)
 
     if __name__ == "__main__":

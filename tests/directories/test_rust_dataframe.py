@@ -16,7 +16,10 @@ def test_rust_with_dataframe():
     """Test DataFrame functionality with Rust enabled."""
 
     # Test with Rust + DataFrame
-    profiler_rust = DirectoryProfiler(use_rust=True, build_dataframe=True)
+    from filoma.directories import DirectoryProfilerConfig
+
+    cfg = DirectoryProfilerConfig(use_rust=True, build_dataframe=True)
+    profiler_rust = DirectoryProfiler(cfg)
 
     print(f"Implementation info: {profiler_rust.get_implementation_info()}")
     print(f"Using Rust: {profiler_rust.is_rust_available()}")

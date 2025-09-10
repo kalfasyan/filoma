@@ -3,12 +3,13 @@
 import tempfile
 from pathlib import Path
 
-from filoma.directories import DirectoryProfiler
+from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
 
 
 def test_directory_profiler_basic():
     """Test basic functionality of DirectoryProfiler."""
-    # Create a temporary directory structure for testing
+    # Create a temporary directory structure for testing and probe it while
+    # the directory exists (inside the TemporaryDirectory context).
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = Path(tmp_dir)
 
@@ -24,8 +25,8 @@ def test_directory_profiler_basic():
         (tmp_path / "folder1" / "data.csv").write_text("col1,col2\n1,2")
         (tmp_path / "nested" / "image.png").write_text("fake png")
 
-        # Test the profiler
-        profiler = DirectoryProfiler()
+        # Test the profiler (while temporary directory still exists)
+        profiler = DirectoryProfiler(DirectoryProfilerConfig())
         result = profiler.probe(str(tmp_path))
 
         # Verify results
@@ -48,7 +49,7 @@ def test_directory_profiler_max_depth():
         (tmp_path / "level1" / "level2" / "file2.txt").write_text("test")
         (tmp_path / "level1" / "level2" / "level3" / "file3.txt").write_text("test")
 
-        profiler = DirectoryProfiler()
+        profiler = DirectoryProfiler(DirectoryProfilerConfig())
 
         # Test with max_depth=2
         result = profiler.probe(str(tmp_path), max_depth=2)

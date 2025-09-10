@@ -4,7 +4,7 @@ import tempfile
 
 import pytest
 
-from filoma.directories import DirectoryProfiler
+from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
 
 try:
     from filoma.filoma_core import probe_directory_rust_async
@@ -30,9 +30,9 @@ def test_async_matches_sync():
     tmp = tempfile.mkdtemp(prefix="filoma-test-")
     try:
         make_sample_tree(tmp)
-
         # Use DirectoryProfiler to get Rust sync analysis
-        profiler = DirectoryProfiler(use_rust=True, use_parallel=False, show_progress=False)
+        cfg = DirectoryProfilerConfig(use_rust=True, use_parallel=False, show_progress=False)
+        profiler = DirectoryProfiler(cfg)
         sync_result = profiler.probe(tmp)
 
         # Call async Rust prober directly

@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from filoma.core import FdIntegration
-from filoma.directories import DirectoryProfiler, FdFinder
+from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig, FdFinder
 
 
 class TestFdBackend:
@@ -221,7 +221,7 @@ class TestFdBackend:
         if not fd.is_available():
             pytest.skip("fd command not available")
 
-        profiler = DirectoryProfiler(search_backend="fd", show_progress=False)
+        profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend="fd", show_progress=False))
         result = profiler.probe(complex_test_structure)
 
         # Should find all our test files
@@ -245,11 +245,11 @@ class TestFdBackend:
             pytest.skip("fd command not available")
 
         # Test Python backend
-        profiler_py = DirectoryProfiler(search_backend="python", show_progress=False)
+        profiler_py = DirectoryProfiler(DirectoryProfilerConfig(search_backend="python", show_progress=False))
         result_py = profiler_py.probe(complex_test_structure)
 
         # Test fd backend
-        profiler_fd = DirectoryProfiler(search_backend="fd", show_progress=False)
+        profiler_fd = DirectoryProfiler(DirectoryProfilerConfig(search_backend="fd", show_progress=False))
         result_fd = profiler_fd.probe(complex_test_structure)
 
         # Results should be reasonably close
@@ -275,13 +275,13 @@ class TestFdBackend:
             pytest.skip("fd command not available")
 
         # Test Python performance
-        profiler_py = DirectoryProfiler(search_backend="python", show_progress=False)
+        profiler_py = DirectoryProfiler(DirectoryProfilerConfig(search_backend="python", show_progress=False))
         start_py = time.time()
         result_py = profiler_py.probe(complex_test_structure)
         time_py = time.time() - start_py
 
         # Test fd performance
-        profiler_fd = DirectoryProfiler(search_backend="fd", show_progress=False)
+        profiler_fd = DirectoryProfiler(DirectoryProfilerConfig(search_backend="fd", show_progress=False))
         start_fd = time.time()
         result_fd = profiler_fd.probe(complex_test_structure)
         time_fd = time.time() - start_fd

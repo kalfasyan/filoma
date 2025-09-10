@@ -10,11 +10,11 @@ from pathlib import Path
 # Add the src directory to the path (must happen before importing filoma modules)
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+import polars as pl
 import pytest
 
-import polars as pl
 from filoma.dataframe import DataFrame
-from filoma.directories.directory_profiler import DirectoryProfiler
+from filoma.directories.directory_profiler import DirectoryProfiler, DirectoryProfilerConfig
 
 # Skip tests on CI where external discovery tools (fd) are not available by default
 CI = os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true"
@@ -46,7 +46,7 @@ class TestDataFrameFunctionality:
 
     def test_dataframe_creation(self):
         """Test that DataFrame is created when enabled."""
-        profiler = DirectoryProfiler(use_rust=False, build_dataframe=True)
+        profiler = DirectoryProfiler(DirectoryProfilerConfig(use_rust=False, build_dataframe=True))
 
         analysis = profiler.probe(self.temp_dir)
         df = profiler.get_dataframe(analysis)
@@ -57,7 +57,7 @@ class TestDataFrameFunctionality:
 
     def test_dataframe_disabled(self):
         """Test that DataFrame is not created when disabled."""
-        profiler = DirectoryProfiler(use_rust=False, build_dataframe=False)
+        profiler = DirectoryProfiler(DirectoryProfilerConfig(use_rust=False, build_dataframe=False))
 
         analysis = profiler.probe(self.temp_dir)
         df = profiler.get_dataframe(analysis)
@@ -67,8 +67,8 @@ class TestDataFrameFunctionality:
 
     def test_dataframe_availability_check(self):
         """Test dataframe availability checks."""
-        profiler_enabled = DirectoryProfiler(build_dataframe=True)
-        profiler_disabled = DirectoryProfiler(build_dataframe=False)
+        profiler_enabled = DirectoryProfiler(DirectoryProfilerConfig(build_dataframe=True))
+        profiler_disabled = DirectoryProfiler(DirectoryProfilerConfig(build_dataframe=False))
 
         # Note: Actual availability depends on polars installation
         # We just test the method exists and returns a boolean
