@@ -106,7 +106,7 @@ Analyze a directory in one line and inspect the returned dataclass, or print a s
 from filoma.directories import DirectoryProfiler
 
 # Analyze a directory (returns DirectoryAnalysis object)
-analysis = DirectoryProfiler().probe("/", max_depth=3)
+analysis = DirectoryProfiler(DirectoryProfilerConfig()).probe("/", max_depth=3)
 analysis.print_summary()
 analysis.print_report()
 ```
@@ -117,7 +117,7 @@ The DirectoryProfiler class offers extensive customization and control over back
 For NFS/SMB/cloud-fuse or other network-mounted filesystems, prefer a two-step strategy:
 
 1. Try `fd` with multithreading first: fast discovery with controlled parallelism often gives the best performance with fewer issues.
-    - Example: `DirectoryProfiler(use_fd=True, threads=8)` or set `search_backend='fd'`.
+    - Example: `DirectoryProfiler(DirectoryProfilerConfig(use_fd=True, threads=8))` or set `search_backend='fd'`.
 2. If you still need higher concurrency for high-latency mounts, enable the Rust async scanner as a secondary option (`use_async=True`) and tune `network_concurrency`, `network_timeout_ms`, and `network_retries`.
 
 Short tips:
@@ -150,7 +150,7 @@ config_files = searcher.find_files(pattern="*.{json,yaml}", use_glob=True)
 
 ```python
 # Build DataFrame for advanced analysis
-profiler = DirectoryProfiler(build_dataframe=True)
+profiler = DirectoryProfiler(DirectoryProfilerConfig(build_dataframe=True))
 result = profiler.probe(".")
 df = profiler.get_dataframe(result)
 

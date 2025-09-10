@@ -50,7 +50,7 @@ from filoma.directories import DirectoryProfiler
 pl_df = probe_to_df('.', enrich=False)
 
 # Or explicitly enable DataFrame building when using DirectoryProfiler:
-analysis = DirectoryProfiler(fast_path_only=True, build_dataframe=True).probe('.')
+analysis = DirectoryProfiler(DirectoryProfilerConfig(fast_path_only=True, build_dataframe=True)).probe('.')
 paths_df = analysis.to_df().df
 ```
 

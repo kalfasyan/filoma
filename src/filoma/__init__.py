@@ -102,9 +102,11 @@ def probe(path: str, **kwargs: Any) -> Any:
 
     # Local import to ensure the class is available without forcing it at
     # module import time.
-    from .directories import DirectoryProfiler
+    from .directories import DirectoryProfiler, DirectoryProfilerConfig
 
-    profiler = DirectoryProfiler(**kwargs)
+    # Build a typed config from remaining kwargs and instantiate the profiler
+    config = DirectoryProfilerConfig(**kwargs)
+    profiler = DirectoryProfiler(config)
     return profiler.probe(path, max_depth=max_depth, threads=threads)
 
 
@@ -190,9 +192,12 @@ def probe_to_df(path: str, to_pandas: bool = False, enrich: bool = True, **kwarg
     threads = kwargs.pop("threads", None)
 
     # Lazy import to avoid heavy deps at module import time
-    from .directories import DirectoryProfiler
+    from .directories import DirectoryProfiler, DirectoryProfilerConfig
 
-    profiler = DirectoryProfiler(build_dataframe=True, **kwargs)
+    # Force DataFrame building and construct a typed config
+    kwargs["build_dataframe"] = True
+    config = DirectoryProfilerConfig(**kwargs)
+    profiler = DirectoryProfiler(config)
     analysis = profiler.probe(path, max_depth=max_depth, threads=threads)
 
     df_wrapper = analysis.to_df()

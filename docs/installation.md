@@ -64,17 +64,18 @@ brew install fd
 
 ```python
 import filoma
-from filoma.directories import DirectoryProfiler
+from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
 
 print(f"filoma version: {filoma.__version__}")
 
-# Check available backends
-profiler = DirectoryProfiler()
+# Check available backends via a typed profiler
+profiler = DirectoryProfiler(DirectoryProfilerConfig())
 print(f"🦀 Rust: {'✅' if profiler.use_rust else '❌'}")
 print(f"🔍 fd: {'✅' if profiler.use_fd else '❌'}")
 
-# Quick test
-result = profiler.probe(".")
+# Quick test using the top-level helper
+from filoma import probe
+result = probe('.')
 print(f"✅ Found {result['summary']['total_files']} files")
 ```
 
@@ -88,13 +89,13 @@ When analyzing system directories (like `/`, `/proc`, `/sys`), you might encount
 from filoma.directories import DirectoryProfiler
 
 # Safe analysis with automatic fallbacks
-profiler = DirectoryProfiler()
+profiler = DirectoryProfiler(DirectoryProfilerConfig())
 
 # This will automatically fall back to Python implementation if Rust fails
 result = profiler.probe("/proc", max_depth=2)
 
 # For maximum compatibility with system directories, use Python backend
-profiler_safe = DirectoryProfiler(search_backend="python")
+profiler_safe = DirectoryProfiler(DirectoryProfilerConfig(search_backend="python"))
 result = profiler_safe.probe("/", max_depth=3)
 ```
 
@@ -103,13 +104,13 @@ result = profiler_safe.probe("/", max_depth=3)
 **Permission denied errors:**
 ```bash
 # Run with limited depth to avoid deep system directories
-python -c "from filoma.directories import DirectoryProfiler; print(DirectoryProfiler().probe('/', max_depth=2)['summary'])"
+python -c "from filoma import probe; print(probe('/', max_depth=2)['summary'])"
 ```
 
 **Memory issues with large directories:**
 ```python
 # Use fast_path_only for path discovery without metadata
-profiler = DirectoryProfiler(fast_path_only=True, build_dataframe=False)
+profiler = DirectoryProfiler(DirectoryProfilerConfig(fast_path_only=True, build_dataframe=False))
 result = profiler.probe("/large/directory")
 ```
 

@@ -19,19 +19,19 @@ analysis = probe('.', max_depth=3, show_progress=False)
 
 Select backend explicitly (rarely needed):
 ```python
-from filoma.directories import DirectoryProfiler
-DirectoryProfiler(search_backend='fd').probe('.')
+from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
+DirectoryProfiler(DirectoryProfilerConfig(search_backend='fd')).probe('.')
 ```
 
 Fast path only (paths without metadata):
 ```python
-from filoma.directories import DirectoryProfiler
-fast = DirectoryProfiler(fast_path_only=True).probe('.')
+from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
+fast = DirectoryProfiler(DirectoryProfilerConfig(fast_path_only=True)).probe('.')
 ```
 
 Network tuning example:
 ```python
-DirectoryProfiler(network_concurrency=32, network_timeout_ms=2000).probe('/mnt/nfs')
+DirectoryProfiler(DirectoryProfilerConfig(network_concurrency=32, network_timeout_ms=2000)).probe('/mnt/nfs')
 ```
 
 Common flags:

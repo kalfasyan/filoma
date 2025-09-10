@@ -7,14 +7,14 @@ This section shows the three main profilers (`DirectoryProfiler`, `FileProfiler`
 DirectoryProfiler — high-level directory analysis (counts, extensions, empty folders, timing)
 
 ```python
-from filoma.directories import DirectoryProfiler
+from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
 
-profiler = DirectoryProfiler(
+profiler = DirectoryProfiler(DirectoryProfilerConfig(
     search_backend='auto',   # 'auto'|'rust'|'fd'|'python'
     use_async=False,         # Rust async scanner (network-optimized)
     build_dataframe=True,    # collect paths into a DataFrame (Polars)
     show_progress=True,
-)
+))
 result = profiler.probe('.')
 profiler.print_summary(result)
 ```
@@ -138,10 +138,10 @@ if fd.is_available():
 ### Basic DataFrame Usage
 
 ```python
-from filoma.directories import DirectoryProfiler
+from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
 
 # Enable DataFrame building for advanced analysis
-profiler = DirectoryProfiler(build_dataframe=True)
+profiler = DirectoryProfiler(DirectoryProfilerConfig(build_dataframe=True))
 result = profiler.probe(".")
 
 # Get the DataFrame with all file paths
@@ -201,7 +201,7 @@ df.to_polars()                        # Get underlying Polars DataFrame
 ## Backend Control & Comparison
 
 ```python
-from filoma.directories import DirectoryProfiler
+from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
 import time
 
 # Test all available backends
@@ -210,7 +210,7 @@ results = {}
 
 for backend in backends:
     try:
-        profiler = DirectoryProfiler(search_backend=backend)
+    profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend=backend))
         # Check if the specific backend is available
         available = ((backend == "rust" and profiler.is_rust_available()) or
                     (backend == "fd" and profiler.is_fd_available()) or
@@ -240,12 +240,12 @@ if results:
 
 ```python
 # Force specific backends
-profiler_python = DirectoryProfiler(search_backend="python", show_progress=False)
-profiler_rust = DirectoryProfiler(search_backend="rust", show_progress=False)  
-profiler_fd = DirectoryProfiler(search_backend="fd", show_progress=False)
+profiler_python = DirectoryProfiler(DirectoryProfilerConfig(search_backend="python", show_progress=False))
+profiler_rust = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust", show_progress=False))  
+profiler_fd = DirectoryProfiler(DirectoryProfilerConfig(search_backend="fd", show_progress=False))
 
 # Disable progress for pure benchmarking
-profiler_benchmark = DirectoryProfiler(show_progress=False, fast_path_only=True)
+profiler_benchmark = DirectoryProfiler(DirectoryProfilerConfig(show_progress=False, fast_path_only=True))
 
 # Check which backend is actually being used
 print(f"Python backend available: True")  # Always available
@@ -299,17 +299,17 @@ from filoma.directories import DirectoryProfiler
 
 # Most profilers support progress bars via `show_progress=True` (behavior may
 # differ depending on backend availability and interactive environment)
-profiler = DirectoryProfiler(show_progress=True)
+profiler = DirectoryProfiler(DirectoryProfilerConfig(show_progress=True))
 result = profiler.probe("/path/to/large/directory")
 profiler.print_summary(result)
 
 # Fast path only mode (just finds file paths, no metadata)
-profiler_fast = DirectoryProfiler(show_progress=True, fast_path_only=True)
+profiler_fast = DirectoryProfiler(DirectoryProfilerConfig(show_progress=True, fast_path_only=True))
 result_fast = profiler_fast.probe("/path/to/large/directory")
 print(f"Found {result_fast['summary']['total_files']} files (fast path only)")
 
 # Disable progress for benchmarking
-profiler_benchmark = DirectoryProfiler(show_progress=False)
+profiler_benchmark = DirectoryProfiler(DirectoryProfilerConfig(show_progress=False))
 ```
 
 ## Analysis Output Structure

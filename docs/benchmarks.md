@@ -94,7 +94,7 @@ def clear_filesystem_cache():
 
 def benchmark_backend(backend_name, path, iterations=3):
     """Benchmark a specific backend with cold cache."""
-    profiler = DirectoryProfiler(search_backend=backend_name, show_progress=False)
+    profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend=backend_name, show_progress=False))
     
     # Check if the specific backend is available
     available = ((backend_name == "rust" and profiler.is_rust_available()) or

@@ -46,7 +46,7 @@ def benchmark_implementation(profiler, test_path: str, name: str):
 def main():
     # Import after potential building
     try:
-        from filoma.directories import DirectoryProfiler
+        from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
     except ImportError:
         print("❌ Could not import DirectoryProfiler. Make sure filoma is installed.")
         return
@@ -62,18 +62,18 @@ def main():
         print("=" * 80)
 
         # Test Python implementation
-        python_profiler = DirectoryProfiler(use_rust=False)
+        python_profiler = DirectoryProfiler(DirectoryProfilerConfig(use_rust=False))
         python_time, file_count = benchmark_implementation(python_profiler, str(test_path), "Python")
 
         # Test Sequential Rust implementation
-        rust_sequential_profiler = DirectoryProfiler(use_rust=True, use_parallel=False)
+        rust_sequential_profiler = DirectoryProfiler(DirectoryProfilerConfig(use_rust=True, use_parallel=False))
         if rust_sequential_profiler.is_rust_available():
             rust_seq_time, _ = benchmark_implementation(rust_sequential_profiler, str(test_path), "Rust Sequential")
         else:
             rust_seq_time = None
 
         # Test Parallel Rust implementation
-        rust_parallel_profiler = DirectoryProfiler(use_rust=True, use_parallel=True, parallel_threshold=500)
+        rust_parallel_profiler = DirectoryProfiler(DirectoryProfilerConfig(use_rust=True, use_parallel=True, parallel_threshold=500))
         if rust_parallel_profiler.is_parallel_available():
             rust_par_time, _ = benchmark_implementation(rust_parallel_profiler, str(test_path), "Rust Parallel")
         else:

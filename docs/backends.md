@@ -24,10 +24,10 @@
 ## Automatic Selection
 
 ```python
-from filoma.directories import DirectoryProfiler
+from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
 
 # Automatically uses fastest available backend
-profiler = DirectoryProfiler()
+profiler = DirectoryProfiler(DirectoryProfilerConfig())
 result = profiler.probe("/path/to/directory")
 
 # Check which backend was used
@@ -47,7 +47,7 @@ profiler.print_summary(result)
 Use these to tune behavior on slow or flaky mounts. Example:
 
 ```python
-profiler = DirectoryProfiler(network_concurrency=32, network_timeout_ms=2000, network_retries=1)
+profiler = DirectoryProfiler(DirectoryProfilerConfig(network_concurrency=32, network_timeout_ms=2000, network_retries=1))
 ```
 
 If the async Rust backend isn't compiled into your wheel, filoma will fall back to the existing Rust or fd backends.
@@ -56,9 +56,9 @@ If the async Rust backend isn't compiled into your wheel, filoma will fall back 
 
 ```python
 # Force specific backend
-profiler_rust = DirectoryProfiler(search_backend="rust")
-profiler_fd = DirectoryProfiler(search_backend="fd")
-profiler_python = DirectoryProfiler(search_backend="python")
+profiler_rust = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust"))
+profiler_fd = DirectoryProfiler(DirectoryProfilerConfig(search_backend="fd"))
+profiler_python = DirectoryProfiler(DirectoryProfilerConfig(search_backend="python"))
 
 # Check availability
 print(f"Rust available: {profiler_rust.is_rust_available()}")
@@ -73,7 +73,7 @@ import time
 
 backends = ["rust", "fd", "python"]
 for backend in backends:
-    profiler = DirectoryProfiler(search_backend=backend, show_progress=False)
+    profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend=backend, show_progress=False))
     # Check if the specific backend is available
     if ((backend == "rust" and profiler.is_rust_available()) or
         (backend == "fd" and profiler.is_fd_available()) or
@@ -117,7 +117,7 @@ from filoma.directories import DirectoryProfiler
 from filoma.core import FdIntegration
 
 # Check what's available
-profiler = DirectoryProfiler()
+profiler = DirectoryProfiler(DirectoryProfilerConfig())
 fd = FdIntegration()
 
 print("Available backends:")
