@@ -58,4 +58,21 @@ pandas_df = probe_to_df('.', to_pandas=True)
 
 Tips:
 - Use `.add_file_stats_cols()` sparingly on huge trees (it touches filesystem for each path).
+Pandas conversions and caching
+-----------------------------
+
+filoma is Polars-first internally. For pandas interop use the following:
+
+- `df.pandas` — always returns a fresh pandas.DataFrame conversion.
+- `df.pandas_cached` or `df.to_pandas(force=False)` — returns a cached pandas
+	conversion (converted once). Use for repeated reads.
+- `df.to_pandas(force=True)` — force reconversion and update the cache.
+- `df.invalidate_pandas_cache()` — clear the cached pandas object.
+
+The wrapper automatically invalidates the cached pandas conversion on
+assignments (``df[...] = ...``) and when delegated Polars methods appear to
+mutate in-place (Polars commonly returns ``None`` or the same DataFrame
+object). For complex external mutations call `invalidate_pandas_cache()` or
+`to_pandas(force=True)` to ensure freshness.
+
 - Combine with Polars expressions for advanced analysis.

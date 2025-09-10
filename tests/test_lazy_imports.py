@@ -51,7 +51,7 @@ except Exception:
     pass
 present = {k: k in sys.modules for k in ('polars', 'PIL')}
 print(json.dumps(present))
-"""
+    """
 
     rc, out, err = run_python(code)
     assert rc == 0, f"running probe_to_df snippet failed: {err}"

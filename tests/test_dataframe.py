@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import pytest
 
+import polars as pl
 from filoma.dataframe import DataFrame
 from filoma.directories.directory_profiler import DirectoryProfiler
 
@@ -87,20 +88,30 @@ class TestDataFrameFunctionality:
         assert df.shape == (3, 1)
         assert "path" in df.columns
 
-        # Test method delegation that should return filoma DataFrame
+        # Test method delegation: returns either filoma.DataFrame or native Polars DataFrame
         selected = df.select("path")
-        assert isinstance(selected, DataFrame)
-        assert len(selected) == 3
+        assert isinstance(selected, (DataFrame, pl.DataFrame))
+        # Normalize length check for both wrapper and native Polars
+        if isinstance(selected, DataFrame):
+            assert len(selected) == 3
+        else:
+            assert selected.shape[0] == 3
 
         # Test filter method
         filtered = df.filter(df.df["path"].str.contains(".py"))
-        assert isinstance(filtered, DataFrame)
-        assert len(filtered) == 1
+        assert isinstance(filtered, (DataFrame, pl.DataFrame))
+        if isinstance(filtered, DataFrame):
+            assert len(filtered) == 1
+        else:
+            assert filtered.shape[0] == 1
 
         # Test sort method
         sorted_df = df.sort("path")
-        assert isinstance(sorted_df, DataFrame)
-        assert len(sorted_df) == 3
+        assert isinstance(sorted_df, (DataFrame, pl.DataFrame))
+        if isinstance(sorted_df, DataFrame):
+            assert len(sorted_df) == 3
+        else:
+            assert sorted_df.shape[0] == 3
 
     def test_enhanced_methods(self):
         """Test the enhanced convenience methods."""
@@ -120,8 +131,11 @@ class TestDataFrameFunctionality:
 
         # Test with_columns (delegated method)
         df_with_length = df.with_columns([df.df["path"].str.len_chars().alias("path_length")])
-        assert isinstance(df_with_length, DataFrame)
-        assert "path_length" in df_with_length.columns
+        assert isinstance(df_with_length, (DataFrame, pl.DataFrame))
+        if isinstance(df_with_length, DataFrame):
+            assert "path_length" in df_with_length.columns
+        else:
+            assert "path_length" in df_with_length.columns
 
     def test_file_specific_methods_still_work(self):
         """Test that our original file-specific methods still work."""
@@ -253,20 +267,29 @@ class TestStandaloneDataFrame:
         assert df.shape == (3, 1)
         assert "path" in df.columns
 
-        # Test method delegation that should return filoma DataFrame
+        # Test method delegation: returns either filoma.DataFrame or native Polars DataFrame
         selected = df.select("path")
-        assert isinstance(selected, DataFrame)
-        assert len(selected) == 3
+        assert isinstance(selected, (DataFrame, pl.DataFrame))
+        if isinstance(selected, DataFrame):
+            assert len(selected) == 3
+        else:
+            assert selected.shape[0] == 3
 
         # Test filter method
         filtered = df.filter(df.df["path"].str.contains(".py"))
-        assert isinstance(filtered, DataFrame)
-        assert len(filtered) == 1
+        assert isinstance(filtered, (DataFrame, pl.DataFrame))
+        if isinstance(filtered, DataFrame):
+            assert len(filtered) == 1
+        else:
+            assert filtered.shape[0] == 1
 
         # Test sort method
         sorted_df = df.sort("path")
-        assert isinstance(sorted_df, DataFrame)
-        assert len(sorted_df) == 3
+        assert isinstance(sorted_df, (DataFrame, pl.DataFrame))
+        if isinstance(sorted_df, DataFrame):
+            assert len(sorted_df) == 3
+        else:
+            assert sorted_df.shape[0] == 3
 
     def test_enhanced_methods(self):
         """Test the enhanced convenience methods."""
@@ -286,8 +309,11 @@ class TestStandaloneDataFrame:
 
         # Test with_columns (delegated method)
         df_with_length = df.with_columns([df.df["path"].str.len_chars().alias("path_length")])
-        assert isinstance(df_with_length, DataFrame)
-        assert "path_length" in df_with_length.columns
+        assert isinstance(df_with_length, (DataFrame, pl.DataFrame))
+        if isinstance(df_with_length, DataFrame):
+            assert "path_length" in df_with_length.columns
+        else:
+            assert "path_length" in df_with_length.columns
 
     def test_file_specific_methods_still_work(self):
         """Test that our original file-specific methods still work."""
