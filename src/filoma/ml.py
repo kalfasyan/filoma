@@ -305,6 +305,9 @@ def auto_split(
             leaking similar files into multiple sets when they share the same feature.
             - The method uses sha256 hashing of the feature string to map to [0,1).
     """
+    assert train_val_test is not None and len(train_val_test) == 3, "train_val_test must be a tuple of three integers"
+    assert sum(train_val_test) == 100, "train_val_test must sum to 100"
+
     # Accept filoma.DataFrame wrapper or raw Polars DataFrame
     if hasattr(df, "df"):
         pl_df = df.df

@@ -24,9 +24,11 @@ dev = [
     "ipykernel>=6.30.1",
 ]
 
-ml = [
+pd = [
     "pandas>=2.0.0",
     "pyarrow>=12.0.0",
+    "ipython>=9.4.0",
+    "ipykernel>=6.30.1",
 ]
 
 docs = [
