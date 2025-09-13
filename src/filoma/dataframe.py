@@ -364,7 +364,7 @@ class DataFrame:
         self._ensure_polars()
         return self._df.tail(n)
 
-    def add_path_components(self) -> "DataFrame":
+    def add_path_components(self, inplace: bool = False) -> "DataFrame":
         """
         Add columns for path components (parent, name, stem, suffix).
 
@@ -380,9 +380,14 @@ class DataFrame:
                 pl.col("path").map_elements(lambda x: Path(x).suffix, return_dtype=pl.String).alias("suffix"),
             ]
         )
+        if inplace:
+            self._df = df_with_components
+            self.invalidate_pandas_cache()
+            return self
+
         return DataFrame(df_with_components)
 
-    def add_file_stats_cols(self, path: str = "path", base_path: Optional[Union[str, Path]] = None) -> "DataFrame":
+    def add_file_stats_cols(self, path: str = "path", base_path: Optional[Union[str, Path]] = None, inplace: bool = False) -> "DataFrame":
         """
         Add file statistics columns (size, modified time, etc.) based on a column
         containing filesystem paths.
@@ -393,7 +398,7 @@ class DataFrame:
                        path column are resolved relative to this base.
 
         Returns:
-            New DataFrame with file statistics columns added.
+            New DataFrame with file statistics columns added, or ``self`` when ``inplace=True``.
 
         Raises:
             ValueError: If the specified path column does not exist.
@@ -489,9 +494,14 @@ class DataFrame:
         )
 
         df_with_stats = pl.concat([self._df, stats_df], how="horizontal")
+        if inplace:
+            self._df = df_with_stats
+            self.invalidate_pandas_cache()
+            return self
+
         return DataFrame(df_with_stats)
 
-    def add_depth_col(self, path: Optional[Union[str, Path]] = None) -> "DataFrame":
+    def add_depth_col(self, path: Optional[Union[str, Path]] = None, inplace: bool = False) -> "DataFrame":
         """
         Add a depth column showing the nesting level of each path.
 
@@ -534,6 +544,11 @@ class DataFrame:
 
         self._ensure_polars()
         df_with_depth = self._df.with_columns([pl.col("path").map_elements(calculate_depth, return_dtype=pl.Int64).alias("depth")])
+        if inplace:
+            self._df = df_with_depth
+            self.invalidate_pandas_cache()
+            return self
+
         return DataFrame(df_with_depth)
 
     def filter_by_extension(self, extensions: Union[str, List[str]]) -> "DataFrame":
@@ -856,12 +871,12 @@ class DataFrame:
         # Return the new, enriched DataFrame instance
         return enriched_wrapper
 
-    def get_filename_features(self, enrich: bool = False, inplace: bool = False, **kwargs) -> "DataFrame":
+    def add_filename_features(self, enrich: bool = False, inplace: bool = False, **kwargs) -> "DataFrame":
         """
-        Discover filename features using filoma.ml.get_filename_features.
+        Discover filename features using filoma.ml.add_filename_features.
 
-        This is a thin wrapper around ``filoma.ml.get_filename_features``
-        so you can call ``df.get_filename_features(...)`` directly on a
+        This is a thin wrapper around ``filoma.ml.add_filename_features``
+        so you can call ``df.add_filename_features(...)`` directly on a
         filoma DataFrame instance.
 
         Args:
@@ -870,7 +885,7 @@ class DataFrame:
             inplace: If True, perform the operation in-place and return self.
                      If False (default), return a new DataFrame with the changes.
             kwargs: Additional keyword arguments passed to
-                ``filoma.ml.get_filename_features``.
+                ``filoma.ml.add_filename_features``.
 
         Returns:
             A new or modified filoma.DataFrame with discovered filename features.
@@ -885,7 +900,7 @@ class DataFrame:
             base_df = self.enrich(inplace=False)
 
         # The ML helper returns a new filoma.DataFrame wrapper
-        result_df = ml.get_filename_features(base_df, **kwargs)
+        result_df = ml.add_filename_features(base_df, **kwargs)
 
         # The result could be a filoma.DataFrame or a raw polars/other frame
         if not isinstance(result_df, DataFrame):

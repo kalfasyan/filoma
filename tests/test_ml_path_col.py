@@ -12,7 +12,7 @@ def test_discover_and_split_with_custom_path_col():
     df = pl.DataFrame({"my_path": paths})
 
     # discover into token columns using custom column name
-    df2 = ml.get_filename_features(df, sep="_", prefix=None, include_parent=True, include_all_parts=True, path_col="my_path")
+    df2 = ml.add_filename_features(df, sep="_", prefix=None, include_parent=True, include_all_parts=True, path_col="my_path")
 
     # expected columns present
     assert "token1" in df2.columns

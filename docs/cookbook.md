@@ -81,7 +81,7 @@ train, val, test = ml.split_data(pl_df, how='parts', parts=(-2,), seed=42)
 ```python
 from filoma import probe_to_df, ml
 pl_df = probe_to_df('.')
-pl_df = ml.get_filename_features(pl_df, sep='_')
+pl_df = ml.add_filename_features(pl_df, sep='_')
 train, val, test = ml.split_data(pl_df, how='tokens')
 ```
 

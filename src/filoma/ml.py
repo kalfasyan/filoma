@@ -74,7 +74,7 @@ def _get_feature_value(path_str: str, feature: str, path_parts: Optional[Iterabl
         raise ValueError(f"Unknown feature='{feature}'")
 
 
-def get_filename_features(
+def add_filename_features(
     pl_df: pl.DataFrame,
     sep: str = "_",
     prefix: Optional[str] = "feat",
@@ -181,7 +181,7 @@ def _maybe_discover(
 ) -> pl.DataFrame:
     if not discover:
         return pl_df
-    return get_filename_features(
+    return add_filename_features(
         pl_df,
         sep=sep,
         prefix=feat_prefix,
