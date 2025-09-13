@@ -15,7 +15,7 @@ def test_discover_filename_features_tokens_parent_parts():
             ]
         }
     )
-    out = ml.discover_filename_features(
+    out = ml.get_filename_features(
         df,
         sep="_",
         prefix=None,
@@ -124,7 +124,7 @@ def test_pandas_return_type_conversion():
     except ImportError:
         pytest.skip("pyarrow required for polars -> pandas conversion")
     df = pl.DataFrame({"path": ["a/x_1.txt", "b/y_2.txt", "c/z_3.txt"]})
-    df2 = ml.discover_filename_features(df, sep="_", prefix=None, path_col="path")
+    df2 = ml.get_filename_features(df, sep="_", prefix=None, path_col="path")
     tr, va, te = ml.auto_split(df2, train_val_test=(60, 20, 20), path_col="path", seed=0, return_type="pandas")
     for part in (tr, va, te):
         assert isinstance(part, pd.DataFrame)

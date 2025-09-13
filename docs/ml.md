@@ -11,7 +11,7 @@ train, val, test = ml.auto_split(pl_df, train_val_test=(70,15,15), feature='path
 
 Group by filename tokens:
 ```python
-pl_df = ml.discover_filename_features(pl_df, sep='_')
+pl_df = ml.get_filename_features(pl_df, sep='_')
 train, val, test = ml.auto_split(pl_df, feature=('token1',))
 ```
 

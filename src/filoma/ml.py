@@ -74,7 +74,7 @@ def _get_feature_value(path_str: str, feature: str, path_parts: Optional[Iterabl
         raise ValueError(f"Unknown feature='{feature}'")
 
 
-def discover_filename_features(
+def get_filename_features(
     pl_df: pl.DataFrame,
     sep: str = "_",
     prefix: Optional[str] = "feat",
@@ -181,7 +181,7 @@ def _maybe_discover(
 ) -> pl.DataFrame:
     if not discover:
         return pl_df
-    return discover_filename_features(
+    return get_filename_features(
         pl_df,
         sep=sep,
         prefix=feat_prefix,
@@ -351,6 +351,7 @@ def auto_split(
     token_names: Optional[Union[str, Sequence[str]]] = None,
     path_col: str = "path",
     verbose: bool = True,
+    validate_counts: bool = True,
     return_type: str = "polars",
 ) -> Tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
     """
@@ -380,6 +381,9 @@ def auto_split(
         verbose: if True (default) log a short warning when achieved split counts
             differ noticeably from requested ratios (common with small datasets or
             grouped features).
+        validate_counts: if True, log a warning when the set of unique feature
+            values (or combined-column feature) is not identical across the
+            train/val/test splits. This helps detect unrepresentative splits.
         return_type: one of 'polars' (default), 'filoma' (wrap Polars into filoma.DataFrame),
                 or 'pandas' (convert to pandas.DataFrame). If 'pandas' is chosen,
                 pandas must be available.
@@ -431,6 +435,42 @@ def auto_split(
     train_df = tmp.filter(pl.col("_split") == "train").drop("_split")
     val_df = tmp.filter(pl.col("_split") == "val").drop("_split")
     test_df = tmp.filter(pl.col("_split") == "test").drop("_split")
+
+    # Validate that the unique feature values are represented equally across splits
+    if validate_counts:
+        PATH_MODES = {"path_parts", "filename", "stem", "parent", "suffix"}
+        if isinstance(feature, (list, tuple)) or (isinstance(feature, str) and feature not in PATH_MODES and feature in pl_work.columns):
+            feat_col = "_feat_group"
+        else:
+            feat_col = "_feat_path_parts" if feature == "path_parts" else f"_feat_{feature}"
+
+        try:
+            train_set = set(train_df[feat_col].to_list())
+            val_set = set(val_df[feat_col].to_list())
+            test_set = set(test_df[feat_col].to_list())
+        except Exception:
+            # If something unexpected happens (missing column), skip validation
+            train_set = val_set = test_set = set()
+
+        if not (train_set == val_set == test_set):
+            union = train_set | val_set | test_set
+            missing_in_train = list((union - train_set))[:5]
+            missing_in_val = list((union - val_set))[:5]
+            missing_in_test = list((union - test_set))[:5]
+            logger.warning(
+                (
+                    "filoma.ml.auto_split: unique feature values differ across splits for '{}' -"
+                    " counts train={}, val={}, test={}; examples missing_in_train={},"
+                    " missing_in_val={}, missing_in_test={}"
+                ),
+                feat_col,
+                len(train_set),
+                len(val_set),
+                len(test_set),
+                missing_in_train,
+                missing_in_val,
+                missing_in_test,
+            )
 
     _maybe_log_ratio_drift(len(train_df), len(val_df), len(test_df), len(paths), ratios, verbose)
 

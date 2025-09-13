@@ -194,7 +194,7 @@ from filoma import probe_to_df, ml
 df = probe_to_df('.') # DataFrame with 'path'
 # A method can discover filename tokens that can be used for grouping
 # e.g., 'sample1_imageA.png' -> token1='sample1', token2='imageA'
-df = ml.discover_filename_features(df, sep='_', prefix=None)  # adds token1, token2, ...
+df = ml.get_filename_features(df, sep='_', prefix=None)  # adds token1, token2, ...
 
 # `auto_split` can now use these tokens to group files
 train, val, test = ml.auto_split(df, train_val_test=(70,15,15), feature='path_parts')

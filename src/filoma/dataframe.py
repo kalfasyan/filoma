@@ -856,12 +856,12 @@ class DataFrame:
         # Return the new, enriched DataFrame instance
         return enriched_wrapper
 
-    def discover_filename_features(self, enrich: bool = True, inplace: bool = False, **kwargs) -> "DataFrame":
+    def get_filename_features(self, enrich: bool = False, inplace: bool = False, **kwargs) -> "DataFrame":
         """
-        Discover filename features using filoma.ml.discover_filename_features.
+        Discover filename features using filoma.ml.get_filename_features.
 
-        This is a thin wrapper around ``filoma.ml.discover_filename_features``
-        so you can call ``df.discover_filename_features(...)`` directly on a
+        This is a thin wrapper around ``filoma.ml.get_filename_features``
+        so you can call ``df.get_filename_features(...)`` directly on a
         filoma DataFrame instance.
 
         Args:
@@ -870,7 +870,7 @@ class DataFrame:
             inplace: If True, perform the operation in-place and return self.
                      If False (default), return a new DataFrame with the changes.
             kwargs: Additional keyword arguments passed to
-                ``filoma.ml.discover_filename_features``.
+                ``filoma.ml.get_filename_features``.
 
         Returns:
             A new or modified filoma.DataFrame with discovered filename features.
@@ -885,7 +885,7 @@ class DataFrame:
             base_df = self.enrich(inplace=False)
 
         # The ML helper returns a new filoma.DataFrame wrapper
-        result_df = ml.discover_filename_features(base_df, **kwargs)
+        result_df = ml.get_filename_features(base_df, **kwargs)
 
         # The result could be a filoma.DataFrame or a raw polars/other frame
         if not isinstance(result_df, DataFrame):
