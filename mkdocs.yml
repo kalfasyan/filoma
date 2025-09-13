@@ -15,6 +15,7 @@ nav:
     - File & Image Profiling: profiling.md
     - ML Splits: ml.md
   - Demo: demo.md
+  - Life after filoma: life-after-filoma.md
   - Cookbook: cookbook.md
   - Backends: backends.md
   - Performance: benchmarks.md

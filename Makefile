@@ -51,16 +51,20 @@ benchmark:  ## Run performance benchmark (Python vs Rust)
 # Documentation targets
 .PHONY: docs-deps docs-build docs-serve docs-clean
 
-docs-deps:  ## Install docs dependencies
-	@echo "📦 Installing docs dependencies..."
-	uv pip install -r docs/requirements-docs.txt
+docs-deps:  ## Install docs dependencies (use pyproject extras)
+	@echo "📦 Installing docs dependencies from pyproject extras (docs)..."
+	uv sync --extra docs
 
 docs-build: docs-deps  ## Build documentation site
 	@echo "📚 Building documentation site..."
+	@echo "🔁 Rendering notebooks to docs/..."
+	./scripts/render_notebooks.sh
 	uv run mkdocs build --clean
 
 docs-serve: docs-deps  ## Serve documentation locally
 	@echo "🔁 Serving documentation at http://127.0.0.1:8000 ..."
+	@echo "🔁 Rendering notebooks to docs/..."
+	./scripts/render_notebooks.sh &
 	uv run mkdocs serve --dev-addr=127.0.0.1:8000
 
 docs-clean:  ## Clean built docs

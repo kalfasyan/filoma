@@ -36,6 +36,8 @@ ipython==9.5.0
     # via filoma (pyproject.toml)
 ipython-pygments-lexers==1.1.1
     # via ipython
+jupyterlab==4.0.4
+    # via filoma (pyproject.toml)
 jedi==0.19.2
     # via ipython
 jinja2==3.1.6
