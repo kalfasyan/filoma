@@ -40,6 +40,10 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import polars as pl
 from loguru import logger
+from rich.console import Console
+from rich.table import Table
+
+from filoma import dedup as _dedup
 
 from .files.file_profiler import FileProfiler
 
@@ -870,6 +874,55 @@ class DataFrame:
 
         # Return the new, enriched DataFrame instance
         return enriched_wrapper
+
+    def evaluate_duplicates(
+        self,
+        path_col: str = "path",
+        text_threshold: float = 0.8,
+        image_max_distance: int = 5,
+        text_k: int = 3,
+        show_table: bool = True,
+    ) -> dict:
+        """Evaluate duplicates among files in the DataFrame.
+
+        Scans the `path_col` column, runs exact, text and image duplicate
+        detectors and prints a small Rich table summarizing counts.
+
+        Returns the raw dict produced by `filoma.dedup.find_duplicates`.
+        """
+        self._ensure_polars()
+        if path_col not in self._df.columns:
+            raise ValueError(f"Column '{path_col}' not found in DataFrame")
+
+        paths = [str(p) for p in self._df[path_col].to_list()]
+        res = _dedup.find_duplicates(paths, text_k=text_k, text_threshold=text_threshold, image_max_distance=image_max_distance)
+
+        # Summarize counts
+        exact_groups = res.get("exact", [])
+        text_groups = res.get("text", [])
+        image_groups = res.get("image", [])
+
+        console = Console()
+        if show_table:
+            table = Table(title="Duplicate Summary")
+            table.add_column("Type", style="bold cyan")
+            table.add_column("Groups", style="white")
+            table.add_column("Files In Groups", style="white")
+            table.add_row("exact", str(len(exact_groups)), str(sum(len(g) for g in exact_groups) if exact_groups else 0))
+            table.add_row("text", str(len(text_groups)), str(sum(len(g) for g in text_groups) if text_groups else 0))
+            table.add_row("image", str(len(image_groups)), str(sum(len(g) for g in image_groups) if image_groups else 0))
+            console.print(table)
+
+        logger.info(
+            f"Duplicate summary: exact={len(exact_groups)} groups "
+            f"({sum(len(g) for g in exact_groups) if exact_groups else 0} files), "
+            f"text={len(text_groups)} groups "
+            f"({sum(len(g) for g in text_groups) if text_groups else 0} files), "
+            f"image={len(image_groups)} groups "
+            f"({sum(len(g) for g in image_groups) if image_groups else 0} files)"
+        )
+
+        return res
 
     def add_filename_features(self, enrich: bool = False, inplace: bool = False, **kwargs) -> "DataFrame":
         """

@@ -11,6 +11,8 @@ from typing import Any, Dict, Optional
 from rich.console import Console
 from rich.table import Table
 
+from filoma import dedup as _dedup
+
 
 class FileProfiler:
     """
@@ -154,6 +156,58 @@ class FileProfiler:
         except Exception:
             pass
         return None
+
+    # --- Dedup integration helpers ---
+    def text_shingles(self, path: str, k: int = 3) -> set | None:
+        """Return k-shingles for a text file (or None on error).
+
+        Uses the same normalization / shingle function used by the dedup module.
+        """
+        try:
+            with open(path, "r", encoding="utf8") as f:
+                txt = f.read()
+        except Exception:
+            return None
+        return _dedup.text_shingles(txt, k=k)
+
+    def fingerprint_for_dedup(
+        self,
+        path: str,
+        compute_text: bool = False,
+        compute_image: bool = False,
+        text_k: int = 3,
+        image_hash: str = "ahash",
+    ) -> dict:
+        """High-level fingerprint useful for duplicate detection.
+
+        Returns a dict with keys: `path`, `size`, `sha256`, optionally `text_shingles`, `image_hash`.
+        """
+        report = {"path": path}
+        try:
+            st = os.stat(path)
+            report["size"] = st.st_size
+        except Exception:
+            report["size"] = None
+
+        report["sha256"] = self._compute_sha256(path)
+
+        if compute_text:
+            report["text_shingles"] = self.text_shingles(path, k=text_k)
+        else:
+            report["text_shingles"] = None
+
+        if compute_image:
+            try:
+                if image_hash == "dhash":
+                    report["image_hash"] = _dedup.dhash_image(path)
+                else:
+                    report["image_hash"] = _dedup.ahash_image(path)
+            except Exception:
+                report["image_hash"] = None
+        else:
+            report["image_hash"] = None
+
+        return report
 
 
 @dataclass

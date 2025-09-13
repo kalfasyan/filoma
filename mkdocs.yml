@@ -15,11 +15,12 @@ nav:
     - File & Image Profiling: profiling.md
     - ML Splits: ml.md
   - Demo: demo.md
-  - Life after filoma: life-after-filoma.md
   - Cookbook: cookbook.md
+  - Data Quality: data-quality.md
   - Backends: backends.md
   - Performance: benchmarks.md
   - API Reference: api.md
+  - Life after filoma: life-after-filoma.md
 
 plugins:
   - search

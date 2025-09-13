@@ -4,6 +4,8 @@ from typing import Optional, Tuple
 
 import numpy as np
 
+from filoma import dedup as _dedup
+
 
 @dataclass
 class ImageReport(Mapping):
@@ -63,3 +65,12 @@ class ImageProfiler:
             unique=int(np.unique(arr).size) if arr.size > 0 else 0,
         )
         return report
+
+    # --- Dedup integration helpers ---
+    def compute_ahash(self, path: str, hash_size: int = 8) -> str:
+        """Compute an aHash for an image file via `filoma.dedup`. Requires Pillow."""
+        return _dedup.ahash_image(path, hash_size=hash_size)
+
+    def compute_dhash(self, path: str, hash_size: int = 8) -> str:
+        """Compute a dHash for an image file via `filoma.dedup`. Requires Pillow."""
+        return _dedup.dhash_image(path, hash_size=hash_size)

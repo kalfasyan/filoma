@@ -47,6 +47,11 @@ docs = [
     "pyarrow>=12.0.0",
 ]
 
+dedup = [
+    "datasketch>=1.5.3",
+    "pillow>=10.0.0",
+]
+
 [build-system]
 requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
