@@ -35,4 +35,4 @@ src/**/*.cpython-*.so
 # mkdocs build directory
 site/
 
-.html
+*.html
