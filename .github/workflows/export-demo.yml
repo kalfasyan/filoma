@@ -1,0 +1,39 @@
+name: Export demo notebook
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install nbconvert nbformat
+
+      - name: Convert notebook to HTML
+        run: |
+          python -m nbconvert --to html notebooks/demo.ipynb --output demo.html --output-dir docs
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/demo.html || true
+          git diff --staged --quiet || (
+            git commit -m "chore(docs): export demo.ipynb to docs/demo.html" &&
+            git push
+          )

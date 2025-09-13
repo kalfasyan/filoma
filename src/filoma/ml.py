@@ -327,12 +327,7 @@ def _maybe_log_ratio_drift(
         req_pct = ",".join(f"{r * 100:.1f}%" for r in req)
         act_pct = ",".join(f"{a * 100:.1f}%" for a in act)
         logger.warning(
-            ("filoma.ml.split_data: requested ratios {} -> achieved counts {} ({}) vs requested ({}) total={} (grouped hashing can cause drift)"),
-            req_pct,
-            act_counts,
-            act_pct,
-            req_pct,
-            total,
+            f"filoma.ml.split_data: achieved counts {act_pct} ({act_counts}) vs requested ({req_pct}) total={total} (grouped hashing can cause drift)"
         )
 
 

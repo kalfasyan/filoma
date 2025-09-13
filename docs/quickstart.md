@@ -46,6 +46,7 @@ print(img.file_type, getattr(img, 'shape', None))
 Tips
 - Use `search_backend='fd'` or `search_backend='rust'` for faster scans when available.
 - In notebooks, use `probe_to_df()` and then Polars APIs for interactive filtering and plots.
+ - Try the full interactive demo: see the `Demo` page in the docs (Demo -> `demo.md`) which links to `notebooks/demo.ipynb` for a ready-to-run example.
 
 Lazy imports and top-level helpers
 
