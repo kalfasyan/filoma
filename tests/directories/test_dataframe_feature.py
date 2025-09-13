@@ -26,12 +26,18 @@ def test_dataframe_functionality():
     print(f"DataFrame enabled: {profiler.is_dataframe_enabled()}")
     print(f"Implementation info: {profiler.get_implementation_info()}")
 
-    # Analyze the current directory (should have some files)
-    current_dir = Path(__file__).parent.parent.parent  # Go to repo root
-    print(f"\nAnalyzing directory: {current_dir}")
+    # Analyze a small temporary directory to keep the test fast and deterministic
+    import tempfile
 
-    try:
-        analysis = profiler.probe(str(current_dir), max_depth=2)
+    with tempfile.TemporaryDirectory() as td:
+        current_dir = Path(td)
+        # create a couple of files and subdirs
+        (current_dir / "a").mkdir()
+        (current_dir / "a" / "f1.txt").write_text("x")
+        (current_dir / "b").mkdir()
+        (current_dir / "b" / "f2.py").write_text("print(1)")
+
+        analysis = profiler.probe(str(current_dir), max_depth=1)
 
         # Print basic summary
         profiler.print_summary(analysis)
@@ -70,11 +76,7 @@ def test_dataframe_functionality():
         else:
             print("❌ No DataFrame was created")
 
-    except Exception as e:
-        print(f"❌ Error during analysis: {e}")
-        import traceback
-
-        traceback.print_exc()
+    # exceptions should propagate to fail the test
 
 
 def test_standalone_dataframe():

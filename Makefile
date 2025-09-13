@@ -26,8 +26,8 @@ release-major:  ## Bump major version and create release
 	./scripts/release.sh major
 
 # Development
-test:  ## Run tests
-	uv run --extra dev pytest tests/
+test:  ## Run tests (parallel by default using pytest-xdist)
+	uv run --extra dev pytest -n auto tests/
 
 lint:  ## Run linting
 	uv run --extra dev ruff check .
