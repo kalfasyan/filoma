@@ -1,5 +1,7 @@
 # Performance Benchmarks
 
+`DISCLAIMER`: Benchmark results are illustrative and may vary based on your hardware, filesystem, and directory structure. Always run your own benchmarks on your target systems for accurate performance data. They were run during the early stages of `filoma` development and may not reflect the latest optimizations.  
+
 ## Test Environment
 
 *All performance data measured on the following system:*

@@ -1,70 +1,65 @@
 # Quickstart
 
-This quickstart shows the most common, REPL-friendly workflow for `filoma`.
+`filoma` is a fast and flexible Python tool for filesystem analysis. It helps you understand the contents of your directories, profile individual files, and prepare datasets for machine learning.
 
-Install:
+## Getting Started: The Interactive Demo
+
+The best way to get started with `filoma` is to run the interactive demo notebook. It covers the most common workflows in a hands-on way.
+
+- **[View the Interactive Demo](./demo.md)**
+
+## Installation
+
+Install `filoma` and its dependencies using `uv` or `pip`:
 
 ```bash
-# Using uv (recommended)
-uv add filoma
+# Recommended: using uv
+uv pip install filoma
 
-# Or editable install with docs extras for local docs building
-uv pip install -e '.[docs]'
+# Or with pip
+pip install filoma
 ```
 
-Basic directory scan and summary:
+## Basic Usage: Scan a Directory
+
+The most common use case is scanning a directory to see what's inside. The `probe_to_df` function scans a path and returns a [Polars](https://pola.rs/) DataFrame, which is great for interactive analysis.
 
 ```python
-from filoma import probe, probe_to_df
+from filoma import probe_to_df
 
-analysis = probe('.')
-analysis.print_summary()
+# Scan the current directory and get a DataFrame
+df = probe_to_df('.')
 
-# Convert to a Polars DataFrame for exploration
-df = probe_to_df('.', to_pandas=False)
+# Print the first few rows
 print(df.head())
 ```
 
-Profile a single file:
+This will give you a table with information about each file, like its path, size, and modification time.
+
+## Profile a Single File
+
+You can also get detailed information about a single file using `probe_file`:
 
 ```python
 from filoma import probe_file
 
-f = probe_file('README.md')
-print(f.as_dict())
+# Profile the README.md file
+file_info = probe_file('README.md')
+
+# Print the file's properties
+print(file_info.as_dict())
 ```
 
-Image profiling:
+## Key Features
 
-```python
-from filoma import probe_image
+- **Fast Scans**: Uses a Rust backend and `fd` for high-performance directory traversal.
+- **DataFrame-First**: Easily integrates with the Polars for powerful data manipulation and analysis.
+- **Image Profiling**: Extracts metadata from images.
+- **ML-Ready**: Provides tools for creating deterministic train/validation/test splits from your file data.
+- **Lazy Loading**: `import filoma` is fast and lightweight. Dependencies like `polars` and `Pillow` are loaded on demand.
 
-img = probe_image('images/logo.png')
-print(img.file_type, getattr(img, 'shape', None))
-```
+## Where to Go Next
 
-Tips
-- Use `search_backend='fd'` or `search_backend='rust'` for faster scans when available.
-- In notebooks, use `probe_to_df()` and then Polars APIs for interactive filtering and plots.
- - Try the full interactive demo: see the `Demo` page in the docs (Demo -> `demo.md`) which links to `notebooks/demo.ipynb` for a ready-to-run example.
-
-Lazy imports and top-level helpers
-
-- filoma keeps imports lightweight: `import filoma` is intentionally cheap and does not import heavy optional dependencies like `polars` or `Pillow` until you actually use features that need them.
-- Use the top-level helpers (`probe`, `probe_to_df`, `probe_file`, `probe_image`) for a terse, REPL-friendly API; these helpers will import required backends on demand.
-
-Building docs (local):
-
-```bash
-# Install pinned docs deps (CI-friendly)
-uv pip install -r docs/requirements-docs.txt
-
-# Build the site
-# Run the local mkdocs build (use your environment's mkdocs executable)
-mkdocs build --clean
-```
-
-Hosting and publishing
-
-- For public projects we recommend deploying the built site to GitHub Pages, Netlify, or Vercel. This repository includes a GitHub Actions workflow that builds the docs and deploys the `site/` output to GitHub Pages on push to `main`.
-- Locally you can use the Makefile targets: `make docs-deps`, `make docs-build`, and `make docs-serve` to install docs deps, build, and preview the site.
+- **Cookbook**: Find copy-paste recipes for common tasks.
+- **Concepts**: Learn about the core ideas behind `filoma`.
+- **DataFrame Workflow**: See how to work with `filoma`'s DataFrame output.
