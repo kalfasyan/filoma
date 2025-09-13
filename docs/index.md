@@ -37,7 +37,7 @@ print(filo.size)
 | Largest N files | see Cookbook |
 | Filter extension | `df.filter_by_extension('.py')` |
 | Add stats | `df.add_file_stats_cols()` |
-| ML split | `ml.auto_split(df)` |
+| ML split | `ml.split_data(df)` |
 
 ## Installation (uv)
 ```bash

@@ -21,7 +21,7 @@ def test_discover_and_split_with_custom_path_col():
     assert "path_part0" in df2.columns
 
     # splitting by token1 should run and return 3 dataframes
-    tr, va, te = ml.auto_split(df2, train_val_test=(60, 20, 20), path_col="my_path", seed=0)
+    tr, va, te = ml.split_data(df2, train_val_test=(60, 20, 20), path_col="my_path", seed=0)
     assert isinstance(tr, pl.DataFrame)
     assert isinstance(va, pl.DataFrame)
     assert isinstance(te, pl.DataFrame)

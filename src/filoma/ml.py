@@ -1,7 +1,7 @@
 """
 Simple ML-style utilities for filoma DataFrame splitting.
 
-Provides an intuitive auto_split API to split a filoma.DataFrame into train/val/test
+Provides an intuitive split_data API to split a filoma.DataFrame into train/val/test
 based on filename/path-derived features. The goal is a tiny, dependency-free,
 user-friendly interface using pathlib.Path to select path parts.
 """
@@ -167,7 +167,7 @@ def get_filename_features(
     return pl_df.with_columns(new_cols)
 
 
-# ------------ Internal helper functions for modular auto_split ------------ #
+# ------------ Internal helper functions for modular split_data ------------ #
 def _maybe_discover(
     pl_df: pl.DataFrame,
     discover: bool,
@@ -327,7 +327,7 @@ def _maybe_log_ratio_drift(
         req_pct = ",".join(f"{r * 100:.1f}%" for r in req)
         act_pct = ",".join(f"{a * 100:.1f}%" for a in act)
         logger.warning(
-            ("filoma.ml.auto_split: requested ratios {} -> achieved counts {} ({}) vs requested ({}) total={} (grouped hashing can cause drift)"),
+            ("filoma.ml.split_data: requested ratios {} -> achieved counts {} ({}) vs requested ({}) total={} (grouped hashing can cause drift)"),
             req_pct,
             act_counts,
             act_pct,
@@ -336,8 +336,8 @@ def _maybe_log_ratio_drift(
         )
 
 
-def auto_split(
-    df: Union[pl.DataFrame, Any],
+def split_data(
+    data: Union[pl.DataFrame, Any],
     train_val_test: Tuple[float, float, float] = (80, 10, 10),
     feature: Union[str, Sequence[str]] = "path_parts",
     path_parts: Optional[Iterable[int]] = (-1,),
@@ -402,10 +402,10 @@ def auto_split(
     assert train_val_test is not None and len(train_val_test) == 3, "train_val_test must be a tuple of three numbers"
 
     # Accept filoma.DataFrame wrapper or raw Polars DataFrame
-    if hasattr(df, "df"):
-        pl_df = df.df
+    if hasattr(data, "df"):
+        pl_df = data.df
     else:
-        pl_df = df
+        pl_df = data
 
     if path_col not in pl_df.columns:
         raise ValueError(f"DataFrame must have a '{path_col}' column")
@@ -464,7 +464,7 @@ def auto_split(
             missing_in_test = list((union - test_set))[:5]
             logger.warning(
                 (
-                    "filoma.ml.auto_split: unique feature values differ across splits for '{}' -"
+                    "filoma.ml.split_data: unique feature values differ across splits for '{}' -"
                     " counts train={}, val={}, test={}; examples missing_in_train={},"
                     " missing_in_val={}, missing_in_test={}"
                 ),

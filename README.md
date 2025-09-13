@@ -196,17 +196,17 @@ df = probe_to_df('.') # DataFrame with 'path'
 # e.g., 'sample1_imageA.png' -> token1='sample1', token2='imageA'
 df = ml.get_filename_features(df, sep='_', prefix=None)  # adds token1, token2, ...
 
-# `auto_split` can now use these tokens to group files
-train, val, test = ml.auto_split(df, train_val_test=(70,15,15), feature='path_parts')
+# `split_data` can now use these tokens to group files
+train, val, test = ml.split_data(df, train_val_test=(70,15,15), feature='path_parts')
 print(len(train), len(val), len(test))
 
 # Or group by parent folder instead (path_parts index -2)
-train_p, val_p, test_p = ml.auto_split(df, feature='path_parts', path_parts=(-2,), seed=42)
+train_p, val_p, test_p = ml.split_data(df, feature='path_parts', path_parts=(-2,), seed=42)
 
 # You can also choose what return type you want (filoma, polars or pandas)
 # with 'filoma' being the default, you can also make use of cool methods like `.add_file_stats_cols()`
 # that uses the filoma file profiling under the hood
-train_f, val_f, test_f = ml.auto_split(df, return_type='filoma')
+train_f, val_f, test_f = ml.split_data(df, return_type='filoma')
 ```
 Notes: hash-based & deterministic; if splits drift from the ratios requested, then a warning is logged. Use `verbose=False` to silence.  
 To see some example usage, check out the [ml_examples notebook](notebooks/ml_examples.ipynb).

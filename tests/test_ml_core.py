@@ -34,8 +34,8 @@ def test_discover_filename_features_tokens_parent_parts():
 def test_auto_split_deterministic_with_seed():
     paths = [f"root/dir/file_{i}.txt" for i in range(30)]
     df = pl.DataFrame({"path": paths})
-    t1, v1, te1 = ml.auto_split(df, train_val_test=(60, 20, 20), seed=123, path_col="path")
-    t2, v2, te2 = ml.auto_split(df, train_val_test=(60, 20, 20), seed=123, path_col="path")
+    t1, v1, te1 = ml.split_data(df, train_val_test=(60, 20, 20), seed=123, path_col="path")
+    t2, v2, te2 = ml.split_data(df, train_val_test=(60, 20, 20), seed=123, path_col="path")
     # Deterministic membership
     assert set(t1["path"].to_list()) == set(t2["path"].to_list())
     assert set(v1["path"].to_list()) == set(v2["path"].to_list())
@@ -52,7 +52,7 @@ def test_auto_split_parts_parent_grouping():
     ]
     df = pl.DataFrame({"path": paths})
     # Use parent grouping via parts (-2 gives the immediate parent 'classA'/'classB')
-    train, val, test = ml.auto_split(df, train_val_test=(50, 25, 25), path_parts=(-2,), path_col="path")
+    train, val, test = ml.split_data(df, train_val_test=(50, 25, 25), path_parts=(-2,), path_col="path")
 
     # Ensure no group is split across multiple sets
     def collect_groups(d):
@@ -68,7 +68,7 @@ def test_auto_split_parts_parent_grouping():
 def test_auto_split_invalid_path_column():
     df = pl.DataFrame({"p": ["a/b/c.txt"]})
     with pytest.raises(ValueError):
-        ml.auto_split(df, path_col="path")  # missing column
+        ml.split_data(df, path_col="path")  # missing column
 
 
 def test_internal_warning_helper_triggers():
@@ -80,13 +80,13 @@ def test_internal_warning_helper_triggers():
         _maybe_log_ratio_drift(10, 0, 0, 10, (0.6, 0.2, 0.2), True)
     finally:
         logger.remove(sink_id)
-    assert any("auto_split" in str(m) for m in messages)
+    assert any("split_data" in str(m) for m in messages)
 
 
 def test_auto_split_empty_dataframe():
     # Empty path column (ensure string dtype)
     df = pl.DataFrame({"path": pl.Series("path", [], dtype=pl.Utf8)})
-    train, val, test = ml.auto_split(df, train_val_test=(60, 20, 20), path_col="path", seed=0)
+    train, val, test = ml.split_data(df, train_val_test=(60, 20, 20), path_col="path", seed=0)
     assert len(train) == 0 and len(val) == 0 and len(test) == 0
     # Ensure feature column still added (with zero rows)
     assert any(col.startswith("_feat_") for col in train.columns)
@@ -102,14 +102,14 @@ def test_all_files_identical_stem_one_group():
             ]
         }
     )
-    train, val, test = ml.auto_split(df, train_val_test=(50, 25, 25), feature="stem", seed=7)
+    train, val, test = ml.split_data(df, train_val_test=(50, 25, 25), feature="stem", seed=7)
     lens = [len(train), len(val), len(test)]
     assert sorted(lens) == [0, 0, 2]  # exactly one split got both rows
 
 
 def test_extremely_unbalanced_ratios():
     df = pl.DataFrame({"path": [f"p/file_{i}.txt" for i in range(40)]})
-    train, val, test = ml.auto_split(df, train_val_test=(99, 1, 0), seed=123)
+    train, val, test = ml.split_data(df, train_val_test=(99, 1, 0), seed=123)
     # No test rows expected (ratio for test is zero after normalization)
     assert len(test) == 0
     assert len(train) + len(val) == 40
@@ -125,7 +125,7 @@ def test_pandas_return_type_conversion():
         pytest.skip("pyarrow required for polars -> pandas conversion")
     df = pl.DataFrame({"path": ["a/x_1.txt", "b/y_2.txt", "c/z_3.txt"]})
     df2 = ml.get_filename_features(df, sep="_", prefix=None, path_col="path")
-    tr, va, te = ml.auto_split(df2, train_val_test=(60, 20, 20), path_col="path", seed=0, return_type="pandas")
+    tr, va, te = ml.split_data(df2, train_val_test=(60, 20, 20), path_col="path", seed=0, return_type="pandas")
     for part in (tr, va, te):
         assert isinstance(part, pd.DataFrame)
         assert "path" in part.columns
@@ -136,11 +136,11 @@ def test_filoma_dataframe_auto_split_wrapper():
 
     paths = [f"dir/sub/file_{i}.txt" for i in range(12)]
     fdf = FDF(pl.DataFrame({"path": paths}))
-    train, val, test = fdf.auto_split(train_val_test=(60, 20, 20), seed=0)
+    train, val, test = fdf.split_data(train_val_test=(60, 20, 20), seed=0)
     # Should return filoma.DataFrame wrappers by default
     for part in (train, val, test):
         assert hasattr(part, "df")
         assert isinstance(part.df, pl.DataFrame)
     # Check deterministic repeat
-    train2, val2, test2 = fdf.auto_split(train_val_test=(60, 20, 20), seed=0)
+    train2, val2, test2 = fdf.split_data(train_val_test=(60, 20, 20), seed=0)
     assert set(train.df["path"].to_list()) == set(train2.df["path"].to_list())

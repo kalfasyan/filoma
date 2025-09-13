@@ -67,14 +67,14 @@ recent = pl_df.filter(pl_df['modified_time'] > cutoff.isoformat())
 ```python
 from filoma import probe_to_df, ml
 pl_df = probe_to_df('.')
-train, val, test = ml.auto_split(pl_df, train_val_test=(70,15,15), seed=42)
+train, val, test = ml.split_data(pl_df, train_val_test=(70,15,15), seed=42)
 ```
 
 ## Group Split by Parent Folder
 ```python
 from filoma import probe_to_df, ml
 pl_df = probe_to_df('.')
-train, val, test = ml.auto_split(pl_df, how='parts', parts=(-2,), seed=42)
+train, val, test = ml.split_data(pl_df, how='parts', parts=(-2,), seed=42)
 ```
 
 ## Discover Filename Tokens Then Split
@@ -82,7 +82,7 @@ train, val, test = ml.auto_split(pl_df, how='parts', parts=(-2,), seed=42)
 from filoma import probe_to_df, ml
 pl_df = probe_to_df('.')
 pl_df = ml.get_filename_features(pl_df, sep='_')
-train, val, test = ml.auto_split(pl_df, how='tokens')
+train, val, test = ml.split_data(pl_df, how='tokens')
 ```
 
 ## Export for Downstream Processing

@@ -786,7 +786,7 @@ class DataFrame:
         return DataFrame(result)
 
     # -------------------- ML convenience API -------------------- #
-    def auto_split(
+    def split_data(
         self,
         train_val_test: Tuple[float, float, float] = (80, 10, 10),
         feature: Union[str, Sequence[str]] = "path_parts",
@@ -805,10 +805,10 @@ class DataFrame:
     ):
         """Deterministically split this filoma DataFrame into train/val/test.
 
-        This is a thin wrapper around ``filoma.ml.auto_split`` so you can call
-        ``df.auto_split(...)`` directly on a filoma DataFrame instance.
+        This is a thin wrapper around ``filoma.ml.split_data`` so you can call
+        ``df.split_data(...)`` directly on a filoma DataFrame instance.
 
-        Args mirror :func:`filoma.ml.auto_split` except ``df`` is implicit.
+        Args mirror :func:`filoma.ml.split_data` except ``df`` is implicit.
 
         By default ``return_type='filoma'`` so the three returned objects are
         filoma.DataFrame wrappers.
@@ -816,7 +816,7 @@ class DataFrame:
         # Local import to avoid loading ml utilities unless used
         from . import ml  # type: ignore
 
-        return ml.auto_split(
+        return ml.split_data(
             self,
             train_val_test=train_val_test,
             feature=feature,

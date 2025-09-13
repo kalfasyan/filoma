@@ -15,7 +15,7 @@ def test_return_type_filoma():
     # discover tokens so token1 exists
     df2 = ml.get_filename_features(df, sep="_", prefix=None, include_parent=True, path_col="path")
 
-    tr, va, te = ml.auto_split(df2, train_val_test=(60, 20, 20), path_col="path", return_type="filoma", seed=0)
+    tr, va, te = ml.split_data(df2, train_val_test=(60, 20, 20), path_col="path", return_type="filoma", seed=0)
 
     # filoma.DataFrame wrapper exposes .df property with a Polars DataFrame
     for part in (tr, va, te):
@@ -35,7 +35,7 @@ def test_return_type_pandas():
 
     df2 = ml.get_filename_features(df, sep="_", prefix=None, include_parent=True, path_col="path")
 
-    tr, va, te = ml.auto_split(df2, train_val_test=(60, 20, 20), path_col="path", return_type="pandas", seed=0)
+    tr, va, te = ml.split_data(df2, train_val_test=(60, 20, 20), path_col="path", return_type="pandas", seed=0)
 
     # Ensure pandas.DataFrame objects returned
     assert isinstance(tr, pd.DataFrame)
