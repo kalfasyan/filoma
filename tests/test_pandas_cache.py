@@ -40,7 +40,23 @@ def test_invalidate_on_delegated_call(monkeypatch):
         # Simulate an in-place operation by returning None
         return None
 
-    monkeypatch.setattr(df._df, "fake_mutator", fake_mutator)
+    # Some Polars DataFrame implementations are C-backed and don't accept
+    # setattr on the instance. Wrap the underlying `_df` in a small helper
+    # object that delegates attribute access to the original Polars object
+    # but exposes `fake_mutator` so the wrapper's __getattr__ finds it.
+    orig = df._df
+
+    class DelegatingDF:
+        def __init__(self, orig):
+            self._orig = orig
+
+        def __getattr__(self, name):
+            return getattr(self._orig, name)
+
+        def fake_mutator(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr(df, "_df", DelegatingDF(orig), raising=True)
 
     # Access via wrapper delegated call; should call our fake_mutator and
     # cause the wrapper to invalidate the pandas cache

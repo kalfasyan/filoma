@@ -6,18 +6,18 @@ Basic usage:
 ```python
 from filoma import probe_to_df, ml
 pl_df = probe_to_df('.')
-train, val, test = ml.auto_split(pl_df, train_val_test=(70,15,15))
+train, val, test = ml.auto_split(pl_df, train_val_test=(70,15,15), feature='path_parts')
 ```
 
 Group by filename tokens:
 ```python
 pl_df = ml.discover_filename_features(pl_df, sep='_')
-train, val, test = ml.auto_split(pl_df, how='tokens')
+train, val, test = ml.auto_split(pl_df, feature=('token1',))
 ```
 
 Group by path parts (e.g., parent folder):
 ```python
-train, val, test = ml.auto_split(pl_df, how='parts', parts=(-2,))
+train, val, test = ml.auto_split(pl_df, feature='path_parts', path_parts=(-2,))
 ```
 
 Return different types:

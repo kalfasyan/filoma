@@ -16,11 +16,26 @@ import polars as pl
 from loguru import logger
 
 
-def _normalize_ratios(ratios: Sequence[int]) -> List[float]:
+def _normalize_ratios(ratios: Sequence[float]) -> List[float]:
+    """Normalize train/val/test ratios.
+
+    Accepts either integers summing to 100 (percents), floats summing to 1,
+    or any positive numbers which will be normalized by their sum.
+    """
     total = sum(ratios)
     if total <= 0:
         raise ValueError("Ratios must sum to a positive value")
-    return [r / total for r in ratios]
+
+    # If user passed percentages that sum to 100
+    if abs(total - 100.0) < 1e-8:
+        return [float(r) / 100.0 for r in ratios]
+
+    # If already fractional and sums to ~1
+    if abs(total - 1.0) < 1e-8:
+        return [float(r) for r in ratios]
+
+    # Fallback: normalize by sum
+    return [float(r) / total for r in ratios]
 
 
 def _stable_hash(s: str, seed: Optional[int] = None) -> int:
@@ -33,13 +48,13 @@ def _stable_hash(s: str, seed: Optional[int] = None) -> int:
     return int.from_bytes(m.digest()[:8], "big")
 
 
-def _get_feature_value(path_str: str, how: str, parts: Optional[Iterable[int]] = None) -> str:
+def _get_feature_value(path_str: str, feature: str, path_parts: Optional[Iterable[int]] = None) -> str:
     p = Path(path_str)
-    if how == "parts":
-        # parts is an iterable of part indices (negative allowed)
-        if parts is None:
-            raise ValueError("parts must be provided when how='parts'")
-        parts_list = list(parts)
+    if feature == "path_parts":
+        # path_parts is an iterable of part indices (negative allowed)
+        if path_parts is None:
+            raise ValueError("path_parts must be provided when feature='path_parts'")
+        parts_list = list(path_parts)
         selected = []
         for idx in parts_list:
             try:
@@ -47,16 +62,16 @@ def _get_feature_value(path_str: str, how: str, parts: Optional[Iterable[int]] =
             except IndexError:
                 selected.append("")
         return "/".join(selected)
-    elif how == "filename":
+    elif feature == "filename":
         return p.name
-    elif how == "stem":
+    elif feature == "stem":
         return p.stem
-    elif how == "parent":
+    elif feature == "parent":
         return str(p.parent)
-    elif how == "suffix":
+    elif feature == "suffix":
         return p.suffix
     else:
-        raise ValueError(f"Unknown how='{how}'")
+        raise ValueError(f"Unknown feature='{feature}'")
 
 
 def discover_filename_features(
@@ -178,11 +193,51 @@ def _maybe_discover(
     )
 
 
-def _build_feature_index(pl_df: pl.DataFrame, path_col: str, how: str, parts: Optional[Iterable[int]]) -> Tuple[dict, List[str]]:
-    paths = pl_df[path_col].to_list()
+def _build_feature_index(
+    pl_df: pl.DataFrame,
+    path_col: str,
+    feature: Union[str, Sequence[str]],
+    path_parts: Optional[Iterable[int]] = None,
+) -> Tuple[dict, List[str]]:
+    """Build a mapping from feature value -> list of row indices.
+
+      `feature` may be:
+          - a string in {'path_parts', 'filename', 'stem', 'parent', 'suffix'} ->
+              derive feature from `path_col` using `_get_feature_value` (when
+              'path_parts' use `path_parts`).
+          - a string naming an existing DataFrame column -> group by that column.
+    - a sequence of column names -> combine those column values to form the group key.
+    """
+    PATH_MODES = {"path_parts", "filename", "stem", "parent", "suffix"}
     mapping: dict = {}
+
+    # Column-based grouping when feature is a sequence or a column name
+    if isinstance(feature, (list, tuple)) or (isinstance(feature, str) and feature not in PATH_MODES and feature in pl_df.columns):
+        if isinstance(feature, str):
+            cols = [feature]
+        else:
+            cols = list(feature)
+
+        col_lists = [pl_df[c].to_list() for c in cols]
+        total = len(pl_df)
+        for i in range(total):
+            vals = []
+            for col_list in col_lists:
+                v = col_list[i]
+                vals.append("") if v is None else vals.append(str(v))
+            feat = "||".join(vals)
+            mapping.setdefault(feat, []).append(i)
+
+        paths = pl_df[path_col].to_list() if path_col in pl_df.columns else [""] * total
+        return mapping, paths
+
+    # Otherwise treat feature as a path-derived mode
+    # Pass through the feature name directly; `_get_feature_value` expects
+    # the canonical name 'path_parts' for parts-based extraction.
+    how = feature
+    paths = pl_df[path_col].to_list()
     for i, p in enumerate(paths):
-        feat = _get_feature_value(p, how=how, parts=parts)
+        feat = _get_feature_value(p, feature=how, path_parts=path_parts)
         mapping.setdefault(feat, []).append(i)
     return mapping, paths
 
@@ -211,13 +266,43 @@ def _mask_from_assignment(feature_to_idxs: dict, feature_assignment: dict, total
     return mask
 
 
-def _add_feature_column(pl_df: pl.DataFrame, path_col: str, how: str, parts: Optional[Iterable[int]]) -> pl.DataFrame:
-    feat_name = "_feat_parts" if how == "parts" else f"_feat_{how}"
+def _add_feature_column(
+    pl_df: pl.DataFrame,
+    path_col: str,
+    feature: Union[str, Sequence[str]],
+    path_parts: Optional[Iterable[int]] = None,
+) -> pl.DataFrame:
+    """Add a convenience column showing the feature used for splitting.
+
+    For column-based features the column `_feat_group` is added. For
+    path-derived features a column named `_feat_{feature}` is added (uses
+    `_feat_path_parts` when `feature=='path_parts'`).
+    """
+    PATH_MODES = {"path_parts", "filename", "stem", "parent", "suffix"}
+
+    if isinstance(feature, (list, tuple)) or (isinstance(feature, str) and feature not in PATH_MODES and feature in pl_df.columns):
+        if isinstance(feature, str):
+            cols = [feature]
+        else:
+            cols = list(feature)
+
+        # Use Polars struct + map_elements to combine column values into a
+        # single preview column. This avoids relying on concat_str semantics
+        # which vary between Polars versions.
+        def _combine(vals):
+            return "||".join(("" if vals.get(c) is None else str(vals.get(c))) for c in cols)
+
+        struct_expr = pl.struct([pl.col(c).alias(c) for c in cols])
+        return pl_df.with_columns([struct_expr.map_elements(_combine, return_dtype=pl.Utf8).alias("_feat_group")])
+
+    # path-derived: pass the canonical feature name through ('path_parts' etc.)
+    how = feature
+    feat_name = "_feat_path_parts" if feature == "path_parts" else f"_feat_{feature}"
     return pl_df.with_columns(
         [
             pl.col(path_col)
             .map_elements(
-                lambda x: _get_feature_value(x, how=how, parts=parts),
+                lambda x: _get_feature_value(x, feature=how, path_parts=path_parts),
                 return_dtype=pl.Utf8,
             )
             .alias(feat_name)
@@ -253,9 +338,9 @@ def _maybe_log_ratio_drift(
 
 def auto_split(
     df: Union[pl.DataFrame, Any],
-    train_val_test: Tuple[int, int, int] = (80, 10, 10),
-    how: str = "parts",
-    parts: Optional[Iterable[int]] = (-1,),
+    train_val_test: Tuple[float, float, float] = (80, 10, 10),
+    feature: Union[str, Sequence[str]] = "path_parts",
+    path_parts: Optional[Iterable[int]] = (-1,),
     seed: Optional[int] = None,
     discover: bool = False,
     sep: str = "_",
@@ -275,10 +360,12 @@ def auto_split(
         df: a Polars DataFrame or filoma.DataFrame wrapper containing a 'path' column.
         train_val_test: three integers or ratios for train/val/test; they will be
                         normalized to fractions.
-        how: which feature to derive from the path. Options: 'parts', 'filename',
-             'stem', 'parent', 'suffix'. If 'parts', use the `parts` argument.
-        parts: an iterable of integers selecting Path.parts indices (supports negative
-               indices). Only used when how='parts'. Default picks -1 (filename).
+        feature: which feature to use for grouping. May be:
+            - a sequence of column names (e.g. ('user','session')) to group by existing columns;
+            - a single column name string to group by that column;
+            - one of 'path_parts', 'filename', 'stem', 'parent', 'suffix' to derive the feature from the `path_col`.
+        path_parts: an iterable of integers selecting Path.parts indices (supports negative
+            indices). Only used when `feature=='path_parts'`. Default picks -1 (filename).
         seed: optional integer to alter hashing for reproducible, different splits.
         discover: if True, automatically discover filename tokens and add columns
             named `prefix1`, `prefix2`, ... (or `token1`... if prefix=None).
@@ -305,8 +392,7 @@ def auto_split(
             leaking similar files into multiple sets when they share the same feature.
             - The method uses sha256 hashing of the feature string to map to [0,1).
     """
-    assert train_val_test is not None and len(train_val_test) == 3, "train_val_test must be a tuple of three integers"
-    assert sum(train_val_test) == 100, "train_val_test must sum to 100"
+    assert train_val_test is not None and len(train_val_test) == 3, "train_val_test must be a tuple of three numbers"
 
     # Accept filoma.DataFrame wrapper or raw Polars DataFrame
     if hasattr(df, "df"):
@@ -333,13 +419,13 @@ def auto_split(
     )
 
     # Feature grouping & assignment
-    feature_to_idxs, paths = _build_feature_index(pl_work, path_col=path_col, how=how, parts=parts)
+    feature_to_idxs, paths = _build_feature_index(pl_work, path_col=path_col, feature=feature, path_parts=path_parts)
     feature_assignment = _assign_features(feature_to_idxs, ratios=ratios, seed=seed)
     mask = _mask_from_assignment(feature_to_idxs, feature_assignment, total=len(paths))
     tmp = pl_work.with_columns([pl.Series("_split", mask)])
 
     # Feature column for user convenience
-    tmp = _add_feature_column(tmp, path_col=path_col, how=how, parts=parts)
+    tmp = _add_feature_column(tmp, path_col=path_col, feature=feature, path_parts=path_parts)
 
     # Split
     train_df = tmp.filter(pl.col("_split") == "train").drop("_split")

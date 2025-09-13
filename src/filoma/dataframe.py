@@ -105,33 +105,78 @@ class DataFrame:
     with additional file-specific functionality.
     """
 
-    def __init__(self, data: Optional[Union[pl.DataFrame, List[str], List[Path]]] = None):
+    def __init__(self, data: Optional[Union[pl.DataFrame, List[str], List[Path], Dict[str, Any]]] = None):
         """
         Initialize a DataFrame.
 
         Args:
             data: Initial data. Can be:
-                - A Polars DataFrame with a 'path' column
+                - A Polars DataFrame
+                - A dictionary mapping column names to sequences (all same length)
                 - A list of string paths
                 - A list of Path objects
                 - None for an empty DataFrame
         """
         if data is None:
-            # Default empty DataFrame with a path column for filesystem use-cases
             self._df = pl.DataFrame({"path": []}, schema={"path": pl.String})
         elif isinstance(data, pl.DataFrame):
-            # Accept any Polars DataFrame schema. Some operations (path helpers)
-            # expect a 'path' column, but group/aggregation helpers return
-            # summary tables without 'path' and should still be wrapped.
             self._df = data
+        elif isinstance(data, dict):
+            if not data:
+                self._df = pl.DataFrame()
+            else:
+                processed: Dict[str, List[Any]] = {}
+                expected_len: Optional[int] = None
+                for col, values in data.items():
+                    if not isinstance(values, (list, tuple)):
+                        raise ValueError("Dictionary values must be list or tuple sequences")
+                    seq = [str(x) if isinstance(x, Path) else x for x in values]
+                    if expected_len is None:
+                        expected_len = len(seq)
+                    elif len(seq) != expected_len:
+                        raise ValueError("All dictionary value sequences must have the same length")
+                    processed[col] = seq
+                self._df = pl.DataFrame(processed)
         elif isinstance(data, list):
-            # Convert to string paths
             paths = [str(path) for path in data]
             self._df = pl.DataFrame({"path": paths})
         else:
-            raise ValueError("data must be a Polars DataFrame, list of paths, or None")
-        # Cache for an optional pandas conversion to avoid repeated conversion cost
+            raise ValueError("data must be a Polars DataFrame, dict of columns, list of paths, or None")
         self._pd_cache = None
+        self.with_enrich = False
+        self.with_filename_features = False
+
+    def _ensure_polars(self) -> pl.DataFrame:
+        """Ensure the internal `_df` is a Polars DataFrame.
+
+        If the underlying object is not a Polars DataFrame attempt to convert
+        it (via pandas conversion if available or `pl.DataFrame(...)`). This
+        prevents AttributeError when methods expect Polars APIs like
+        `with_columns` or `map_elements`.
+        """
+        # Fast path
+        if isinstance(self._df, pl.DataFrame):
+            return self._df
+
+        # Try pandas conversion first if pandas is present and this looks like
+        # a pandas DataFrame
+        try:
+            if pd is not None and isinstance(self._df, pd.DataFrame):
+                self._df = pl.from_pandas(self._df)
+                # Invalidate any cached pandas view since we've converted
+                self.invalidate_pandas_cache()
+                return self._df
+        except Exception:
+            # fall through to generic conversion
+            pass
+
+        # Generic attempt to coerce into a Polars DataFrame
+        try:
+            self._df = pl.DataFrame(self._df)
+            self.invalidate_pandas_cache()
+            return self._df
+        except Exception as exc:
+            raise RuntimeError(f"Unable to coerce internal DataFrame to polars.DataFrame: {exc}")
 
     def __getattr__(self, name: str) -> Any:
         """
@@ -201,14 +246,53 @@ class DataFrame:
         Returns native Polars objects (Series or DataFrame) to match the default
         Polars-first behavior of this wrapper.
         """
+        self._ensure_polars()
         return self._df.__getitem__(key)
 
     def __setitem__(self, key, value):
         """Forward item assignment to the underlying Polars DataFrame."""
         # Polars DataFrame supports column assignment via df[key] = value
-        self._df.__setitem__(key, value)
-        # Underlying data has changed; invalidate any cached pandas conversion
-        self.invalidate_pandas_cache()
+        self._ensure_polars()
+        # Try to support common user-friendly patterns: assigning a Python
+        # sequence or a Series to create/replace a column. Polars' native
+        # __setitem__ may raise TypeError in some versions, so handle that
+        # explicitly and fall back to with_columns.
+        try:
+            if isinstance(key, str):
+                # Accept polars Series, pandas Series, or Python sequences
+                if isinstance(value, pl.Series):
+                    series = value
+                else:
+                    try:
+                        # pandas Series -> polars Series
+                        if pd is not None and hasattr(value, "__array__") and not isinstance(value, (list, tuple)):
+                            series = pl.Series(value)
+                        elif isinstance(value, (list, tuple)):
+                            series = pl.Series(key, list(value))
+                        else:
+                            # Scalar value: repeat across rows
+                            series = pl.Series(key, [value] * len(self._df))
+                    except Exception:
+                        series = None
+
+                if 'series' in locals() and series is not None:
+                    # Use with_columns to add/replace the column
+                    self._df = self._df.with_columns(series.alias(key))
+                    self.invalidate_pandas_cache()
+                    return
+
+            # Fallback to delegating to Polars __setitem__ for other patterns
+            self._df.__setitem__(key, value)
+            # Underlying data has changed; invalidate any cached pandas conversion
+            self.invalidate_pandas_cache()
+        except TypeError:
+            # Polars raises TypeError for some unsupported assignment forms
+            # (e.g., assigning a Series by index). Re-raise a clearer message
+            msg = (
+                "DataFrame object does not support `Series` assignment by index"
+                "\n\nUse `DataFrame.with_columns`."
+            )
+            raise TypeError(msg)
 
     def invalidate_pandas_cache(self) -> None:
         """Clear the cached pandas conversion created by `to_pandas()`.
@@ -225,11 +309,48 @@ class DataFrame:
 
     def __len__(self) -> int:
         """Get the number of rows in the DataFrame."""
-        return len(self._df)
+        # polars.DataFrame supports len(), but some wrapped/native objects
+        # (for example older PyArrow-backed objects) may not implement __len__.
+        # Try common fallbacks in order of preference.
+        try:
+            return len(self._df)
+        except Exception:
+            # polars exposes `.height` as row count and `.shape[0]` as rows
+            try:
+                return int(getattr(self._df, "height"))
+            except Exception:
+                try:
+                    return int(self._df.shape[0])
+                except Exception:
+                    # Last resort: convert to pandas if available (cheap for small frames)
+                    if pd is not None:
+                        try:
+                            return int(self._df.to_pandas().shape[0])
+                        except Exception:
+                            return 0
+                    return 0
 
     def __repr__(self) -> str:
         """String representation of the DataFrame."""
-        return f"filoma.DataFrame with {len(self)} rows\n{self._df}"
+        # Avoid calling the underlying object's __str__/__repr__ if it may
+        # raise TypeError (observed with some PyDataFrame wrappers). Use
+        # safe fallbacks for a short textual preview.
+        row_count = len(self)
+        # Try polars' to_string-like rendering if available
+        try:
+            # Polars DataFrame implements __str__/__repr__; prefer repr()
+            df_preview = repr(self._df)
+        except Exception:
+            try:
+                # Try to convert to pandas for a safer repr
+                if pd is not None:
+                    df_preview = repr(self._df.to_pandas())
+                else:
+                    df_preview = "<unrepresentable DataFrame>"
+            except Exception:
+                df_preview = "<unrepresentable DataFrame>"
+
+        return f"filoma.DataFrame with {row_count} rows\n{df_preview}"
 
     def __str__(self) -> str:
         """String representation of the DataFrame."""
@@ -237,10 +358,13 @@ class DataFrame:
 
     def head(self, n: int = 5) -> pl.DataFrame:
         """Get the first n rows."""
+        self._ensure_polars()
         return self._df.head(n)
 
     def tail(self, n: int = 5) -> pl.DataFrame:
         """Get the last n rows."""
+
+        self._ensure_polars()
         return self._df.tail(n)
 
     def add_path_components(self) -> "DataFrame":
@@ -250,6 +374,7 @@ class DataFrame:
         Returns:
             New DataFrame with additional path component columns
         """
+        self._ensure_polars()
         df_with_components = self._df.with_columns(
             [
                 pl.col("path").map_elements(lambda x: str(Path(x).parent), return_dtype=pl.String).alias("parent"),
@@ -276,6 +401,8 @@ class DataFrame:
         Raises:
             ValueError: If the specified path column does not exist.
         """
+        self._ensure_polars()
+
         if path not in self._df.columns:
             raise ValueError(f"Column '{path}' not found in DataFrame")
 
@@ -408,6 +535,7 @@ class DataFrame:
                 # Path is not relative to the provided root path
                 return len(Path(path_str).parts)
 
+        self._ensure_polars()
         df_with_depth = self._df.with_columns([pl.col("path").map_elements(calculate_depth, return_dtype=pl.Int64).alias("depth")])
         return DataFrame(df_with_depth)
 
@@ -431,6 +559,8 @@ class DataFrame:
                 ext = "." + ext
             normalized_extensions.append(ext.lower())
 
+        # Ensure we have a Polars DataFrame to operate on
+        self._ensure_polars()
         filtered_df = self._df.filter(pl.col("path").map_elements(lambda x: Path(x).suffix.lower() in normalized_extensions, return_dtype=pl.Boolean))
         return DataFrame(filtered_df)
 
@@ -444,6 +574,8 @@ class DataFrame:
         Returns:
             Filtered DataFrame
         """
+
+        self._ensure_polars()
         filtered_df = self._df.filter(pl.col("path").str.contains(pattern))
         return DataFrame(filtered_df)
 
@@ -454,6 +586,7 @@ class DataFrame:
         Returns:
             Polars DataFrame with extension counts
         """
+        self._ensure_polars()
         df_with_ext = self._df.with_columns(
             [
                 pl.col("path")
@@ -471,6 +604,7 @@ class DataFrame:
         Returns:
             Polars DataFrame with directory counts
         """
+        self._ensure_polars()
         df_with_parent = self._df.with_columns(
             [pl.col("path").map_elements(lambda x: str(Path(x).parent), return_dtype=pl.String).alias("parent_dir")]
         )
@@ -479,7 +613,9 @@ class DataFrame:
 
     def to_polars(self) -> pl.DataFrame:
         """Get the underlying Polars DataFrame."""
-        return self._df
+
+        # Ensure we return a Polars DataFrame
+        return self._ensure_polars()
 
     def to_pandas(self, force: bool = False) -> Any:
         """Convert to a pandas DataFrame.
@@ -577,7 +713,30 @@ class DataFrame:
     @property
     def shape(self) -> tuple:
         """Get DataFrame shape (rows, columns)."""
-        return self._df.shape
+        # Attempt to return a (rows, cols) tuple even if the underlying
+        # object doesn't expose .shape or len(). Use the same fallbacks as
+        # in __len__ for rows and inspect columns for width.
+        try:
+            rows, cols = self._df.shape
+            return (int(rows), int(cols))
+        except Exception:
+            # Rows fallback
+            try:
+                rows = len(self)
+            except Exception:
+                rows = 0
+            # Columns fallback: try .columns or pandas conversion
+            try:
+                cols = len(getattr(self._df, "columns"))
+            except Exception:
+                try:
+                    if pd is not None:
+                        cols = self._df.to_pandas().shape[1]
+                    else:
+                        cols = 0
+                except Exception:
+                    cols = 0
+            return (int(rows), int(cols))
 
     def describe(self, percentiles: Optional[List[float]] = None) -> pl.DataFrame:
         """
@@ -632,9 +791,9 @@ class DataFrame:
     # -------------------- ML convenience API -------------------- #
     def auto_split(
         self,
-        train_val_test: Tuple[int, int, int] = (80, 10, 10),
-        how: str = "parts",
-        parts: Optional[Iterable[int]] = (-1,),
+        train_val_test: Tuple[float, float, float] = (80, 10, 10),
+        feature: Union[str, Sequence[str]] = "path_parts",
+        path_parts: Optional[Iterable[int]] = (-1,),
         seed: Optional[int] = None,
         discover: bool = False,
         sep: str = "_",
@@ -663,8 +822,8 @@ class DataFrame:
         return ml.auto_split(
             self,
             train_val_test=train_val_test,
-            how=how,
-            parts=parts,
+            feature=feature,
+            path_parts=path_parts,
             seed=seed,
             discover=discover,
             sep=sep,
@@ -678,10 +837,76 @@ class DataFrame:
             return_type=return_type,
         )
 
-    def enrich(self):
+    def enrich(self, inplace: bool = False):
         """
-        Enrich the DataFrame by adding features using its methods
-        that add columns (e.g. path components, file stats, depth).
+        Enrich the DataFrame by adding features like path components, file stats, and depth.
+
+        Args:
+            inplace: If True, perform the operation in-place and return self.
+                     If False (default), return a new DataFrame with the changes.
         """
-        df = self.add_path_components().add_file_stats_cols().add_depth_col()
-        return df
+        # Chain the enrichment methods; this produces a new DataFrame wrapper
+        enriched_wrapper = self.add_path_components().add_file_stats_cols().add_depth_col()
+        enriched_wrapper.with_enrich = True
+
+        if inplace:
+            # Update the internal state of the current object
+            self._df = enriched_wrapper._df
+            self.with_enrich = True
+            self.invalidate_pandas_cache()
+            return self
+
+        # Return the new, enriched DataFrame instance
+        return enriched_wrapper
+
+    def discover_filename_features(self, enrich: bool = True, inplace: bool = False, **kwargs) -> "DataFrame":
+        """
+        Discover filename features using filoma.ml.discover_filename_features.
+
+        This is a thin wrapper around ``filoma.ml.discover_filename_features``
+        so you can call ``df.discover_filename_features(...)`` directly on a
+        filoma DataFrame instance.
+
+        Args:
+            enrich: If True, automatically enrich the DataFrame with path components
+                    and file stats before discovering filename features.
+            inplace: If True, perform the operation in-place and return self.
+                     If False (default), return a new DataFrame with the changes.
+            kwargs: Additional keyword arguments passed to
+                ``filoma.ml.discover_filename_features``.
+
+        Returns:
+            A new or modified filoma.DataFrame with discovered filename features.
+        """
+        from . import ml  # type: ignore
+
+        # Determine the base DataFrame for feature discovery
+        base_df = self
+        if enrich and not self.with_enrich:
+            logger.info("Enriching DataFrame before discovering filename features")
+            # Create an enriched version to work from, respecting inplace for the final result
+            base_df = self.enrich(inplace=False)
+
+        # The ML helper returns a new filoma.DataFrame wrapper
+        result_df = ml.discover_filename_features(base_df, **kwargs)
+
+        # The result could be a filoma.DataFrame or a raw polars/other frame
+        if not isinstance(result_df, DataFrame):
+            enriched_wrapper = DataFrame(result_df)
+        else:
+            enriched_wrapper = result_df
+
+        enriched_wrapper.with_filename_features = True
+
+        if inplace:
+            # Update the internal state of the current object
+            self._df = enriched_wrapper._df
+            self.with_filename_features = True
+            # If enrichment also happened, mark it
+            if enrich and not self.with_enrich:
+                self.with_enrich = True
+            self.invalidate_pandas_cache()
+            return self
+
+        # Return the new, enriched DataFrame instance
+        return enriched_wrapper

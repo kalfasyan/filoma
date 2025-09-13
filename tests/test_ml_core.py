@@ -52,7 +52,7 @@ def test_auto_split_parts_parent_grouping():
     ]
     df = pl.DataFrame({"path": paths})
     # Use parent grouping via parts (-2 gives the immediate parent 'classA'/'classB')
-    train, val, test = ml.auto_split(df, train_val_test=(50, 25, 25), parts=(-2,), path_col="path")
+    train, val, test = ml.auto_split(df, train_val_test=(50, 25, 25), path_parts=(-2,), path_col="path")
 
     # Ensure no group is split across multiple sets
     def collect_groups(d):
@@ -102,7 +102,7 @@ def test_all_files_identical_stem_one_group():
             ]
         }
     )
-    train, val, test = ml.auto_split(df, train_val_test=(50, 25, 25), how="stem", seed=7)
+    train, val, test = ml.auto_split(df, train_val_test=(50, 25, 25), feature="stem", seed=7)
     lens = [len(train), len(val), len(test)]
     assert sorted(lens) == [0, 0, 2]  # exactly one split got both rows
 
