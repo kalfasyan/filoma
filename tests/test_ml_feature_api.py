@@ -5,17 +5,19 @@ from filoma import ml
 
 def test_multi_column_grouping_keeps_rows_together():
     # Create data where grouping on (user, session) should keep pairs together
-    df = pl.DataFrame({
-        "path": [
-            "u1/s1/file_a.txt",
-            "u1/s1/file_b.txt",
-            "u1/s2/file_c.txt",
-            "u2/s3/file_d.txt",
-            "u2/s3/file_e.txt",
-        ],
-        "user": ["u1", "u1", "u1", "u2", "u2"],
-        "session": ["s1", "s1", "s2", "s3", "s3"],
-    })
+    df = pl.DataFrame(
+        {
+            "path": [
+                "u1/s1/file_a.txt",
+                "u1/s1/file_b.txt",
+                "u1/s2/file_c.txt",
+                "u2/s3/file_d.txt",
+                "u2/s3/file_e.txt",
+            ],
+            "user": ["u1", "u1", "u1", "u2", "u2"],
+            "session": ["s1", "s1", "s2", "s3", "s3"],
+        }
+    )
 
     tr, va, te = ml.auto_split(df, train_val_test=(60, 20, 20), feature=("user", "session"), path_col="path", seed=0)
 

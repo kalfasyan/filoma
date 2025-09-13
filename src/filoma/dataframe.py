@@ -275,7 +275,7 @@ class DataFrame:
                     except Exception:
                         series = None
 
-                if 'series' in locals() and series is not None:
+                if "series" in locals() and series is not None:
                     # Use with_columns to add/replace the column
                     self._df = self._df.with_columns(series.alias(key))
                     self.invalidate_pandas_cache()
@@ -288,10 +288,7 @@ class DataFrame:
         except TypeError:
             # Polars raises TypeError for some unsupported assignment forms
             # (e.g., assigning a Series by index). Re-raise a clearer message
-            msg = (
-                "DataFrame object does not support `Series` assignment by index"
-                "\n\nUse `DataFrame.with_columns`."
-            )
+            msg = "DataFrame object does not support `Series` assignment by index\n\nUse `DataFrame.with_columns`."
             raise TypeError(msg)
 
     def invalidate_pandas_cache(self) -> None:
