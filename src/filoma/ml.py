@@ -342,6 +342,7 @@ def auto_split(
     feature: Union[str, Sequence[str]] = "path_parts",
     path_parts: Optional[Iterable[int]] = (-1,),
     seed: Optional[int] = None,
+    random_state: Optional[int] = None,
     discover: bool = False,
     sep: str = "_",
     feat_prefix: str = "feat",
@@ -368,6 +369,8 @@ def auto_split(
         path_parts: an iterable of integers selecting Path.parts indices (supports negative
             indices). Only used when `feature=='path_parts'`. Default picks -1 (filename).
         seed: optional integer to alter hashing for reproducible, different splits.
+        random_state: alias for `seed` (if provided it takes precedence). Named to match
+            sklearn's `train_test_split` for familiarity.
         discover: if True, automatically discover filename tokens and add columns
             named `prefix1`, `prefix2`, ... (or `token1`... if prefix=None).
         sep: separator used to split filename stems when `discover=True`.
@@ -424,7 +427,9 @@ def auto_split(
 
     # Feature grouping & assignment
     feature_to_idxs, paths = _build_feature_index(pl_work, path_col=path_col, feature=feature, path_parts=path_parts)
-    feature_assignment = _assign_features(feature_to_idxs, ratios=ratios, seed=seed)
+    # Determine effective seed: prefer `random_state` if provided for sklearn-like API
+    effective_seed = random_state if random_state is not None else seed
+    feature_assignment = _assign_features(feature_to_idxs, ratios=ratios, seed=effective_seed)
     mask = _mask_from_assignment(feature_to_idxs, feature_assignment, total=len(paths))
     tmp = pl_work.with_columns([pl.Series("_split", mask)])
 
