@@ -146,5 +146,25 @@ parents = pl_df.with_columns(pl_df['path'].str.split('/').list.slice(-2,1).alias
 parents.groupby('parent').count().sort('count', descending=True).head(20)
 ```
 
+## Smart File Search with FdFinder
+The `FdFinder` class provides a powerful way to search for files using regular expressions and glob patterns.
+
+```python
+from filoma.directories import FdFinder
+
+finder = FdFinder()
+
+# Find all Python files
+python_files = finder.find_files(pattern=r"\.py$")
+
+# Find files by multiple extensions
+code_files = finder.find_by_extension(['py', 'rs', 'js'])
+
+# Find files using a glob pattern
+config_files = finder.find_files(pattern="*.{json,yaml}", use_glob=True)
+
+print(f"Found {len(python_files)} Python files.")
+```
+
 ---
 Add a recipe request via an issue if something common is missing.
