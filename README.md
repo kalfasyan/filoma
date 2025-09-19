@@ -41,7 +41,7 @@
 
   
 ## Scope of `filoma`  
-<img src="images/flow.png" alt="filoma workflow diagram" width="800">  
+<img src="images/flow.png" alt="filoma workflow diagram" width="300">  
 
 ## Feature Highlights
 Quick, copyable examples showing filoma's standout capabilities and where to learn more.
