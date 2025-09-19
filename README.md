@@ -39,7 +39,8 @@
 - **🖼️ Image Profiling**: Extract metadata and statistics from various image formats.
 - **🔀 ML-Ready Splits**: Create deterministic train/validation/test datasets with ease.
 
----
+  
+<img src="images/flow.png" alt="filoma workflow diagram" width="800">  
 
 ## Feature Highlights
 Quick, copyable examples showing filoma's standout capabilities and where to learn more.
