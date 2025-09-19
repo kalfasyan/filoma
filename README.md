@@ -39,6 +39,58 @@
 - **🖼️ Image Profiling**: Extract metadata and statistics from various image formats.
 - **🔀 ML-Ready Splits**: Create deterministic train/validation/test datasets with ease.
 
+---
+
+## Feature Highlights
+Quick, copyable examples showing filoma's standout capabilities and where to learn more.
+
+- **Automatic multi-backend scanning:** filoma picks the fastest available backend (Rust → `fd` → pure Python). You can also force a backend for reproducibility. See the backends docs: `docs/backends.md`.
+
+```python
+from filoma import probe
+
+# filoma will pick Rust > fd > Python depending on availability
+analysis = probe('.')
+analysis.print_summary()
+```
+
+- **Polars-first DataFrame wrapper & enrichment:** Returns a `filoma.DataFrame` (Polars) with helpers to add path components, depth, and file stats for immediate analysis. Docs: `docs/dataframe.md`.
+
+```python
+from filoma import probe_to_df
+
+df = probe_to_df('.', enrich=True)  # returns a filoma.DataFrame
+print(df.head())
+```
+
+- **Ultra-fast discovery with `fd`:** When `fd` is available filoma uses it for very fast file discovery. Advanced usage and patterns: `docs/advanced-usage.md`.
+
+```python
+from filoma import fd
+
+if fd.is_available():
+    files = fd.find(pattern=r"\\.py$", path='src', max_depth=3)
+    print(len(files), 'python files found')
+```
+
+- **ML-ready, deterministic splits:** Group-aware, reproducible train/validation/test splitting to avoid leakage. See `docs/ml.md` for grouping options and examples.
+
+```python
+from filoma import probe_to_df, ml
+
+df = probe_to_df('.', enrich=False)
+train, val, test = ml.split_data(df, train_val_test=(70,15,15), seed=42)
+```
+
+- **Lightweight, lazy top-level API:** Importing `filoma` is cheap; heavy dependencies load only when used. Quickstart and one-line helpers: `docs/quickstart.md`.
+
+```python
+from filoma import probe_file, probe_to_df
+
+info = probe_file('README.md')
+df = probe_to_df('.')
+```
+
 ## Installation
 
 Install `filoma` using `uv` or `pip`:
