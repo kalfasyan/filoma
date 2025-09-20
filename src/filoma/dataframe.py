@@ -1,5 +1,4 @@
-"""
-DataFrame module for filoma - provides enhanced data manipulation capabilities
+"""DataFrame module for filoma - provides enhanced data manipulation capabilities
 for file and directory analysis results using Polars.
 
 Caching and pandas interop
@@ -103,8 +102,7 @@ def get_default_dataframe_backend() -> str:
 
 
 class DataFrame:
-    """
-    A wrapper around Polars DataFrame for enhanced file and directory analysis.
+    """A wrapper around Polars DataFrame for enhanced file and directory analysis.
 
     This class provides a specialized interface for working with file path data,
     allowing for easy manipulation and analysis of filesystem information.
@@ -114,17 +112,23 @@ class DataFrame:
     with additional file-specific functionality.
     """
 
-    def __init__(self, data: Optional[Union[pl.DataFrame, List[str], List[Path], Dict[str, Any]]] = None):
-        """
-        Initialize a DataFrame.
+    def __init__(
+        self,
+        data: Optional[
+            Union[pl.DataFrame, List[str], List[Path], Dict[str, Any]]
+        ] = None,
+    ):
+        """Initialize a DataFrame.
 
         Args:
+        ----
             data: Initial data. Can be:
                 - A Polars DataFrame
                 - A dictionary mapping column names to sequences (all same length)
                 - A list of string paths
                 - A list of Path objects
                 - None for an empty DataFrame
+
         """
         if data is None:
             self._df = pl.DataFrame({"path": []}, schema={"path": pl.String})
@@ -138,19 +142,25 @@ class DataFrame:
                 expected_len: Optional[int] = None
                 for col, values in data.items():
                     if not isinstance(values, (list, tuple)):
-                        raise ValueError("Dictionary values must be list or tuple sequences")
+                        raise ValueError(
+                            "Dictionary values must be list or tuple sequences"
+                        )
                     seq = [str(x) if isinstance(x, Path) else x for x in values]
                     if expected_len is None:
                         expected_len = len(seq)
                     elif len(seq) != expected_len:
-                        raise ValueError("All dictionary value sequences must have the same length")
+                        raise ValueError(
+                            "All dictionary value sequences must have the same length"
+                        )
                     processed[col] = seq
                 self._df = pl.DataFrame(processed)
         elif isinstance(data, list):
             paths = [str(path) for path in data]
             self._df = pl.DataFrame({"path": paths})
         else:
-            raise ValueError("data must be a Polars DataFrame, dict of columns, list of paths, or None")
+            raise ValueError(
+                "data must be a Polars DataFrame, dict of columns, list of paths, or None"
+            )
         self._pd_cache = None
         self.with_enrich = False
         self.with_filename_features = False
@@ -185,11 +195,12 @@ class DataFrame:
             self.invalidate_pandas_cache()
             return self._df
         except Exception as exc:
-            raise RuntimeError(f"Unable to coerce internal DataFrame to polars.DataFrame: {exc}")
+            raise RuntimeError(
+                f"Unable to coerce internal DataFrame to polars.DataFrame: {exc}"
+            )
 
     def __getattr__(self, name: str) -> Any:
-        """
-        Delegate attribute access to the underlying Polars DataFrame.
+        """Delegate attribute access to the underlying Polars DataFrame.
 
         This allows direct access to all Polars DataFrame methods and properties
         like columns, dtypes, shape, select, filter, group_by, etc.
@@ -272,7 +283,11 @@ class DataFrame:
                 else:
                     try:
                         # pandas Series -> polars Series
-                        if pd is not None and hasattr(value, "__array__") and not isinstance(value, (list, tuple)):
+                        if (
+                            pd is not None
+                            and hasattr(value, "__array__")
+                            and not isinstance(value, (list, tuple))
+                        ):
                             series = pl.Series(value)
                         elif isinstance(value, (list, tuple)):
                             series = pl.Series(key, list(value))
@@ -369,18 +384,27 @@ class DataFrame:
         return DataFrame(self._df.tail(n))
 
     def add_path_components(self, inplace: bool = False) -> "DataFrame":
-        """
-        Add columns for path components (parent, name, stem, suffix).
+        """Add columns for path components (parent, name, stem, suffix).
 
-        Returns:
+        Returns
+        -------
             New DataFrame with additional path component columns
+
         """
         df_with_components = self._df.with_columns(
             [
-                pl.col("path").map_elements(lambda x: str(Path(x).parent), return_dtype=pl.String).alias("parent"),
-                pl.col("path").map_elements(lambda x: Path(x).name, return_dtype=pl.String).alias("name"),
-                pl.col("path").map_elements(lambda x: Path(x).stem, return_dtype=pl.String).alias("stem"),
-                pl.col("path").map_elements(lambda x: Path(x).suffix, return_dtype=pl.String).alias("suffix"),
+                pl.col("path")
+                .map_elements(lambda x: str(Path(x).parent), return_dtype=pl.String)
+                .alias("parent"),
+                pl.col("path")
+                .map_elements(lambda x: Path(x).name, return_dtype=pl.String)
+                .alias("name"),
+                pl.col("path")
+                .map_elements(lambda x: Path(x).stem, return_dtype=pl.String)
+                .alias("stem"),
+                pl.col("path")
+                .map_elements(lambda x: Path(x).suffix, return_dtype=pl.String)
+                .alias("suffix"),
             ]
         )
         if inplace:
@@ -390,21 +414,29 @@ class DataFrame:
 
         return DataFrame(df_with_components)
 
-    def add_file_stats_cols(self, path: str = "path", base_path: Optional[Union[str, Path]] = None, inplace: bool = False) -> "DataFrame":
-        """
-        Add file statistics columns (size, modified time, etc.) based on a column
+    def add_file_stats_cols(
+        self,
+        path: str = "path",
+        base_path: Optional[Union[str, Path]] = None,
+        inplace: bool = False,
+    ) -> "DataFrame":
+        """Add file statistics columns (size, modified time, etc.) based on a column
         containing filesystem paths.
 
         Args:
+        ----
             path: Name of the column containing file system paths.
             base_path: Optional base path. If provided, any non-absolute paths in the
                        path column are resolved relative to this base.
 
         Returns:
+        -------
             New DataFrame with file statistics columns added, or ``self`` when ``inplace=True``.
 
         Raises:
+        ------
             ValueError: If the specified path column does not exist.
+
         """
         if path not in self._df.columns:
             raise ValueError(f"Column '{path}' not found in DataFrame")
@@ -502,15 +534,19 @@ class DataFrame:
 
         return DataFrame(df_with_stats)
 
-    def add_depth_col(self, path: Optional[Union[str, Path]] = None, inplace: bool = False) -> "DataFrame":
-        """
-        Add a depth column showing the nesting level of each path.
+    def add_depth_col(
+        self, path: Optional[Union[str, Path]] = None, inplace: bool = False
+    ) -> "DataFrame":
+        """Add a depth column showing the nesting level of each path.
 
         Args:
+        ----
             path: The path to calculate depth from. If None, uses the common root.
 
         Returns:
+        -------
             New DataFrame with depth column
+
         """
         if path is None:
             # Find the common root path
@@ -543,7 +579,13 @@ class DataFrame:
                 # Path is not relative to the provided root path
                 return len(Path(path_str).parts)
 
-        df_with_depth = self._df.with_columns([pl.col("path").map_elements(calculate_depth, return_dtype=pl.Int64).alias("depth")])
+        df_with_depth = self._df.with_columns(
+            [
+                pl.col("path")
+                .map_elements(calculate_depth, return_dtype=pl.Int64)
+                .alias("depth")
+            ]
+        )
         if inplace:
             self._df = df_with_depth
             self.invalidate_pandas_cache()
@@ -552,14 +594,16 @@ class DataFrame:
         return DataFrame(df_with_depth)
 
     def filter_by_extension(self, extensions: Union[str, List[str]]) -> "DataFrame":
-        """
-        Filter the DataFrame to only include files with specific extensions.
+        """Filter the DataFrame to only include files with specific extensions.
 
         Args:
+        ----
             extensions: File extension(s) to filter by (with or without leading dot)
 
         Returns:
+        -------
             Filtered DataFrame
+
         """
         if isinstance(extensions, str):
             extensions = [extensions]
@@ -571,35 +615,47 @@ class DataFrame:
                 ext = "." + ext
             normalized_extensions.append(ext.lower())
 
-        filtered_df = self._df.filter(pl.col("path").map_elements(lambda x: Path(x).suffix.lower() in normalized_extensions, return_dtype=pl.Boolean))
+        filtered_df = self._df.filter(
+            pl.col("path").map_elements(
+                lambda x: Path(x).suffix.lower() in normalized_extensions,
+                return_dtype=pl.Boolean,
+            )
+        )
         return DataFrame(filtered_df)
 
     def filter_by_pattern(self, pattern: str) -> "DataFrame":
-        """
-        Filter the DataFrame by path pattern.
+        """Filter the DataFrame by path pattern.
 
         Args:
+        ----
             pattern: Pattern to match (uses Polars string contains)
 
         Returns:
+        -------
             Filtered DataFrame
-        """
 
+        """
         filtered_df = self._df.filter(pl.col("path").str.contains(pattern))
         return DataFrame(filtered_df)
 
     def group_by_extension(self) -> pl.DataFrame:
-        """
-        Group files by extension and count them.
+        """Group files by extension and count them.
 
-        Returns:
+        Returns
+        -------
             Polars DataFrame with extension counts
+
         """
         # underlying `_df` is expected to be a Polars DataFrame
         df_with_ext = self._df.with_columns(
             [
                 pl.col("path")
-                .map_elements(lambda x: Path(x).suffix.lower() if Path(x).suffix else "<no extension>", return_dtype=pl.String)
+                .map_elements(
+                    lambda x: (
+                        Path(x).suffix.lower() if Path(x).suffix else "<no extension>"
+                    ),
+                    return_dtype=pl.String,
+                )
                 .alias("extension")
             ]
         )
@@ -607,17 +663,24 @@ class DataFrame:
         return DataFrame(result)
 
     def group_by_directory(self) -> pl.DataFrame:
-        """
-        Group files by their parent directory and count them.
+        """Group files by their parent directory and count them.
 
-        Returns:
+        Returns
+        -------
             Polars DataFrame with directory counts
+
         """
         # underlying `_df` is expected to be a Polars DataFrame
         df_with_parent = self._df.with_columns(
-            [pl.col("path").map_elements(lambda x: str(Path(x).parent), return_dtype=pl.String).alias("parent_dir")]
+            [
+                pl.col("path")
+                .map_elements(lambda x: str(Path(x).parent), return_dtype=pl.String)
+                .alias("parent_dir")
+            ]
         )
-        result = df_with_parent.group_by("parent_dir").len().sort("len", descending=True)
+        result = (
+            df_with_parent.group_by("parent_dir").len().sort("len", descending=True)
+        )
         return DataFrame(result)
 
     def to_polars(self) -> pl.DataFrame:
@@ -632,7 +695,9 @@ class DataFrame:
         current Polars DataFrame and update the cache.
         """
         if pd is None:
-            raise ImportError("pandas is not installed. Please install it to use to_pandas().")
+            raise ImportError(
+                "pandas is not installed. Please install it to use to_pandas()."
+            )
         # Convert and cache on first access or when forced
         if force or self._pd_cache is None:
             # Use Polars' to_pandas conversion for consistency
@@ -653,11 +718,15 @@ class DataFrame:
         ``to_pandas(force=False)`` to access the cached conversion for repeated
         reads, or ``to_pandas(force=True)`` to reconvert and update the cache.
 
-        Raises:
+        Raises
+        ------
             ImportError: if pandas is not installed.
+
         """
         if pd is None:
-            raise ImportError("pandas is not installed. Please install it to use pandas property.")
+            raise ImportError(
+                "pandas is not installed. Please install it to use pandas property."
+            )
         return self._df.to_pandas()
 
     @property
@@ -746,11 +815,12 @@ class DataFrame:
             return (int(rows), int(cols))
 
     def describe(self, percentiles: Optional[List[float]] = None) -> pl.DataFrame:
-        """
-        Generate descriptive statistics.
+        """Generate descriptive statistics.
 
         Args:
+        ----
             percentiles: List of percentiles to include (default: [0.25, 0.5, 0.75])
+
         """
         # Polars' describe returns a new DataFrame summarizing columns; wrap it
         return DataFrame(self._df.describe(percentiles=percentiles))
@@ -773,11 +843,12 @@ class DataFrame:
         print(f"\nEstimated memory usage: {memory_mb:.2f} MB")
 
     def unique(self, subset: Optional[Union[str, List[str]]] = None) -> "DataFrame":
-        """
-        Get unique rows.
+        """Get unique rows.
 
         Args:
+        ----
             subset: Column name(s) to consider for uniqueness
+
         """
         if subset is None:
             result = self._df.unique()
@@ -786,12 +857,13 @@ class DataFrame:
         return DataFrame(result)
 
     def sort(self, by: Union[str, List[str]], descending: bool = False) -> "DataFrame":
-        """
-        Sort the DataFrame.
+        """Sort the DataFrame.
 
         Args:
+        ----
             by: Column name(s) to sort by
             descending: Sort in descending order
+
         """
         result = self._df.sort(by, descending=descending)
         return DataFrame(result)
@@ -846,15 +918,18 @@ class DataFrame:
         )
 
     def enrich(self, inplace: bool = False):
-        """
-        Enrich the DataFrame by adding features like path components, file stats, and depth.
+        """Enrich the DataFrame by adding features like path components, file stats, and depth.
 
         Args:
+        ----
             inplace: If True, perform the operation in-place and return self.
                      If False (default), return a new DataFrame with the changes.
+
         """
         # Chain the enrichment methods; this produces a new DataFrame wrapper
-        enriched_wrapper = self.add_path_components().add_file_stats_cols().add_depth_col()
+        enriched_wrapper = (
+            self.add_path_components().add_file_stats_cols().add_depth_col()
+        )
         enriched_wrapper.with_enrich = True
 
         if inplace:
@@ -886,7 +961,12 @@ class DataFrame:
             raise ValueError(f"Column '{path_col}' not found in DataFrame")
 
         paths = [str(p) for p in self._df[path_col].to_list()]
-        res = _dedup.find_duplicates(paths, text_k=text_k, text_threshold=text_threshold, image_max_distance=image_max_distance)
+        res = _dedup.find_duplicates(
+            paths,
+            text_k=text_k,
+            text_threshold=text_threshold,
+            image_max_distance=image_max_distance,
+        )
 
         # Summarize counts
         exact_groups = res.get("exact", [])
@@ -899,9 +979,21 @@ class DataFrame:
             table.add_column("Type", style="bold cyan")
             table.add_column("Groups", style="white")
             table.add_column("Files In Groups", style="white")
-            table.add_row("exact", str(len(exact_groups)), str(sum(len(g) for g in exact_groups) if exact_groups else 0))
-            table.add_row("text", str(len(text_groups)), str(sum(len(g) for g in text_groups) if text_groups else 0))
-            table.add_row("image", str(len(image_groups)), str(sum(len(g) for g in image_groups) if image_groups else 0))
+            table.add_row(
+                "exact",
+                str(len(exact_groups)),
+                str(sum(len(g) for g in exact_groups) if exact_groups else 0),
+            )
+            table.add_row(
+                "text",
+                str(len(text_groups)),
+                str(sum(len(g) for g in text_groups) if text_groups else 0),
+            )
+            table.add_row(
+                "image",
+                str(len(image_groups)),
+                str(sum(len(g) for g in image_groups) if image_groups else 0),
+            )
             console.print(table)
 
         logger.info(
@@ -927,13 +1019,13 @@ class DataFrame:
         enrich: bool = False,
         inplace: bool = False,
     ) -> "DataFrame":
-        """
-        Discover filename features and add them as columns on this DataFrame.
+        """Discover filename features and add them as columns on this DataFrame.
 
         This instance method discovers separator-based tokens from filename
         stems and adds columns (e.g., `feat1`, `feat2` or `token1`, ...).
 
         Args:
+        ----
             path_col: Column containing path strings to analyze (default: 'path').
             sep: Separator used to split filename stems (default: '_').
             prefix: Column name prefix for discovered tokens (default: 'feat').
@@ -945,7 +1037,9 @@ class DataFrame:
             inplace: If True, perform the operation in-place and return self. Otherwise returns a new `filoma.DataFrame`.
 
         Returns:
+        -------
             A new or modified `filoma.DataFrame` with discovered filename features.
+
         """
         # Determine the base Polars DataFrame for feature discovery
         base_df = self
@@ -979,7 +1073,11 @@ class DataFrame:
 
         new_cols = []
         for i in range(eff_max):
-            if token_names_seq is not None and i < len(token_names_seq) and token_names_seq[i]:
+            if (
+                token_names_seq is not None
+                and i < len(token_names_seq)
+                and token_names_seq[i]
+            ):
                 col_name = token_names_seq[i]
             elif auto_mode:
                 base = prefix if prefix else "token"
@@ -998,10 +1096,18 @@ class DataFrame:
                 except Exception:
                     return ""
 
-            new_cols.append(pl.col(path_col).map_elements(pick_token, return_dtype=pl.Utf8).alias(col_name))
+            new_cols.append(
+                pl.col(path_col)
+                .map_elements(pick_token, return_dtype=pl.Utf8)
+                .alias(col_name)
+            )
 
         if include_parent:
-            new_cols.append(pl.col(path_col).map_elements(lambda s: Path(s).parent.name, return_dtype=pl.Utf8).alias("parent"))
+            new_cols.append(
+                pl.col(path_col)
+                .map_elements(lambda s: Path(s).parent.name, return_dtype=pl.Utf8)
+                .alias("parent")
+            )
 
         if include_all_parts:
             parts_lists = [list(Path(s).parts) for s in pl_df[path_col].to_list()]
@@ -1016,7 +1122,11 @@ class DataFrame:
                     except Exception:
                         return ""
 
-                new_cols.append(pl.col(path_col).map_elements(pick_part, return_dtype=pl.Utf8).alias(col_name))
+                new_cols.append(
+                    pl.col(path_col)
+                    .map_elements(pick_part, return_dtype=pl.Utf8)
+                    .alias(col_name)
+                )
 
         pl_result = pl_df.with_columns(new_cols)
 

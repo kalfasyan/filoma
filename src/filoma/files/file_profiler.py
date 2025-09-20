@@ -15,8 +15,7 @@ from filoma import dedup as _dedup
 
 
 class FileProfiler:
-    """
-    Profiles a file for system metadata: size, permissions, owner, group, timestamps, etc.
+    """Profiles a file for system metadata: size, permissions, owner, group, timestamps, etc.
     Uses lstat to correctly identify symlinks, and also checks the target type if symlink.
     Also reports current user's access rights.
     """
@@ -25,10 +24,11 @@ class FileProfiler:
         """Profile a file and return a `Filo` dataclass.
 
         Args:
+        ----
             path: filesystem path to probe
             compute_hash: whether to compute SHA256 (may be slow)
-        """
 
+        """
         path_obj = Path(path)
         full_path = str(path_obj.resolve(strict=False))
 
@@ -59,11 +59,25 @@ class FileProfiler:
             "path": full_path,
             "size": st.st_size,
             "mode": oct(st.st_mode),
-            "owner": pwd.getpwuid(st.st_uid).pw_name if hasattr(pwd, "getpwuid") else st.st_uid,
-            "group": grp.getgrgid(st.st_gid).gr_name if hasattr(grp, "getgrgid") else st.st_gid,
-            "created": datetime.datetime.fromtimestamp(st.st_ctime).strftime("%Y-%m-%d %H:%M:%S"),
-            "modified": datetime.datetime.fromtimestamp(st.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
-            "accessed": datetime.datetime.fromtimestamp(st.st_atime).strftime("%Y-%m-%d %H:%M:%S"),
+            "owner": (
+                pwd.getpwuid(st.st_uid).pw_name
+                if hasattr(pwd, "getpwuid")
+                else st.st_uid
+            ),
+            "group": (
+                grp.getgrgid(st.st_gid).gr_name
+                if hasattr(grp, "getgrgid")
+                else st.st_gid
+            ),
+            "created": datetime.datetime.fromtimestamp(st.st_ctime).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+            "modified": datetime.datetime.fromtimestamp(st.st_mtime).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+            "accessed": datetime.datetime.fromtimestamp(st.st_atime).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
             "is_symlink": is_symlink,
             "rights": rights,
         }
@@ -104,7 +118,16 @@ class FileProfiler:
         table.add_column("Field", style="bold cyan")
         table.add_column("Value", style="white")
         # Only show target_is_file/target_is_dir if is_symlink, otherwise show is_file/is_dir
-        fields = ["size", "mode", "owner", "group", "created", "modified", "accessed", "is_symlink"]
+        fields = [
+            "size",
+            "mode",
+            "owner",
+            "group",
+            "created",
+            "modified",
+            "accessed",
+            "is_symlink",
+        ]
         if report.get("is_symlink"):
             fields += ["target_is_file", "target_is_dir"]
         else:
@@ -136,7 +159,10 @@ class FileProfiler:
             try:
                 import xattr as _xattr
 
-                xa = {k.decode(): _xattr.get(path, k).decode(errors="ignore") for k in _xattr.listxattr(path)}
+                xa = {
+                    k.decode(): _xattr.get(path, k).decode(errors="ignore")
+                    for k in _xattr.listxattr(path)
+                }
                 return xa
             except Exception:
                 # fallback to os.listxattr if available
@@ -149,7 +175,11 @@ class FileProfiler:
                                 kk = k.decode(errors="ignore")
                             else:
                                 kk = k
-                            xa[kk] = v.decode(errors="ignore") if isinstance(v, (bytes, bytearray)) else str(v)
+                            xa[kk] = (
+                                v.decode(errors="ignore")
+                                if isinstance(v, (bytes, bytearray))
+                                else str(v)
+                            )
                         except Exception:
                             xa[k] = None
                     return xa

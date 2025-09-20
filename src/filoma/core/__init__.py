@@ -1,5 +1,4 @@
-"""
-Core utilities for filoma.
+"""Core utilities for filoma.
 
 This module provides shared utilities and command execution capabilities
 for integrating with external tools like fd.

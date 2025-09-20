@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Test script to demonstrate the new progress indication and timing features
+"""Test script to demonstrate the new progress indication and timing features
 for the directory profiler.
 """
 
@@ -27,10 +26,28 @@ def test_progress_features():
 
     test_dir = Path(tempfile.mkdtemp())
     configs = [
-        {"name": "Python Implementation with Progress", "use_rust": False, "show_progress": True},
-        {"name": "Rust Sequential with Progress", "use_rust": True, "use_parallel": False, "show_progress": True},
-        {"name": "Rust Parallel with Progress", "use_rust": True, "use_parallel": True, "show_progress": True},
-        {"name": "Python Implementation without Progress", "use_rust": False, "show_progress": False},
+        {
+            "name": "Python Implementation with Progress",
+            "use_rust": False,
+            "show_progress": True,
+        },
+        {
+            "name": "Rust Sequential with Progress",
+            "use_rust": True,
+            "use_parallel": False,
+            "show_progress": True,
+        },
+        {
+            "name": "Rust Parallel with Progress",
+            "use_rust": True,
+            "use_parallel": True,
+            "show_progress": True,
+        },
+        {
+            "name": "Python Implementation without Progress",
+            "use_rust": False,
+            "show_progress": False,
+        },
     ]
 
     for config in configs:
@@ -73,7 +90,9 @@ def test_custom_progress_callback():
         else:
             print(f"📊 {message} - {current:,} items processed")
 
-    profiler_cfg = DirectoryProfilerConfig(use_rust=False, show_progress=False, progress_callback=custom_callback)
+    profiler_cfg = DirectoryProfilerConfig(
+        use_rust=False, show_progress=False, progress_callback=custom_callback
+    )
     profiler = DirectoryProfiler(profiler_cfg)
     # Use a tiny tempdir for callback test
     tmp = Path(tempfile.mkdtemp())

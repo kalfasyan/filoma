@@ -7,12 +7,14 @@ from typing import Callable, Dict, List, Optional
 
 from loguru import logger
 from rich.console import Console
-from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.progress import (BarColumn, Progress, SpinnerColumn, TextColumn,
+                           TimeElapsedColumn)
 from rich.table import Table
 
 # Try to import the Rust implementation
 try:
-    from filoma.filoma_core import probe_directory_rust, probe_directory_rust_parallel
+    from filoma.filoma_core import (probe_directory_rust,
+                                    probe_directory_rust_parallel)
 
     RUST_AVAILABLE = True
     RUST_PARALLEL_AVAILABLE = True
@@ -88,10 +90,15 @@ class DirectoryProfilerConfig:
     def __post_init__(self):
         # Basic validations
         if self.search_backend not in ("auto", "rust", "fd", "python"):
-            raise ValueError("search_backend must be one of 'auto','rust','fd','python'")
+            raise ValueError(
+                "search_backend must be one of 'auto','rust','fd','python'"
+            )
         if not isinstance(self.parallel_threshold, int) or self.parallel_threshold < 0:
             raise ValueError("parallel_threshold must be a non-negative integer")
-        if not isinstance(self.network_concurrency, int) or self.network_concurrency <= 0:
+        if (
+            not isinstance(self.network_concurrency, int)
+            or self.network_concurrency <= 0
+        ):
             raise ValueError("network_concurrency must be a positive integer")
         if self.network_timeout_ms <= 0:
             raise ValueError("network_timeout_ms must be positive")
@@ -99,7 +106,11 @@ class DirectoryProfilerConfig:
             raise ValueError("network_retries must be non-negative")
 
         # Relationship validations
-        if not self.use_async and (self.network_concurrency != 64 or self.network_timeout_ms != 5000 or self.network_retries != 0):
+        if not self.use_async and (
+            self.network_concurrency != 64
+            or self.network_timeout_ms != 5000
+            or self.network_retries != 0
+        ):
             raise ValueError("Network tuning parameters only apply when use_async=True")
         if self.threads is not None and not self.use_fd:
             raise ValueError("'threads' only applies when use_fd=True")
@@ -242,8 +253,7 @@ class DirectoryAnalysis(Mapping):
 
 
 class DirectoryProfiler:
-    """
-    Analyzes directory structures for basic statistics and patterns.
+    """Analyzes directory structures for basic statistics and patterns.
     Provides file counts, folder patterns, empty directories, and extension analysis.
 
     Can use either a pure Python implementation or a faster Rust implementation
@@ -251,8 +261,7 @@ class DirectoryProfiler:
     """
 
     def __init__(self, config: "DirectoryProfilerConfig"):
-        """
-        Initialize the directory profiler.
+        """Initialize the directory profiler.
 
         The profiler is configured with a `DirectoryProfilerConfig` instance which
         holds options such as whether to use Rust acceleration, parallel processing,
@@ -262,8 +271,13 @@ class DirectoryProfiler:
         configurable field.
         """
         # Expect a DirectoryProfilerConfig object — no legacy kwargs supported.
-        if not hasattr(config, "__class__") or config.__class__.__name__ != "DirectoryProfilerConfig":
-            raise TypeError("DirectoryProfiler requires a DirectoryProfilerConfig instance as the sole argument")
+        if (
+            not hasattr(config, "__class__")
+            or config.__class__.__name__ != "DirectoryProfilerConfig"
+        ):
+            raise TypeError(
+                "DirectoryProfiler requires a DirectoryProfilerConfig instance as the sole argument"
+            )
 
         self.console = Console()
         self.config = config
@@ -278,18 +292,32 @@ class DirectoryProfiler:
         # Validate availability and enforce clear relationships
         # Use explicit booleans from the config
         if config.use_rust and not RUST_AVAILABLE:
-            raise RuntimeError("Rust implementation requested but not available in this build")
+            raise RuntimeError(
+                "Rust implementation requested but not available in this build"
+            )
         if config.use_parallel and not RUST_PARALLEL_AVAILABLE:
             raise RuntimeError("Parallel Rust requested but not available")
         if config.use_async and not RUST_ASYNC_AVAILABLE:
-            raise RuntimeError("Async Rust prober requested but not available in this build")
+            raise RuntimeError(
+                "Async Rust prober requested but not available in this build"
+            )
         if config.use_fd and not FD_AVAILABLE:
-            raise RuntimeError("fd integration requested but not available in this environment")
+            raise RuntimeError(
+                "fd integration requested but not available in this environment"
+            )
         if config.build_dataframe and not DATAFRAME_AVAILABLE:
-            raise RuntimeError("DataFrame building requested but Polars/DataFrame support is not available")
+            raise RuntimeError(
+                "DataFrame building requested but Polars/DataFrame support is not available"
+            )
 
         # Network args only apply when use_async is True (explicit)
-        if not config.use_async and any((config.network_concurrency != 64, config.network_timeout_ms != 5000, config.network_retries != 0)):
+        if not config.use_async and any(
+            (
+                config.network_concurrency != 64,
+                config.network_timeout_ms != 5000,
+                config.network_retries != 0,
+            )
+        ):
             raise ValueError("Network tuning parameters only apply when use_async=True")
 
         # Threads only applies when use_fd is True
@@ -337,7 +365,9 @@ class DirectoryProfiler:
         self.return_absolute_paths = bool(config.return_absolute_paths)
         # Progress handling
         if _is_interactive_environment() and config.show_progress:
-            logger.debug("Interactive environment detected, disabling progress bars to avoid conflicts")
+            logger.debug(
+                "Interactive environment detected, disabling progress bars to avoid conflicts"
+            )
             self.show_progress = False
         else:
             self.show_progress = bool(config.show_progress)
@@ -354,41 +384,44 @@ class DirectoryProfiler:
         self.fd_integration = None
 
     def is_rust_available(self) -> bool:
-        """
-        Check if Rust implementation is available and being used.
+        """Check if Rust implementation is available and being used.
 
-        Returns:
+        Returns
+        -------
             True if Rust implementation is available and enabled, False otherwise
+
         """
         return self.use_rust and RUST_AVAILABLE
 
     def is_parallel_available(self) -> bool:
-        """
-        Check if parallel Rust implementation is available and being used.
+        """Check if parallel Rust implementation is available and being used.
 
-        Returns:
+        Returns
+        -------
             True if parallel Rust implementation is available and enabled, False otherwise
+
         """
         return self.use_parallel and RUST_PARALLEL_AVAILABLE
 
     def is_fd_available(self) -> bool:
-        """
-        Check if fd integration is available and being used.
+        """Check if fd integration is available and being used.
 
-        Returns:
+        Returns
+        -------
             True if fd is available and enabled, False otherwise
-        """
 
+        """
         # Use FD_AVAILABLE to reflect whether the fd integration package is importable
         # Tests may monkeypatch FD_AVAILABLE without having the fd binary present.
         return self.use_fd and FD_AVAILABLE
 
     def get_implementation_info(self) -> Dict[str, bool]:
-        """
-        Get information about which implementations are available and being used.
+        """Get information about which implementations are available and being used.
 
-        Returns:
+        Returns
+        -------
             Dictionary with implementation availability status
+
         """
         return {
             "rust_available": RUST_AVAILABLE,
@@ -406,16 +439,20 @@ class DirectoryProfiler:
             "python_fallback": not (self.use_rust or self.use_fd),
         }
 
-    def probe(self, path: str, max_depth: Optional[int] = None, threads: Optional[int] = None) -> "DirectoryAnalysis":
-        """
-        Analyze a directory tree and return comprehensive statistics.
+    def probe(
+        self, path: str, max_depth: Optional[int] = None, threads: Optional[int] = None
+    ) -> "DirectoryAnalysis":
+        """Analyze a directory tree and return comprehensive statistics.
 
         Args:
+        ----
             path: Path to the root directory to probe
             max_depth: Maximum depth to traverse (None for unlimited)
 
         Returns:
+        -------
             A :class:`DirectoryAnalysis` instance containing analysis results
+
         """
         start_time = time.time()
 
@@ -424,7 +461,9 @@ class DirectoryProfiler:
 
         # Log the start of analysis
         impl_type = self._get_impl_display_name(backend)
-        logger.info(f"Starting directory analysis of '{path}' using {impl_type} implementation")
+        logger.info(
+            f"Starting directory analysis of '{path}' using {impl_type} implementation"
+        )
 
         try:
             if backend == "fd":
@@ -432,13 +471,17 @@ class DirectoryProfiler:
                 chosen_threads = threads if threads is not None else self.threads
                 result = self._probe_fd(path, max_depth, threads=chosen_threads)
             elif backend == "rust":
-                result = self._probe_rust(path, max_depth, fast_path_only=self._fast_path_only)
+                result = self._probe_rust(
+                    path, max_depth, fast_path_only=self._fast_path_only
+                )
             else:
                 result = self._probe_python(path, max_depth)
 
             # Calculate and log timing
             elapsed_time = time.time() - start_time
-            total_items = result["summary"]["total_files"] + result["summary"]["total_folders"]
+            total_items = (
+                result["summary"]["total_files"] + result["summary"]["total_folders"]
+            )
 
             logger.success(
                 f"Directory analysis completed in {elapsed_time:.2f}s - "
@@ -450,7 +493,9 @@ class DirectoryProfiler:
             result["timing"] = {
                 "elapsed_seconds": elapsed_time,
                 "implementation": impl_type,
-                "items_per_second": total_items / elapsed_time if elapsed_time > 0 else 0,
+                "items_per_second": (
+                    total_items / elapsed_time if elapsed_time > 0 else 0
+                ),
             }
 
             # Return a structured dataclass by default for easier programmatic use
@@ -458,15 +503,18 @@ class DirectoryProfiler:
 
         except Exception as e:
             elapsed_time = time.time() - start_time
-            logger.error(f"Directory analysis failed after {elapsed_time:.2f}s: {str(e)}")
+            logger.error(
+                f"Directory analysis failed after {elapsed_time:.2f}s: {str(e)}"
+            )
             raise
 
     def _choose_backend(self) -> str:
-        """
-        Choose the best available backend based on settings and availability.
+        """Choose the best available backend based on settings and availability.
 
-        Returns:
+        Returns
+        -------
             Backend name: "fd", "rust", or "python"
+
         """
         # If search_backend is 'auto' and neither rust nor fd are requested
         # by the resolved preferences, prefer the Python backend. This avoids
@@ -478,13 +526,17 @@ class DirectoryProfiler:
             if self.use_fd and FD_AVAILABLE:
                 return "fd"
             else:
-                logger.warning("fd backend requested but not available, falling back to auto selection")
+                logger.warning(
+                    "fd backend requested but not available, falling back to auto selection"
+                )
 
         elif self.search_backend == "rust":
             if self.use_rust:
                 return "rust"
             else:
-                logger.warning("Rust backend requested but not available, falling back to auto selection")
+                logger.warning(
+                    "Rust backend requested but not available, falling back to auto selection"
+                )
 
         elif self.search_backend == "python":
             return "python"
@@ -517,9 +569,10 @@ class DirectoryProfiler:
         else:
             return "🐍 Python"
 
-    def _probe_fd(self, path: str, max_depth: Optional[int] = None, threads: Optional[int] = None) -> Dict:
-        """
-        Use fd for file discovery + Python for analysis.
+    def _probe_fd(
+        self, path: str, max_depth: Optional[int] = None, threads: Optional[int] = None
+    ) -> Dict:
+        """Use fd for file discovery + Python for analysis.
 
         This hybrid approach leverages fd's ultra-fast file discovery
         while using Python for statistical analysis to maintain
@@ -581,12 +634,16 @@ class DirectoryProfiler:
                 "threads": threads,
             }
             if self.search_backend == "auto":
-                fd_find_kwargs.update({"search_hidden": True, "no_ignore": True, "follow_links": True})
+                fd_find_kwargs.update(
+                    {"search_hidden": True, "no_ignore": True, "follow_links": True}
+                )
 
             all_files = self.fd_integration.find(**fd_find_kwargs)
 
             if progress and task_id is not None:
-                progress.update(task_id, description="[bold blue]Finding directories...")
+                progress.update(
+                    task_id, description="[bold blue]Finding directories..."
+                )
 
             all_dirs = self.fd_integration.find(
                 path=path,
@@ -616,7 +673,9 @@ class DirectoryProfiler:
                     prebuilt_df = None
 
             if progress and task_id is not None:
-                progress.update(task_id, description="[bold yellow]Analyzing discovered files...")
+                progress.update(
+                    task_id, description="[bold yellow]Analyzing discovered files..."
+                )
                 progress.update(task_id, total=100, completed=50)
 
                 # Now probe the discovered paths using Python logic
@@ -708,18 +767,19 @@ class DirectoryProfiler:
         existing_task_id=None,
         prebuilt_dataframe=None,
     ) -> Dict:
-        """
-        Analyze pre-discovered paths using Python logic.
+        """Analyze pre-discovered paths using Python logic.
 
         This method takes a list of paths (from fd or other source) and performs
         the statistical analysis to maintain consistency with the Python backend.
 
         Args:
+        ----
             path: Root directory being probed
             all_paths: List of paths to probe
             max_depth: Maximum depth for analysis
             existing_progress: Existing progress bar to reuse (avoids conflicts)
             existing_task_id: Existing task ID to update
+
         """
         # Initialize counters and collections
         file_count = 0
@@ -736,7 +796,9 @@ class DirectoryProfiler:
 
         # Collection for DataFrame if enabled. If a prebuilt_dataframe is provided
         # (e.g. from fd results), skip collecting paths and attach it at the end.
-        dataframe_paths = [] if (self.build_dataframe and prebuilt_dataframe is None) else None
+        dataframe_paths = (
+            [] if (self.build_dataframe and prebuilt_dataframe is None) else None
+        )
 
         # Sort paths for better progress indication (guard against None or unsortable lists)
         if all_paths:
@@ -768,7 +830,12 @@ class DirectoryProfiler:
             progress_owned = True
         elif existing_progress and existing_task_id:
             # Update existing progress for the analysis phase
-            existing_progress.update(existing_task_id, description="[bold yellow]Analyzing file metadata...", total=len(all_paths), completed=0)
+            existing_progress.update(
+                existing_task_id,
+                description="[bold yellow]Analyzing file metadata...",
+                total=len(all_paths),
+                completed=0,
+            )
 
         try:
             for current_path in all_paths:
@@ -780,7 +847,11 @@ class DirectoryProfiler:
                         progress.update(task_id, completed=processed_items)
 
                     if self.progress_callback:
-                        self.progress_callback(f"Processing: {current_path.name}", processed_items, len(all_paths))
+                        self.progress_callback(
+                            f"Processing: {current_path.name}",
+                            processed_items,
+                            len(all_paths),
+                        )
 
                 # Calculate current depth
                 try:
@@ -840,7 +911,9 @@ class DirectoryProfiler:
             avg_files_per_folder = file_count / max(1, folder_count)
 
             # Find folders with most files
-            top_folders_by_file_count = sorted(files_per_folder.items(), key=lambda x: x[1], reverse=True)[:10]
+            top_folders_by_file_count = sorted(
+                files_per_folder.items(), key=lambda x: x[1], reverse=True
+            )[:10]
 
             # Build result dictionary
             result = {
@@ -875,9 +948,10 @@ class DirectoryProfiler:
             if progress and progress_owned:
                 progress.stop()
 
-    def _probe_rust(self, path: str, max_depth: Optional[int] = None, fast_path_only: bool = False) -> Dict:
-        """
-        Use the Rust implementation for analysis.
+    def _probe_rust(
+        self, path: str, max_depth: Optional[int] = None, fast_path_only: bool = False
+    ) -> Dict:
+        """Use the Rust implementation for analysis.
 
         For performance, the main statistical analysis is done in Rust.
         If DataFrame building is enabled, file paths are collected separately
@@ -909,7 +983,10 @@ class DirectoryProfiler:
             is_network_fs = False
             if fs_type:
                 # Common network FS types
-                if any(x in fs_type.lower() for x in ("nfs", "cifs", "smb", "ceph", "gluster", "sshfs")):
+                if any(
+                    x in fs_type.lower()
+                    for x in ("nfs", "cifs", "smb", "ceph", "gluster", "sshfs")
+                ):
                     is_network_fs = True
 
             # If network FS choose async Rust prober which limits concurrency and uses tokio
@@ -1043,7 +1120,9 @@ class DirectoryProfiler:
             # since the Rust implementation doesn't return them
             if self.build_dataframe and DATAFRAME_AVAILABLE:
                 if progress and task_id is not None:
-                    progress.update(task_id, description="[bold yellow]Building DataFrame...")
+                    progress.update(
+                        task_id, description="[bold yellow]Building DataFrame..."
+                    )
 
                 root_path_obj = Path(path)
                 all_paths = []
@@ -1067,15 +1146,21 @@ class DirectoryProfiler:
                             continue
                 except (OSError, PermissionError, FileNotFoundError):
                     # If rglob fails entirely, provide DataFrame with whatever we collected
-                    self.console.print("[yellow]Warning: Some paths couldn't be accessed for DataFrame building[/yellow]")
-                    logger.warning(f"DataFrame building encountered permission errors on {path}, providing partial results")
+                    self.console.print(
+                        "[yellow]Warning: Some paths couldn't be accessed for DataFrame building[/yellow]"
+                    )
+                    logger.warning(
+                        f"DataFrame building encountered permission errors on {path}, providing partial results"
+                    )
                     permission_errors_encountered = True
 
                 # Add DataFrame to the result (may be partial if there were permission errors)
                 result["dataframe"] = DataFrame(all_paths)
                 if permission_errors_encountered:
                     # Add a note only if we actually encountered permission errors
-                    result["dataframe_note"] = "DataFrame may be incomplete due to permission restrictions"
+                    result["dataframe_note"] = (
+                        "DataFrame may be incomplete due to permission restrictions"
+                    )
 
                 if progress and task_id is not None:
                     progress.update(task_id, description="[bold green]DataFrame built!")
@@ -1087,9 +1172,7 @@ class DirectoryProfiler:
                 progress.stop()
 
     def _probe_python(self, path: str, max_depth: Optional[int] = None) -> Dict:
-        """
-        Pure Python implementation with enhanced DataFrame support and progress indication.
-        """
+        """Pure Python implementation with enhanced DataFrame support and progress indication."""
         path_root = Path(path)
         if not path_root.exists():
             raise ValueError(f"Path does not exist: {path_root}")
@@ -1144,12 +1227,18 @@ class DirectoryProfiler:
 
                         # Update progress
                         if progress and task_id is not None:
-                            if processed_items % 100 == 0:  # Update every 100 items for performance
+                            if (
+                                processed_items % 100 == 0
+                            ):  # Update every 100 items for performance
                                 progress.update(task_id, completed=processed_items)
 
                             # Call custom progress callback if provided
                             if self.progress_callback:
-                                self.progress_callback(f"Processing: {current_path.name}", processed_items, total_items or 0)
+                                self.progress_callback(
+                                    f"Processing: {current_path.name}",
+                                    processed_items,
+                                    total_items or 0,
+                                )
 
                         # Calculate current depth
                         try:
@@ -1220,7 +1309,9 @@ class DirectoryProfiler:
 
             except (OSError, PermissionError):
                 # If rglob fails entirely, we can't probe this directory
-                self.console.print(f"[yellow]Warning: Cannot access directory {path_root} - insufficient permissions[/yellow]")
+                self.console.print(
+                    f"[yellow]Warning: Cannot access directory {path_root} - insufficient permissions[/yellow]"
+                )
                 # Return minimal result
                 return {
                     "path": str(path_root),
@@ -1249,7 +1340,9 @@ class DirectoryProfiler:
             avg_files_per_folder = file_count / max(1, folder_count)
 
             # Find folders with most files
-            top_folders_by_file_count = sorted(files_per_folder.items(), key=lambda x: x[1], reverse=True)[:10]
+            top_folders_by_file_count = sorted(
+                files_per_folder.items(), key=lambda x: x[1], reverse=True
+            )[:10]
 
             # Build result dictionary
             result = {
@@ -1320,37 +1413,41 @@ class DirectoryProfiler:
         if timing:
             table.add_row("Analysis Time", f"{timing['elapsed_seconds']:.2f}s")
             if timing.get("items_per_second", 0) > 0:
-                table.add_row("Processing Speed", f"{timing['items_per_second']:,.0f} items/sec")
+                table.add_row(
+                    "Processing Speed", f"{timing['items_per_second']:,.0f} items/sec"
+                )
 
         self.console.print(table)
         self.console.print()
 
     def get_dataframe(self, analysis: "DirectoryAnalysis") -> Optional["DataFrame"]:
-        """
-        Get the DataFrame from analysis results.
+        """Get the DataFrame from analysis results.
 
         Args:
+        ----
             analysis: :class:`DirectoryAnalysis` instance
 
         Returns:
+        -------
             DataFrame object if available, None otherwise
+
         """
         if not isinstance(analysis, DirectoryAnalysis):
             raise TypeError("get_dataframe expects a DirectoryAnalysis instance")
         return analysis.to_df()
 
     def is_dataframe_enabled(self) -> bool:
-        """
-        Check if DataFrame building is enabled and available.
+        """Check if DataFrame building is enabled and available.
 
-        Returns:
+        Returns
+        -------
             True if DataFrame building is enabled, False otherwise
+
         """
         return self.build_dataframe and DATAFRAME_AVAILABLE
 
     def _detect_filesystem_type(self, path: str) -> Optional[str]:
-        """
-        Attempt to detect the filesystem type for a given path.
+        """Attempt to detect the filesystem type for a given path.
 
         Returns the fs type string (e.g., 'nfs', 'ext4') or None if not detected.
         """
@@ -1384,7 +1481,9 @@ class DirectoryProfiler:
     def print_file_extensions(self, analysis: "DirectoryAnalysis", top_n: int = 10):
         """Print the most common file extensions (expects DirectoryAnalysis)."""
         if not isinstance(analysis, DirectoryAnalysis):
-            raise TypeError("print_file_extensions expects a DirectoryAnalysis instance")
+            raise TypeError(
+                "print_file_extensions expects a DirectoryAnalysis instance"
+            )
 
         extensions = analysis.file_extensions
 
@@ -1407,7 +1506,9 @@ class DirectoryProfiler:
     def print_folder_patterns(self, analysis: "DirectoryAnalysis", top_n: int = 10):
         """Print the most common folder names (expects DirectoryAnalysis)."""
         if not isinstance(analysis, DirectoryAnalysis):
-            raise TypeError("print_folder_patterns expects a DirectoryAnalysis instance")
+            raise TypeError(
+                "print_folder_patterns expects a DirectoryAnalysis instance"
+            )
 
         folder_names = analysis.common_folder_names
 
@@ -1435,7 +1536,9 @@ class DirectoryProfiler:
             self.console.print("[green]✓ No empty folders found![/green]")
             return
 
-        table = Table(title=f"Empty Folders (showing {min(len(empty_folders), max_show)} of {len(empty_folders)})")
+        table = Table(
+            title=f"Empty Folders (showing {min(len(empty_folders), max_show)} of {len(empty_folders)})"
+        )
         table.add_column("Path", style="yellow")
 
         for folder in empty_folders[:max_show]:

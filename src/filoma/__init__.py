@@ -67,7 +67,10 @@ def __getattr__(name: str):
 
 def __dir__():
     # Helpful for tab-completion in REPLs
-    return sorted(list(globals().keys()) + ["core", "directories", "files", "images", "ml", "DataFrame"])
+    return sorted(
+        list(globals().keys())
+        + ["core", "directories", "files", "images", "ml", "DataFrame"]
+    )
 
 
 # Convenience wrappers for quick, one-off usage. These are thin helpers that
@@ -181,7 +184,9 @@ def probe_image(arg: Any, **kwargs: Any) -> Any:
     return ImageReport(path=str(p), status="failed_to_load_or_unsupported_format")
 
 
-def probe_to_df(path: str, to_pandas: bool = False, enrich: bool = True, **kwargs: Any) -> Any:
+def probe_to_df(
+    path: str, to_pandas: bool = False, enrich: bool = True, **kwargs: Any
+) -> Any:
     """Convenience helper: return a Polars DataFrame (or pandas if to_pandas=True).
 
     This forces DataFrame building on the profiler and optionally runs a small
@@ -202,13 +207,19 @@ def probe_to_df(path: str, to_pandas: bool = False, enrich: bool = True, **kwarg
 
     df_wrapper = analysis.to_df()
     if df_wrapper is None:
-        raise RuntimeError("DataFrame was not built. Ensure 'polars' is installed and that DataFrame building is enabled (build_dataframe=True).")
+        raise RuntimeError(
+            "DataFrame was not built. Ensure 'polars' is installed and that DataFrame building is enabled (build_dataframe=True)."
+        )
 
     # Optionally enrich the DataFrame wrapper with useful columns/stats
     df_enriched = df_wrapper
     if enrich:
         try:
-            df_enriched = df_enriched.add_depth_col(path).add_path_components().add_file_stats_cols()
+            df_enriched = (
+                df_enriched.add_depth_col(path)
+                .add_path_components()
+                .add_file_stats_cols()
+            )
         except Exception:
             # If enrichment fails for any reason, fall back to the raw DataFrame
             pass

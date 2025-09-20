@@ -13,7 +13,11 @@ def test_chaining_filter_depth_group_by_extension(tmp_path):
     (p / "b" / "three.py").write_text("print(2)")
 
     # Build initial filoma.DataFrame from paths
-    paths = [str(p / "a" / "one.py"), str(p / "a" / "two.txt"), str(p / "b" / "three.py")]
+    paths = [
+        str(p / "a" / "one.py"),
+        str(p / "a" / "two.txt"),
+        str(p / "b" / "three.py"),
+    ]
     df = DataFrame(paths)
 
     # Chain operations: filter_by_extension -> add_depth_col -> group_by_extension

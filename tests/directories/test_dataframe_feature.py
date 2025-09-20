@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Test script to demonstrate the DataFrame feature in DirectoryProfiler.
+"""Test script to demonstrate the DataFrame feature in DirectoryProfiler.
 """
 
 import sys
@@ -20,7 +19,9 @@ def test_dataframe_functionality():
     # Test with DataFrame enabled
     from filoma.directories import DirectoryProfilerConfig
 
-    cfg = DirectoryProfilerConfig(search_backend="auto", build_dataframe=True, show_progress=False)
+    cfg = DirectoryProfilerConfig(
+        search_backend="auto", build_dataframe=True, show_progress=False
+    )
     profiler = DirectoryProfiler(cfg)
 
     print(f"DataFrame enabled: {profiler.is_dataframe_enabled()}")

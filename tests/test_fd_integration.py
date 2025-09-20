@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Test script for fd integration in filoma.
+"""Test script for fd integration in filoma.
 
 This script tests the new fd integration capabilities.
 """
@@ -16,7 +15,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from filoma.core import FdIntegration
-from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig, FdFinder
+from filoma.directories import (DirectoryProfiler, DirectoryProfilerConfig,
+                                FdFinder)
 
 # Detect Rust availability by checking module spec (avoids importing at test collection)
 RUST_AVAILABLE_LOCAL = importlib.util.find_spec("filoma.filoma_core") is not None
@@ -47,7 +47,9 @@ def test_fd_integration():
     try:
         # Use glob mode for the *.py pattern
         files = fd.find(pattern="*.py", path=".", max_results=5, use_glob=True)
-        print(f"   ✅ Found {len(files)} Python files: {files[:3]}{'...' if len(files) > 3 else ''}")
+        print(
+            f"   ✅ Found {len(files)} Python files: {files[:3]}{'...' if len(files) > 3 else ''}"
+        )
         assert isinstance(files, list)
         assert len(files) > 0
     except Exception as e:
@@ -77,7 +79,9 @@ def test_fd_integration():
 
         # Quick test on current directory
         result = profiler.probe(".", max_depth=2)
-        print(f"   \u2705 Analysis completed: {result['summary']['total_files']} files found")
+        print(
+            f"   \u2705 Analysis completed: {result['summary']['total_files']} files found"
+        )
         print(f"   \u2705 Backend used: {result['timing']['implementation']}")
         assert "summary" in result and "total_files" in result["summary"]
         assert result["summary"]["total_files"] >= 0
@@ -88,12 +92,10 @@ def test_fd_integration():
 
 def test_backend_comparison():
     #!/usr/bin/env python3
-    """
-    Test script for fd integration in filoma.
+    """Test script for fd integration in filoma.
 
     This script tests the fd integration capabilities.
     """
-
     import importlib.util
     import sys
     import warnings
@@ -136,7 +138,9 @@ def test_backend_comparison():
             try:
                 # Use glob mode for the *.py pattern
                 files = fd.find(pattern="*.py", path=".", max_results=5, use_glob=True)
-                print(f"   ✅ Found {len(files)} Python files: {files[:3]}{'...' if len(files) > 3 else ''}")
+                print(
+                    f"   ✅ Found {len(files)} Python files: {files[:3]}{'...' if len(files) > 3 else ''}"
+                )
                 assert isinstance(files, list)
                 assert len(files) > 0
             except Exception as e:
@@ -158,7 +162,9 @@ def test_backend_comparison():
             # Test 4: DirectoryProfiler with fd backend
             print("\n4. Testing DirectoryProfiler with fd backend...")
             try:
-                profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend="fd"))
+                profiler = DirectoryProfiler(
+                    DirectoryProfilerConfig(search_backend="fd")
+                )
                 if not profiler.is_fd_available():
                     pytest.skip("DirectoryProfiler fd backend not available")
 
@@ -166,7 +172,9 @@ def test_backend_comparison():
 
                 # Quick test on current directory
                 result = profiler.probe(".", max_depth=2)
-                print(f"   ✅ Analysis completed: {result['summary']['total_files']} files found")
+                print(
+                    f"   ✅ Analysis completed: {result['summary']['total_files']} files found"
+                )
                 print(f"   ✅ Backend used: {result['timing']['implementation']}")
                 assert "summary" in result and "total_files" in result["summary"]
                 assert result["summary"]["total_files"] >= 0
@@ -188,7 +196,9 @@ def test_backend_comparison():
         # Test available backends
         for backend in ["python", "rust", "fd"]:
             try:
-                profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend=backend))
+                profiler = DirectoryProfiler(
+                    DirectoryProfilerConfig(search_backend=backend)
+                )
 
                 # Check if backend is actually available
                 if backend == "fd" and not profiler.is_fd_available():
@@ -216,7 +226,9 @@ def test_backend_comparison():
                     }
                 )
 
-                print(f"   {backend}: {elapsed:.3f}s, {result['summary']['total_files']} files")
+                print(
+                    f"   {backend}: {elapsed:.3f}s, {result['summary']['total_files']} files"
+                )
 
             except Exception as e:
                 print(f"   {backend}: Failed - {e}")
@@ -230,11 +242,12 @@ def test_backend_comparison():
                 if backend == fastest:
                     print(f"   🏆 {backend['name']}: {backend['time']:.3f}s (fastest)")
                 else:
-                    print(f"   📈 {backend['name']}: {backend['time']:.3f}s ({speedup:.1f}x slower)")
+                    print(
+                        f"   📈 {backend['name']}: {backend['time']:.3f}s ({speedup:.1f}x slower)"
+                    )
 
     def test_fd_finder_features():
         """Test FdFinder advanced features."""
-
         searcher = FdFinder()
         if not searcher.is_available():
             print("❌ fd not available for advanced testing")
@@ -243,7 +256,10 @@ def test_backend_comparison():
         # Test different search types
         tests = [
             ("Python files", lambda: searcher.find_by_extension(".py")),
-            ("Recent files (1d)", lambda: searcher.find_recent_files(changed_within="1d")),
+            (
+                "Recent files (1d)",
+                lambda: searcher.find_recent_files(changed_within="1d"),
+            ),
             ("Large files (>1k)", lambda: searcher.find_large_files(min_size="1k")),
             ("Empty directories", lambda: searcher.find_empty_directories()),
             ("File count", lambda: searcher.count_files()),

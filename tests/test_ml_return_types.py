@@ -14,9 +14,17 @@ def test_return_type_filoma():
     df = pl.DataFrame({"path": paths})
 
     # discover tokens via filoma.DataFrame instance method so token1 exists
-    df2 = FDataFrame(df).add_filename_features(sep="_", prefix=None, include_parent=True, path_col="path").df
+    df2 = (
+        FDataFrame(df)
+        .add_filename_features(
+            sep="_", prefix=None, include_parent=True, path_col="path"
+        )
+        .df
+    )
 
-    tr, va, te = ml.split_data(df2, train_val_test=(60, 20, 20), path_col="path", return_type="filoma", seed=0)
+    tr, va, te = ml.split_data(
+        df2, train_val_test=(60, 20, 20), path_col="path", return_type="filoma", seed=0
+    )
 
     # filoma.DataFrame wrapper exposes .df property with a Polars DataFrame
     for part in (tr, va, te):
@@ -34,9 +42,17 @@ def test_return_type_pandas():
     ]
     df = pl.DataFrame({"path": paths})
 
-    df2 = FDataFrame(df).add_filename_features(sep="_", prefix=None, include_parent=True, path_col="path").df
+    df2 = (
+        FDataFrame(df)
+        .add_filename_features(
+            sep="_", prefix=None, include_parent=True, path_col="path"
+        )
+        .df
+    )
 
-    tr, va, te = ml.split_data(df2, train_val_test=(60, 20, 20), path_col="path", return_type="pandas", seed=0)
+    tr, va, te = ml.split_data(
+        df2, train_val_test=(60, 20, 20), path_col="path", return_type="pandas", seed=0
+    )
 
     # Ensure pandas.DataFrame objects returned
     assert isinstance(tr, pd.DataFrame)

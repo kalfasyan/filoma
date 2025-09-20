@@ -31,7 +31,9 @@ print(json.dumps(present))
     present = json.loads(out)
 
     # Ensure optional heavy deps are NOT imported just by `import filoma`
-    assert not present.get("polars", False), "polars should not be imported on filoma import"
+    assert not present.get(
+        "polars", False
+    ), "polars should not be imported on filoma import"
     assert not present.get("PIL", False), "PIL should not be imported on filoma import"
 
 
@@ -56,4 +58,6 @@ print(json.dumps(present))
     rc, out, err = run_python(code)
     assert rc == 0, f"running probe_to_df snippet failed: {err}"
     present = json.loads(out)
-    assert present.get("polars", False), "polars should be imported when probe_to_df is used"
+    assert present.get(
+        "polars", False
+    ), "polars should be imported when probe_to_df is used"

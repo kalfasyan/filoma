@@ -4,7 +4,8 @@ from loguru import logger
 
 from filoma import ml
 from filoma.dataframe import DataFrame as FDataFrame
-from filoma.ml import _maybe_log_ratio_drift  # internal helper (acceptable for focused test)
+from filoma.ml import \
+    _maybe_log_ratio_drift  # internal helper (acceptable for focused test)
 
 
 def test_discover_filename_features_tokens_parent_parts():
@@ -38,8 +39,12 @@ def test_discover_filename_features_tokens_parent_parts():
 def test_auto_split_deterministic_with_seed():
     paths = [f"root/dir/file_{i}.txt" for i in range(30)]
     df = pl.DataFrame({"path": paths})
-    t1, v1, te1 = ml.split_data(df, train_val_test=(60, 20, 20), seed=123, path_col="path")
-    t2, v2, te2 = ml.split_data(df, train_val_test=(60, 20, 20), seed=123, path_col="path")
+    t1, v1, te1 = ml.split_data(
+        df, train_val_test=(60, 20, 20), seed=123, path_col="path"
+    )
+    t2, v2, te2 = ml.split_data(
+        df, train_val_test=(60, 20, 20), seed=123, path_col="path"
+    )
     # Deterministic membership
     assert set(t1["path"].to_list()) == set(t2["path"].to_list())
     assert set(v1["path"].to_list()) == set(v2["path"].to_list())
@@ -56,7 +61,9 @@ def test_auto_split_parts_parent_grouping():
     ]
     df = pl.DataFrame({"path": paths})
     # Use parent grouping via parts (-2 gives the immediate parent 'classA'/'classB')
-    train, val, test = ml.split_data(df, train_val_test=(50, 25, 25), path_parts=(-2,), path_col="path")
+    train, val, test = ml.split_data(
+        df, train_val_test=(50, 25, 25), path_parts=(-2,), path_col="path"
+    )
 
     # Ensure no group is split across multiple sets
     def collect_groups(d):
@@ -90,7 +97,9 @@ def test_internal_warning_helper_triggers():
 def test_auto_split_empty_dataframe():
     # Empty path column (ensure string dtype)
     df = pl.DataFrame({"path": pl.Series("path", [], dtype=pl.Utf8)})
-    train, val, test = ml.split_data(df, train_val_test=(60, 20, 20), path_col="path", seed=0)
+    train, val, test = ml.split_data(
+        df, train_val_test=(60, 20, 20), path_col="path", seed=0
+    )
     assert len(train) == 0 and len(val) == 0 and len(test) == 0
     # Ensure feature column still added (with zero rows)
     assert any(col.startswith("_feat_") for col in train.columns)
@@ -106,7 +115,9 @@ def test_all_files_identical_stem_one_group():
             ]
         }
     )
-    train, val, test = ml.split_data(df, train_val_test=(50, 25, 25), feature="stem", seed=7)
+    train, val, test = ml.split_data(
+        df, train_val_test=(50, 25, 25), feature="stem", seed=7
+    )
     lens = [len(train), len(val), len(test)]
     assert sorted(lens) == [0, 0, 2]  # exactly one split got both rows
 
@@ -129,7 +140,9 @@ def test_pandas_return_type_conversion():
         pytest.skip("pyarrow required for polars -> pandas conversion")
     df = pl.DataFrame({"path": ["a/x_1.txt", "b/y_2.txt", "c/z_3.txt"]})
     df2 = FDataFrame(df).add_filename_features(sep="_", prefix=None, path_col="path").df
-    tr, va, te = ml.split_data(df2, train_val_test=(60, 20, 20), path_col="path", seed=0, return_type="pandas")
+    tr, va, te = ml.split_data(
+        df2, train_val_test=(60, 20, 20), path_col="path", seed=0, return_type="pandas"
+    )
     for part in (tr, va, te):
         assert isinstance(part, pd.DataFrame)
         assert "path" in part.columns

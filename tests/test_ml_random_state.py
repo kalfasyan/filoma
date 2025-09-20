@@ -18,16 +18,31 @@ def _collect_paths(dfs_tuple):
 
 def test_deterministic_with_same_seed():
     df = _make_df(n_groups=8, per_group=5)
-    out1 = split_data(df, train_val_test=(70, 15, 15), feature="path_parts", path_parts=(-2,), seed=42)
-    out2 = split_data(df, train_val_test=(70, 15, 15), feature="path_parts", path_parts=(-2,), seed=42)
+    out1 = split_data(
+        df, train_val_test=(70, 15, 15), feature="path_parts", path_parts=(-2,), seed=42
+    )
+    out2 = split_data(
+        df, train_val_test=(70, 15, 15), feature="path_parts", path_parts=(-2,), seed=42
+    )
     assert _collect_paths(out1) == _collect_paths(out2)
 
 
 def test_random_state_overrides_seed():
     df = _make_df(n_groups=8, per_group=5)
-    out_seed = split_data(df, train_val_test=(70, 15, 15), feature="path_parts", path_parts=(-2,), seed=1)
-    out_random = split_data(df, train_val_test=(70, 15, 15), feature="path_parts", path_parts=(-2,), seed=1, random_state=7)
-    out_effective = split_data(df, train_val_test=(70, 15, 15), feature="path_parts", path_parts=(-2,), seed=7)
+    out_seed = split_data(
+        df, train_val_test=(70, 15, 15), feature="path_parts", path_parts=(-2,), seed=1
+    )
+    out_random = split_data(
+        df,
+        train_val_test=(70, 15, 15),
+        feature="path_parts",
+        path_parts=(-2,),
+        seed=1,
+        random_state=7,
+    )
+    out_effective = split_data(
+        df, train_val_test=(70, 15, 15), feature="path_parts", path_parts=(-2,), seed=7
+    )
     # random_state should match behavior as if seed were equal to random_state
     assert _collect_paths(out_random) == _collect_paths(out_effective)
     # and should differ from the original seed=1 run
@@ -36,6 +51,10 @@ def test_random_state_overrides_seed():
 
 def test_different_seeds_produce_different_splits():
     df = _make_df(n_groups=8, per_group=5)
-    out1 = split_data(df, train_val_test=(70, 15, 15), feature="path_parts", path_parts=(-2,), seed=2)
-    out2 = split_data(df, train_val_test=(70, 15, 15), feature="path_parts", path_parts=(-2,), seed=3)
+    out1 = split_data(
+        df, train_val_test=(70, 15, 15), feature="path_parts", path_parts=(-2,), seed=2
+    )
+    out2 = split_data(
+        df, train_val_test=(70, 15, 15), feature="path_parts", path_parts=(-2,), seed=3
+    )
     assert _collect_paths(out1) != _collect_paths(out2)

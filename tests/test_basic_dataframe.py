@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Simple test to verify DataFrame functionality works.
+"""Simple test to verify DataFrame functionality works.
 """
 
 import sys
@@ -14,12 +13,15 @@ def test_basic_functionality():
     """Test basic DataFrame functionality."""
     try:
         from filoma import DataFrame
-        from filoma.directories.directory_profiler import DirectoryProfiler, DirectoryProfilerConfig
+        from filoma.directories.directory_profiler import (
+            DirectoryProfiler, DirectoryProfilerConfig)
 
         print("✅ Imports successful")
 
         # Test DirectoryProfiler with DataFrame
-        profiler = DirectoryProfiler(DirectoryProfilerConfig(use_rust=False, build_dataframe=True))
+        profiler = DirectoryProfiler(
+            DirectoryProfilerConfig(use_rust=False, build_dataframe=True)
+        )
 
         print(f"✅ DataFrame enabled: {profiler.is_dataframe_enabled()}")
 

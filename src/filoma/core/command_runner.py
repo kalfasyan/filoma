@@ -1,5 +1,4 @@
-"""
-Generic command execution utility for external tools.
+"""Generic command execution utility for external tools.
 
 This module provides a safe and efficient way to execute external commands
 with proper error handling, timeout support, and result processing.
@@ -19,14 +18,16 @@ class CommandRunner:
 
     @staticmethod
     def check_command_available(command: str) -> bool:
-        """
-        Check if a command is available in PATH.
+        """Check if a command is available in PATH.
 
         Args:
+        ----
             command: Command name to check (e.g., 'fd', 'find', 'ls')
 
         Returns:
+        -------
             True if command is available, False otherwise
+
         """
         return shutil.which(command) is not None
 
@@ -40,10 +41,10 @@ class CommandRunner:
         text: bool = True,
         env: Optional[Dict[str, str]] = None,
     ) -> subprocess.CompletedProcess:
-        """
-        Run a command and return the result.
+        """Run a command and return the result.
 
         Args:
+        ----
             cmd: Command and arguments as a list
             cwd: Working directory to run command in
             capture_output: Whether to capture stdout/stderr
@@ -53,12 +54,15 @@ class CommandRunner:
             env: Environment variables (None to inherit from parent)
 
         Returns:
+        -------
             CompletedProcess object with result
 
         Raises:
+        ------
             subprocess.CalledProcessError: If check=True and command fails
             subprocess.TimeoutExpired: If timeout is exceeded
             FileNotFoundError: If command is not found
+
         """
         start_time = time.time()
 
@@ -79,7 +83,9 @@ class CommandRunner:
 
         except subprocess.CalledProcessError as e:
             elapsed = time.time() - start_time
-            logger.error(f"Command failed after {elapsed:.3f}s: {' '.join(cmd)} (exit code {e.returncode})")
+            logger.error(
+                f"Command failed after {elapsed:.3f}s: {' '.join(cmd)} (exit code {e.returncode})"
+            )
             raise
         except subprocess.TimeoutExpired:
             logger.error(f"Command timed out after {timeout}s: {' '.join(cmd)}")
@@ -96,13 +102,13 @@ class CommandRunner:
         text: bool = True,
         env: Optional[Dict[str, str]] = None,
     ) -> subprocess.Popen:
-        """
-        Run a command with streaming output support.
+        """Run a command with streaming output support.
 
         Use this for commands that produce large amounts of output that you
         want to process line by line without loading everything into memory.
 
         Args:
+        ----
             cmd: Command and arguments as a list
             cwd: Working directory to run command in
             timeout: Timeout in seconds (None for no timeout)
@@ -110,12 +116,15 @@ class CommandRunner:
             env: Environment variables (None to inherit from parent)
 
         Returns:
+        -------
             Popen object for streaming access
 
         Example:
+        -------
             >>> with CommandRunner.run_streaming(['fd', '.', '/usr']) as proc:
             ...     for line in proc.stdout:
             ...         print(line.strip())
+
         """
         logger.debug(f"Starting streaming command: {' '.join(cmd)}")
 
@@ -137,14 +146,16 @@ class CommandRunner:
 
     @staticmethod
     def get_command_version(command: str) -> Optional[str]:
-        """
-        Get the version of a command if available.
+        """Get the version of a command if available.
 
         Args:
+        ----
             command: Command name
 
         Returns:
+        -------
             Version string if available, None otherwise
+
         """
         if not CommandRunner.check_command_available(command):
             return None
@@ -166,7 +177,11 @@ class CommandRunner:
                     first_line = result.stdout.strip().split("\n")[0]
                     return first_line
 
-            except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+            except (
+                subprocess.TimeoutExpired,
+                subprocess.CalledProcessError,
+                FileNotFoundError,
+            ):
                 continue
 
         return None

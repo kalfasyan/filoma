@@ -48,8 +48,7 @@ class ImageReport(Mapping):
 
 
 class ImageProfiler:
-    """
-    Provides common analysis methods for image data loaded as numpy arrays.
+    """Provides common analysis methods for image data loaded as numpy arrays.
     Returns an :class:`ImageReport` dataclass for consistency with the rest of the API.
     """
 

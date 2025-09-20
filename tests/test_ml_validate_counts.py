@@ -35,8 +35,17 @@ def test_validate_counts_warns(caplog):
 
     # Use path_parts selecting the folder (index -2) to form feature values
     with caplog.at_level(logging.WARNING):
-        train, val, test = split_data(df, train_val_test=(50, 25, 25), feature="path_parts", path_parts=(-2,), validate_counts=True)
+        train, val, test = split_data(
+            df,
+            train_val_test=(50, 25, 25),
+            feature="path_parts",
+            path_parts=(-2,),
+            validate_counts=True,
+        )
 
     # Ensure a warning mentioning 'unique feature values' or 'unique feature' was emitted
     warnings = [r.message for r in caplog.records if r.levelno >= logging.WARNING]
-    assert any("unique feature" in str(w).lower() or "unique feature values" in str(w).lower() for w in warnings)
+    assert any(
+        "unique feature" in str(w).lower() or "unique feature values" in str(w).lower()
+        for w in warnings
+    )

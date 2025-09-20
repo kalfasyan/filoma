@@ -1,5 +1,4 @@
-"""
-High-level interface to fd command-line tool.
+"""High-level interface to fd command-line tool.
 
 This module provides a Python interface to fd, the fast file finder,
 allowing filoma to leverage fd's speed and rich filtering capabilities
@@ -52,10 +51,10 @@ class FdIntegration:
         threads: Optional[int] = None,
         **kwargs,
     ) -> List[str]:
-        """
-        Search for files/directories using fd.
+        """Search for files/directories using fd.
 
         Args:
+        ----
             pattern: Search pattern (regex by default, glob if use_glob=True)
             path: Root directory to search in (default: current directory)
             max_depth: Maximum search depth
@@ -69,12 +68,15 @@ class FdIntegration:
             use_glob: Use glob patterns instead of regex
 
         Returns:
+        -------
             List of file paths (strings)
 
         Raises:
+        ------
             RuntimeError: If fd is not available
             subprocess.CalledProcessError: If fd command fails
             subprocess.TimeoutExpired: If fd command times out
+
         """
         if not self.available:
             raise RuntimeError("fd command not available")
@@ -117,7 +119,11 @@ class FdIntegration:
                 cmd.extend(["-e", str(extensions)])
 
         # file_type / file_types -> -t
-        ft = kwargs.pop("file_type", None) or kwargs.pop("file_types", None) or file_types
+        ft = (
+            kwargs.pop("file_type", None)
+            or kwargs.pop("file_types", None)
+            or file_types
+        )
         if ft:
             if isinstance(ft, (list, tuple)):
                 for t in ft:
@@ -166,7 +172,9 @@ class FdIntegration:
             result = CommandRunner.run_command(cmd)
 
             # Split output into lines and filter empty lines
-            paths = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+            paths = [
+                line.strip() for line in result.stdout.splitlines() if line.strip()
+            ]
 
             logger.debug(f"fd found {len(paths)} results")
             return paths
@@ -177,28 +185,36 @@ class FdIntegration:
                 logger.error(f"stderr: {e.stderr}")
             raise
 
-    def search_streaming(self, pattern: Optional[str] = None, path: Optional[Union[str, Path]] = None, **kwargs) -> subprocess.Popen:
-        """
-        Search for files using fd with streaming output.
+    def search_streaming(
+        self,
+        pattern: Optional[str] = None,
+        path: Optional[Union[str, Path]] = None,
+        **kwargs,
+    ) -> subprocess.Popen:
+        """Search for files using fd with streaming output.
 
         This is useful for very large result sets where you want to process
         results as they come in rather than loading everything into memory.
 
         Args:
+        ----
             pattern: Search pattern
             path: Root directory to search in
             **kwargs: Same arguments as search()
 
         Returns:
+        -------
             Popen object for streaming access
 
         Example:
+        -------
             >>> fd = FdIntegration()
             >>> with fd.search_streaming(".py") as proc:
             ...     for line in proc.stdout:
             ...         path = line.strip()
             ...         if path:
             ...             print(path)
+
         """
         if not self.available:
             raise RuntimeError("fd command not available")
@@ -240,17 +256,21 @@ class FdIntegration:
 
         return CommandRunner.run_streaming(cmd, text=True)
 
-    def find_by_extension(self, extensions: Union[str, List[str]], path: Union[str, Path] = ".", **kwargs) -> List[str]:
-        """
-        Find files by extension(s).
+    def find_by_extension(
+        self, extensions: Union[str, List[str]], path: Union[str, Path] = ".", **kwargs
+    ) -> List[str]:
+        """Find files by extension(s).
 
         Args:
+        ----
             extensions: File extension(s) to search for
             path: Root directory to search in
             **kwargs: Additional arguments passed to search()
 
         Returns:
+        -------
             List of file paths
+
         """
         return self.find(
             extension=extensions,
@@ -259,17 +279,21 @@ class FdIntegration:
             **kwargs,
         )
 
-    def find_recent_files(self, path: Union[str, Path] = ".", changed_within: str = "1d", **kwargs) -> List[str]:
-        """
-        Find recently modified files.
+    def find_recent_files(
+        self, path: Union[str, Path] = ".", changed_within: str = "1d", **kwargs
+    ) -> List[str]:
+        """Find recently modified files.
 
         Args:
+        ----
             path: Root directory to search in
             changed_within: Time period (e.g., '1d', '2h', '30min')
             **kwargs: Additional arguments passed to search()
 
         Returns:
+        -------
             List of file paths
+
         """
         return self.find(
             path=path,
@@ -278,16 +302,20 @@ class FdIntegration:
             **kwargs,
         )
 
-    def find_empty_directories(self, path: Union[str, Path] = ".", **kwargs) -> List[str]:
-        """
-        Find empty directories.
+    def find_empty_directories(
+        self, path: Union[str, Path] = ".", **kwargs
+    ) -> List[str]:
+        """Find empty directories.
 
         Args:
+        ----
             path: Root directory to search in
             **kwargs: Additional arguments passed to search()
 
         Returns:
+        -------
             List of directory paths
+
         """
         return self.find(
             path=path,
@@ -295,19 +323,26 @@ class FdIntegration:
             **kwargs,
         )
 
-    def count_files(self, pattern: Optional[str] = None, path: Optional[Union[str, Path]] = None, **kwargs) -> int:
-        """
-        Count files matching criteria without returning the full list.
+    def count_files(
+        self,
+        pattern: Optional[str] = None,
+        path: Optional[Union[str, Path]] = None,
+        **kwargs,
+    ) -> int:
+        """Count files matching criteria without returning the full list.
 
         This is more memory-efficient for large result sets.
 
         Args:
+        ----
             pattern: Search pattern
             path: Root directory to search in
             **kwargs: Additional arguments passed to search()
 
         Returns:
+        -------
             Number of matching files
+
         """
         # Use streaming approach to count without loading all results
         try:

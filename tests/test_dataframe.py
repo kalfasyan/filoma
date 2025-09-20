@@ -1,5 +1,4 @@
-"""
-Tests for the DataFrame functionality in DirectoryProfiler.
+"""Tests for the DataFrame functionality in DirectoryProfiler.
 """
 
 import os
@@ -14,7 +13,8 @@ import polars as pl
 import pytest
 
 from filoma.dataframe import DataFrame
-from filoma.directories.directory_profiler import DirectoryProfiler, DirectoryProfilerConfig
+from filoma.directories.directory_profiler import (DirectoryProfiler,
+                                                   DirectoryProfilerConfig)
 
 # Skip tests on CI where external discovery tools (fd) are not available by default
 CI = os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true"
@@ -46,7 +46,9 @@ class TestDataFrameFunctionality:
 
     def test_dataframe_creation(self):
         """Test that DataFrame is created when enabled."""
-        profiler = DirectoryProfiler(DirectoryProfilerConfig(use_rust=False, build_dataframe=True))
+        profiler = DirectoryProfiler(
+            DirectoryProfilerConfig(use_rust=False, build_dataframe=True)
+        )
 
         analysis = profiler.probe(self.temp_dir)
         df = profiler.get_dataframe(analysis)
@@ -57,7 +59,9 @@ class TestDataFrameFunctionality:
 
     def test_dataframe_disabled(self):
         """Test that DataFrame is not created when disabled."""
-        profiler = DirectoryProfiler(DirectoryProfilerConfig(use_rust=False, build_dataframe=False))
+        profiler = DirectoryProfiler(
+            DirectoryProfilerConfig(use_rust=False, build_dataframe=False)
+        )
 
         analysis = profiler.probe(self.temp_dir)
         df = profiler.get_dataframe(analysis)
@@ -67,8 +71,12 @@ class TestDataFrameFunctionality:
 
     def test_dataframe_availability_check(self):
         """Test dataframe availability checks."""
-        profiler_enabled = DirectoryProfiler(DirectoryProfilerConfig(build_dataframe=True))
-        profiler_disabled = DirectoryProfiler(DirectoryProfilerConfig(build_dataframe=False))
+        profiler_enabled = DirectoryProfiler(
+            DirectoryProfilerConfig(build_dataframe=True)
+        )
+        profiler_disabled = DirectoryProfiler(
+            DirectoryProfilerConfig(build_dataframe=False)
+        )
 
         # Note: Actual availability depends on polars installation
         # We just test the method exists and returns a boolean
@@ -130,7 +138,9 @@ class TestDataFrameFunctionality:
         assert isinstance(unique_df, DataFrame)
 
         # Test with_columns (delegated method)
-        df_with_length = df.with_columns([df.df["path"].str.len_chars().alias("path_length")])
+        df_with_length = df.with_columns(
+            [df.df["path"].str.len_chars().alias("path_length")]
+        )
         assert isinstance(df_with_length, (DataFrame, pl.DataFrame))
         if isinstance(df_with_length, DataFrame):
             assert "path_length" in df_with_length.columns
@@ -139,7 +149,12 @@ class TestDataFrameFunctionality:
 
     def test_file_specific_methods_still_work(self):
         """Test that our original file-specific methods still work."""
-        test_paths = ["/test/file1.txt", "/test/file2.py", "/test/file3.py", "/test/subdir/file4.md"]
+        test_paths = [
+            "/test/file1.txt",
+            "/test/file2.py",
+            "/test/file3.py",
+            "/test/subdir/file4.md",
+        ]
         df = DataFrame(test_paths)
 
         # Test add_path_components
@@ -205,7 +220,12 @@ class TestStandaloneDataFrame:
 
     def test_filter_by_extension(self):
         """Test filtering by file extension."""
-        paths = ["/path/to/file1.txt", "/path/to/file2.py", "/path/to/file3.py", "/path/to/file4.md"]
+        paths = [
+            "/path/to/file1.txt",
+            "/path/to/file2.py",
+            "/path/to/file3.py",
+            "/path/to/file4.md",
+        ]
         df = DataFrame(paths)
 
         py_files = df.filter_by_extension(".py")
@@ -219,7 +239,11 @@ class TestStandaloneDataFrame:
 
     def test_filter_by_pattern(self):
         """Test filtering by pattern."""
-        paths = ["/home/user/documents/file1.txt", "/home/user/projects/main.py", "/home/admin/config.json"]
+        paths = [
+            "/home/user/documents/file1.txt",
+            "/home/user/projects/main.py",
+            "/home/admin/config.json",
+        ]
         df = DataFrame(paths)
 
         user_files = df.filter_by_pattern("user")
@@ -240,7 +264,11 @@ class TestStandaloneDataFrame:
 
     def test_group_by_directory(self):
         """Test grouping by directory."""
-        paths = ["/home/user/file1.txt", "/home/user/file2.py", "/home/admin/config.json"]
+        paths = [
+            "/home/user/file1.txt",
+            "/home/user/file2.py",
+            "/home/admin/config.json",
+        ]
         df = DataFrame(paths)
 
         grouped = df.group_by_directory()
@@ -248,7 +276,11 @@ class TestStandaloneDataFrame:
 
     def test_add_depth_col(self):
         """Test adding depth column."""
-        paths = ["/home/user/file.txt", "/home/user/docs/readme.md", "/home/user/docs/deep/nested/file.py"]
+        paths = [
+            "/home/user/file.txt",
+            "/home/user/docs/readme.md",
+            "/home/user/docs/deep/nested/file.py",
+        ]
         df = DataFrame(paths)
 
         df_with_depth = df.add_depth_col("/home")
@@ -308,7 +340,9 @@ class TestStandaloneDataFrame:
         assert isinstance(unique_df, DataFrame)
 
         # Test with_columns (delegated method)
-        df_with_length = df.with_columns([df.df["path"].str.len_chars().alias("path_length")])
+        df_with_length = df.with_columns(
+            [df.df["path"].str.len_chars().alias("path_length")]
+        )
         assert isinstance(df_with_length, (DataFrame, pl.DataFrame))
         if isinstance(df_with_length, DataFrame):
             assert "path_length" in df_with_length.columns
@@ -317,7 +351,12 @@ class TestStandaloneDataFrame:
 
     def test_file_specific_methods_still_work(self):
         """Test that our original file-specific methods still work."""
-        test_paths = ["/test/file1.txt", "/test/file2.py", "/test/file3.py", "/test/subdir/file4.md"]
+        test_paths = [
+            "/test/file1.txt",
+            "/test/file2.py",
+            "/test/file3.py",
+            "/test/subdir/file4.md",
+        ]
         df = DataFrame(test_paths)
 
         # Test add_path_components

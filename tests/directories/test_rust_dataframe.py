@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Test script to see how DataFrame works with Rust acceleration.
+"""Test script to see how DataFrame works with Rust acceleration.
 """
 
 import sys
@@ -14,7 +13,6 @@ from filoma.directories.directory_profiler import DirectoryProfiler
 
 def test_rust_with_dataframe():
     """Test DataFrame functionality with Rust enabled."""
-
     # Test with Rust + DataFrame
     from filoma.directories import DirectoryProfilerConfig
 

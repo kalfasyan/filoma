@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Comprehensive backend testing for filoma.
+"""Comprehensive backend testing for filoma.
 
 This test suite validates all three backends (Python, Rust, fd) across different scenarios
 to ensure they work correctly and provide consistent results where expected.
@@ -13,7 +12,8 @@ from pathlib import Path
 import pytest
 
 from filoma.core import FdIntegration
-from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig, FdFinder
+from filoma.directories import (DirectoryProfiler, DirectoryProfilerConfig,
+                                FdFinder)
 
 
 class TestBackendComprehensive:
@@ -62,8 +62,9 @@ class TestBackendComprehensive:
 
     def test_python_backend_basic(self, test_directory):
         """Test Python backend basic functionality."""
-
-        profiler_cfg = DirectoryProfilerConfig(search_backend="python", show_progress=False)
+        profiler_cfg = DirectoryProfilerConfig(
+            search_backend="python", show_progress=False
+        )
         profiler = DirectoryProfiler(profiler_cfg)
         result = profiler.probe(test_directory)
 
@@ -85,7 +86,9 @@ class TestBackendComprehensive:
 
     def test_rust_backend_basic(self, test_directory):
         """Test Rust backend basic functionality."""
-        profiler_cfg = DirectoryProfilerConfig(search_backend="rust", show_progress=False)
+        profiler_cfg = DirectoryProfilerConfig(
+            search_backend="rust", show_progress=False
+        )
         profiler = DirectoryProfiler(profiler_cfg)
         result = profiler.probe(test_directory)
 
@@ -116,18 +119,24 @@ class TestBackendComprehensive:
 
         results = {}
 
-        profiler_py = DirectoryProfiler(DirectoryProfilerConfig(search_backend="python", show_progress=False))
+        profiler_py = DirectoryProfiler(
+            DirectoryProfilerConfig(search_backend="python", show_progress=False)
+        )
         results["python"] = profiler_py.probe(test_directory)
 
         try:
-            profiler_rust = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust", show_progress=False))
+            profiler_rust = DirectoryProfiler(
+                DirectoryProfilerConfig(search_backend="rust", show_progress=False)
+            )
             rust_result = profiler_rust.probe(test_directory)
             results["rust"] = rust_result
         except Exception:
             pass
 
         if fd.is_available():
-            profiler_fd = DirectoryProfiler(DirectoryProfilerConfig(search_backend="fd", show_progress=False))
+            profiler_fd = DirectoryProfiler(
+                DirectoryProfilerConfig(search_backend="fd", show_progress=False)
+            )
             results["fd"] = profiler_fd.probe(test_directory)
 
         if len(results) >= 2:
@@ -151,34 +160,51 @@ class TestBackendComprehensive:
 
         performance_results = {}
 
-        profiler_py = DirectoryProfiler(DirectoryProfilerConfig(search_backend="python", show_progress=False))
+        profiler_py = DirectoryProfiler(
+            DirectoryProfilerConfig(search_backend="python", show_progress=False)
+        )
         start_time = time.time()
         result_py = profiler_py.probe(test_directory)
         py_time = time.time() - start_time
-        performance_results["python"] = {"time": py_time, "files": result_py["summary"]["total_files"]}
+        performance_results["python"] = {
+            "time": py_time,
+            "files": result_py["summary"]["total_files"],
+        }
 
         try:
-            profiler_rust = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust", show_progress=False))
+            profiler_rust = DirectoryProfiler(
+                DirectoryProfilerConfig(search_backend="rust", show_progress=False)
+            )
             start_time = time.time()
             result_rust = profiler_rust.probe(test_directory)
             rust_time = time.time() - start_time
-            performance_results["rust"] = {"time": rust_time, "files": result_rust["summary"]["total_files"]}
+            performance_results["rust"] = {
+                "time": rust_time,
+                "files": result_rust["summary"]["total_files"],
+            }
         except Exception:
             pass
 
         if fd.is_available():
-            profiler_fd = DirectoryProfiler(DirectoryProfilerConfig(search_backend="fd", show_progress=False))
+            profiler_fd = DirectoryProfiler(
+                DirectoryProfilerConfig(search_backend="fd", show_progress=False)
+            )
             start_time = time.time()
             result_fd = profiler_fd.probe(test_directory)
             fd_time = time.time() - start_time
-            performance_results["fd"] = {"time": fd_time, "files": result_fd["summary"]["total_files"]}
+            performance_results["fd"] = {
+                "time": fd_time,
+                "files": result_fd["summary"]["total_files"],
+            }
 
         assert len(performance_results) >= 1
 
         print("\n🚀 Performance Comparison:")
         for backend, perf in performance_results.items():
             files_per_sec = perf["files"] / perf["time"] if perf["time"] > 0 else 0
-            print(f"  {backend}: {perf['time']:.3f}s ({perf['files']} files, {files_per_sec:.0f} files/sec)")
+            print(
+                f"  {backend}: {perf['time']:.3f}s ({perf['files']} files, {files_per_sec:.0f} files/sec)"
+            )
 
     def test_auto_backend_selection(self, test_directory):
         """Test that auto backend selection works correctly."""
@@ -205,15 +231,42 @@ class TestBackendComprehensive:
 
         backends_to_test = []
 
-        backends_to_test.append(("python", DirectoryProfiler(DirectoryProfilerConfig(search_backend="python", show_progress=False))))
+        backends_to_test.append(
+            (
+                "python",
+                DirectoryProfiler(
+                    DirectoryProfilerConfig(
+                        search_backend="python", show_progress=False
+                    )
+                ),
+            )
+        )
 
         try:
-            backends_to_test.append(("rust", DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust", show_progress=False))))
+            backends_to_test.append(
+                (
+                    "rust",
+                    DirectoryProfiler(
+                        DirectoryProfilerConfig(
+                            search_backend="rust", show_progress=False
+                        )
+                    ),
+                )
+            )
         except Exception:
             pass
 
         if FdIntegration().is_available():
-            backends_to_test.append(("fd", DirectoryProfiler(DirectoryProfilerConfig(search_backend="fd", show_progress=False))))
+            backends_to_test.append(
+                (
+                    "fd",
+                    DirectoryProfiler(
+                        DirectoryProfilerConfig(
+                            search_backend="fd", show_progress=False
+                        )
+                    ),
+                )
+            )
 
         results = {}
         for backend_name, profiler in backends_to_test:
@@ -228,13 +281,25 @@ class TestBackendComprehensive:
                     backend1, backend2 = backend_names[i], backend_names[j]
                     result1, result2 = results[backend1], results[backend2]
 
-                    files_diff = abs(result1["summary"]["total_files"] - result2["summary"]["total_files"])
-                    folders_diff = abs(result1["summary"]["total_folders"] - result2["summary"]["total_folders"])
+                    files_diff = abs(
+                        result1["summary"]["total_files"]
+                        - result2["summary"]["total_files"]
+                    )
+                    folders_diff = abs(
+                        result1["summary"]["total_folders"]
+                        - result2["summary"]["total_folders"]
+                    )
 
                     if files_diff > 6:
-                        print(f"\nDEBUG: Large file count difference between {backend1} and {backend2}")
-                        print(f"  {backend1}: {result1['summary']['total_files']} files")
-                        print(f"  {backend2}: {result2['summary']['total_files']} files")
+                        print(
+                            f"\nDEBUG: Large file count difference between {backend1} and {backend2}"
+                        )
+                        print(
+                            f"  {backend1}: {result1['summary']['total_files']} files"
+                        )
+                        print(
+                            f"  {backend2}: {result2['summary']['total_files']} files"
+                        )
                         print(f"  Difference: {files_diff}")
 
                     assert files_diff <= 6
@@ -283,13 +348,19 @@ class TestFdFinder:
         if not searcher.is_available():
             pytest.skip("fd not available")
 
-        py_files_glob = searcher.find_files(pattern="*.py", path=test_directory, use_glob=True)
+        py_files_glob = searcher.find_files(
+            pattern="*.py", path=test_directory, use_glob=True
+        )
         assert len(py_files_glob) >= 2
 
-        py_files_regex = searcher.find_files(pattern=".*\\.py$", path=test_directory, use_glob=False)
+        py_files_regex = searcher.find_files(
+            pattern=".*\\.py$", path=test_directory, use_glob=False
+        )
         assert len(py_files_regex) >= 2
 
-        readme_files = searcher.find_files(pattern="readme", path=test_directory, case_sensitive=False)
+        readme_files = searcher.find_files(
+            pattern="readme", path=test_directory, case_sensitive=False
+        )
         assert len(readme_files) >= 1
 
     def test_fd_finder_directories(self, test_directory):
@@ -308,7 +379,9 @@ class TestFdFinder:
         if not searcher.is_available():
             pytest.skip("fd not available")
 
-        hidden_files = searcher.find_files(pattern=".*", path=test_directory, hidden=True)
+        hidden_files = searcher.find_files(
+            pattern=".*", path=test_directory, hidden=True
+        )
         hidden_names = [Path(f).name for f in hidden_files]
         assert any(name.startswith(".") for name in hidden_names)
 

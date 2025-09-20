@@ -28,7 +28,9 @@ def _run_probe_and_check(path: str, backend: str):
 
     try:
         # Use the high-level helper which forces DataFrame building and enrichment
-        df = flm.probe_to_df(path, enrich=True, search_backend=backend, build_dataframe=True, max_depth=5)
+        df = flm.probe_to_df(
+            path, enrich=True, search_backend=backend, build_dataframe=True, max_depth=5
+        )
     except Exception as exc:
         # If a backend isn't present or can't run in this environment, skip
         pytest.skip(f"{backend} backend unavailable or failed: {exc}")
@@ -45,8 +47,12 @@ def _run_probe_and_check(path: str, backend: str):
     depths = df["depth"].to_list()
     sizes = df["size_bytes"].to_list()
 
-    assert any(d is not None for d in depths), f"All depths are null for backend={backend}"
-    assert any(s is not None for s in sizes), f"All size_bytes are null for backend={backend}"
+    assert any(
+        d is not None for d in depths
+    ), f"All depths are null for backend={backend}"
+    assert any(
+        s is not None for s in sizes
+    ), f"All size_bytes are null for backend={backend}"
 
 
 @pytest.mark.parametrize("backend", ["python", "rust", "fd"])

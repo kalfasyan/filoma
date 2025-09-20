@@ -34,7 +34,14 @@ def test_rust_returns_absolute_paths_and_canonicalizes_with_follow_links():
         # Probe without following links: call Rust prober directly with follow_links=False
         from filoma.filoma_core import probe_directory_rust
 
-        result_no_follow = probe_directory_rust(str(tmp_path), None, False, follow_links=False, search_hidden=False, no_ignore=False)
+        result_no_follow = probe_directory_rust(
+            str(tmp_path),
+            None,
+            False,
+            follow_links=False,
+            search_hidden=False,
+            no_ignore=False,
+        )
 
         # The Rust prober returns a 'top_folders_by_file_count' which contains
         # folder path strings; validate those are absolute and point under tmp
@@ -47,16 +54,23 @@ def test_rust_returns_absolute_paths_and_canonicalizes_with_follow_links():
             assert os.path.commonpath([p, str(tmp_path)]) == str(tmp_path)
 
         # Now probe with follow_links=True: the symlinked 'real' directory should be canonicalized
-        result_follow = probe_directory_rust(str(tmp_path), None, False, follow_links=True, search_hidden=False, no_ignore=False)
+        result_follow = probe_directory_rust(
+            str(tmp_path),
+            None,
+            False,
+            follow_links=True,
+            search_hidden=False,
+            no_ignore=False,
+        )
 
         top_folders_follow = result_follow.get("top_folders_by_file_count", [])
         folder_paths_follow = [fp for fp, _ in top_folders_follow]
 
         # The canonical external path should appear in the follow-results
         canonical_external = os.path.realpath(str(external_path))
-        assert any(os.path.realpath(p) == canonical_external for p in folder_paths_follow), (
-            "Canonical external path not present when follow_links=True"
-        )
+        assert any(
+            os.path.realpath(p) == canonical_external for p in folder_paths_follow
+        ), "Canonical external path not present when follow_links=True"
 
         # Cleanup external tempdir
         shutil.rmtree(external)

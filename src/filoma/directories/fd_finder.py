@@ -1,5 +1,4 @@
-"""
-Direct interface to fd for search operations.
+"""Direct interface to fd for search operations.
 
 This module provides a user-friendly interface to fd's search capabilities,
 designed for standalone use or integration with other filoma components.
@@ -30,7 +29,9 @@ class FdFinder:
         self.fd = FdIntegration()
 
         if not self.fd.is_available():
-            logger.warning("fd command not found. Install fd for enhanced search capabilities: https://github.com/sharkdp/fd#installation")
+            logger.warning(
+                "fd command not found. Install fd for enhanced search capabilities: https://github.com/sharkdp/fd#installation"
+            )
 
     def is_available(self) -> bool:
         """Check if fd is available for use."""
@@ -50,10 +51,10 @@ class FdFinder:
         threads: Optional[int] = None,
         **fd_options,
     ) -> List[str]:
-        r"""
-        Find files matching pattern.
+        r"""Find files matching pattern.
 
         Args:
+        ----
             pattern: Search pattern (regex by default, glob if use_glob=True)
             path: Directory to search in
             max_depth: Maximum depth to search
@@ -62,12 +63,15 @@ class FdFinder:
             **fd_options: Additional fd options (e.g., use_glob=True for glob patterns)
 
         Returns:
+        -------
             List of file paths
 
         Example:
+        -------
             >>> searcher = FdFinder()
             >>> python_files = searcher.find_files(r"\.py$", "/src")
             >>> config_files = searcher.find_files("*.{json,yaml}", use_glob=True)
+
         """
         try:
             return self.fd.find(
@@ -91,12 +95,13 @@ class FdFinder:
         threads: Optional[int] = None,
         **fd_options,
     ):
-        """
-        Convenience: run an fd search and return a `filoma.DataFrame` of results.
+        """Convenience: run an fd search and return a `filoma.DataFrame` of results.
 
         If the DataFrame feature isn't available (polars missing), returns a list of paths.
         """
-        paths = self.find_files(pattern=pattern, path=path, threads=threads, **fd_options)
+        paths = self.find_files(
+            pattern=pattern, path=path, threads=threads, **fd_options
+        )
         if _HAS_DF and FilomaDataFrame is not None:
             return FilomaDataFrame(paths)
         return paths
@@ -109,10 +114,10 @@ class FdFinder:
         hidden: bool = False,
         **fd_options,
     ) -> List[str]:
-        """
-        Find directories matching pattern.
+        """Find directories matching pattern.
 
         Args:
+        ----
             pattern: Search pattern (regex by default, glob if use_glob=True)
             path: Directory to search in
             max_depth: Maximum depth to search
@@ -120,7 +125,9 @@ class FdFinder:
             **fd_options: Additional fd options (e.g., use_glob=True for glob patterns)
 
         Returns:
+        -------
             List of directory paths
+
         """
         try:
             return self.fd.find(
@@ -143,21 +150,24 @@ class FdFinder:
         max_depth: Optional[int] = None,
         **fd_options,
     ) -> List[str]:
-        """
-        Find files by extension(s).
+        """Find files by extension(s).
 
         Args:
+        ----
             extensions: File extension(s) to search for (with or without dots)
             path: Directory to search in
             max_depth: Maximum depth to search
             **fd_options: Additional fd options
 
         Returns:
+        -------
             List of file paths
 
         Example:
+        -------
             >>> searcher = FdFinder()
             >>> code_files = searcher.find_by_extension([".py", ".rs", ".js"])
+
         """
         # Normalize extensions (ensure they don't start with dots for fd)
 
@@ -202,29 +212,34 @@ class FdFinder:
         extension: Optional[Union[str, List[str]]] = None,
         **fd_options,
     ) -> List[str]:
-        """
-        Find recently modified files.
+        """Find recently modified files.
 
         Args:
+        ----
             path: Directory to search in
             changed_within: Time period (e.g., '1d', '2h', '30min')
             extension: Optional file extension filter
             **fd_options: Additional fd options
 
         Returns:
+        -------
             List of file paths
 
         Example:
+        -------
             >>> searcher = FdFinder()
             >>> recent_python = searcher.find_recent_files(
             ...     changed_within="1h", extension="py"
             ... )
+
         """
         if extension:
             fd_options["extension"] = extension
 
         try:
-            return self.fd.find_recent_files(path=path, changed_within=changed_within, **fd_options)
+            return self.fd.find_recent_files(
+                path=path, changed_within=changed_within, **fd_options
+            )
         except Exception as e:
             logger.warning(f"FdFinder.find_recent_files failed for path '{path}': {e}")
             return []
@@ -236,56 +251,75 @@ class FdFinder:
         max_depth: Optional[int] = None,
         **fd_options,
     ) -> List[str]:
-        """
-        Find large files.
+        """Find large files.
 
         Args:
+        ----
             directory: Directory to search in
             min_size: Minimum file size (e.g., '1M', '100k', '1G')
             max_depth: Maximum depth to search
             **fd_options: Additional fd options
 
         Returns:
+        -------
             List of file paths
 
         Example:
+        -------
             >>> searcher = FdFinder()
             >>> large_files = searcher.find_large_files(min_size="10M")
+
         """
         try:
-            return self.fd.find(path=path, file_type="f", size=f"+{min_size}", max_depth=max_depth, **fd_options)
+            return self.fd.find(
+                path=path,
+                file_type="f",
+                size=f"+{min_size}",
+                max_depth=max_depth,
+                **fd_options,
+            )
         except Exception as e:
             logger.warning(f"FdFinder.find_large_files failed for path '{path}': {e}")
             return []
 
-    def find_empty_directories(self, path: Union[str, Path] = ".", **fd_options) -> List[str]:
-        """
-        Find empty directories.
+    def find_empty_directories(
+        self, path: Union[str, Path] = ".", **fd_options
+    ) -> List[str]:
+        """Find empty directories.
 
         Args:
+        ----
             directory: Directory to search in
             **fd_options: Additional fd options
 
         Returns:
+        -------
             List of empty directory paths
+
         """
         try:
             return self.fd.find_empty_directories(path=path, **fd_options)
         except Exception as e:
-            logger.warning(f"FdFinder.find_empty_directories failed for path '{path}': {e}")
+            logger.warning(
+                f"FdFinder.find_empty_directories failed for path '{path}': {e}"
+            )
             return []
 
-    def count_files(self, pattern: str = "", path: Union[str, Path] = ".", **fd_options) -> int:
-        """
-        Count files matching criteria without returning the full list.
+    def count_files(
+        self, pattern: str = "", path: Union[str, Path] = ".", **fd_options
+    ) -> int:
+        """Count files matching criteria without returning the full list.
 
         Args:
+        ----
             pattern: Search pattern
             directory: Directory to search in
             **fd_options: Additional fd options
 
         Returns:
+        -------
             Number of matching files
+
         """
         try:
             return self.fd.count_files(pattern=pattern or None, path=path, **fd_options)
@@ -301,10 +335,10 @@ class FdFinder:
         parallel: bool = True,
         **fd_options,
     ) -> subprocess.CompletedProcess:
-        r"""
-        Execute command on search results using fd's built-in execution.
+        r"""Execute command on search results using fd's built-in execution.
 
         Args:
+        ----
             pattern: Search pattern
             command: Command and arguments to execute
             directory: Directory to search in
@@ -312,14 +346,17 @@ class FdFinder:
             **fd_options: Additional fd options
 
         Returns:
+        -------
             CompletedProcess object
 
         Example:
+        -------
             >>> searcher = FdFinder()
             >>> # Delete all .tmp files
             >>> searcher.execute_on_results(
             ...     r"\.tmp$", ["rm"], parallel=False
             ... )
+
         """
         if not self.fd.is_available():
             raise RuntimeError("fd command not available")
@@ -347,19 +384,22 @@ class FdFinder:
         return CommandRunner.run_command(cmd, capture_output=True, text=True)
 
     def get_stats(self, path: Union[str, Path] = ".") -> dict:
-        """
-        Get basic statistics about a directory using fd.
+        """Get basic statistics about a directory using fd.
 
         Args:
+        ----
             path: Directory to probe
 
         Returns:
+        -------
             Dictionary with basic stats
 
         Example:
+        -------
             >>> searcher = FdFinder()
             >>> stats = searcher.get_stats("/project")
             >>> print(f"Files: {stats['file_count']}")
+
         """
         if not self.fd.is_available():
             return {"file_count": 0, "directory_count": 0, "error": "fd not available"}

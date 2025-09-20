@@ -39,7 +39,12 @@ def compute_sha256(path: str, block_size: int = 65536) -> str:
 
 def file_fingerprint(path: str) -> Dict[str, object]:
     st = os.stat(path)
-    return {"path": path, "size": st.st_size, "mtime": st.st_mtime, "sha256": compute_sha256(path)}
+    return {
+        "path": path,
+        "size": st.st_size,
+        "mtime": st.st_mtime,
+        "sha256": compute_sha256(path),
+    }
 
 
 def _normalize_tokens(text: str) -> List[str]:
@@ -86,7 +91,9 @@ def minhash_signature(text: str, num_perm: int = 128, k: int = 3):
             m.update(sh.encode("utf8"))
         return m
     # fallback: return sorted list of small hashes (not true MinHash, but useful for cheap grouping)
-    sig = sorted(int(hashlib.sha1(s.encode("utf8")).hexdigest()[:8], 16) for s in shingles)
+    sig = sorted(
+        int(hashlib.sha1(s.encode("utf8")).hexdigest()[:8], 16) for s in shingles
+    )
     return sig
 
 
@@ -101,7 +108,11 @@ def _hamming_int(a: int, b: int) -> int:
 def ahash_image(path: str, hash_size: int = 8) -> str:
     if Image is None:
         raise RuntimeError("Pillow is required for image hashing (install pillow)")
-    img = Image.open(path).convert("L").resize((hash_size, hash_size), Image.Resampling.LANCZOS)
+    img = (
+        Image.open(path)
+        .convert("L")
+        .resize((hash_size, hash_size), Image.Resampling.LANCZOS)
+    )
     pixels = list(img.getdata())
     avg = sum(pixels) / len(pixels)
     bits = 0
@@ -113,7 +124,11 @@ def ahash_image(path: str, hash_size: int = 8) -> str:
 def dhash_image(path: str, hash_size: int = 8) -> str:
     if Image is None:
         raise RuntimeError("Pillow is required for image hashing (install pillow)")
-    img = Image.open(path).convert("L").resize((hash_size + 1, hash_size), Image.Resampling.LANCZOS)
+    img = (
+        Image.open(path)
+        .convert("L")
+        .resize((hash_size + 1, hash_size), Image.Resampling.LANCZOS)
+    )
     pixels = list(img.getdata())
     bits = 0
     for row in range(hash_size):

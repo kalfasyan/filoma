@@ -68,6 +68,7 @@ select = [
     "F",  # pyflakes
     "I",  # isort
 ]
+
 ignore = []
 
 [tool.ruff.format]
