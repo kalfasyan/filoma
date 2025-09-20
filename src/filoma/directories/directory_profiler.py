@@ -311,15 +311,24 @@ class DirectoryProfiler:
         # Decide which implementation to use based on search_backend and availability
         backend_choice = config.search_backend
         if backend_choice == "auto":
-            # If both explicitly requested, prefer fd for discovery speed
-            if config.use_fd and FD_AVAILABLE and config.use_rust and RUST_AVAILABLE:
+            # Honor explicit user preferences when provided.
+            # If both backends are explicitly requested and available, prefer fd
+            if config.use_fd and config.use_rust and FD_AVAILABLE and RUST_AVAILABLE:
                 backend_choice = "fd"
-            elif config.use_fd and FD_AVAILABLE:
-                backend_choice = "fd"
+            # If user explicitly requested Rust and it's available, use it
             elif config.use_rust and RUST_AVAILABLE:
                 backend_choice = "rust"
+            # If user explicitly requested fd and it's available, use it
+            elif config.use_fd and FD_AVAILABLE:
+                backend_choice = "fd"
             else:
-                backend_choice = "python"
+                # No explicit preference from user -> auto-detect best available
+                if RUST_AVAILABLE:
+                    backend_choice = "rust"
+                elif FD_AVAILABLE:
+                    backend_choice = "fd"
+                else:
+                    backend_choice = "python"
 
         if backend_choice == "rust":
             self.use_rust = True
