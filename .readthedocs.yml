@@ -8,8 +8,8 @@ build:
     - cp docs/rtd_stubs/filoma_core.py src/filoma/filoma_core.py
     # Make package importable for mkdocstrings by copying source to repo root
     - cp -r src/filoma .
-    # Install the docs requirements in the RTD build environment.
-    - python3 -m pip install --upgrade pip
+    # Install pip if missing, then install the docs requirements.
+    - python3 -m pip install --upgrade pip || python3 -m ensurepip --upgrade || (curl -sS https://bootstrap.pypa.io/get-pip.py | python3 -)
     - python3 -m pip install -r docs/requirements-docs.txt
 
 # (No explicit `python.version` key — installation is handled in
