@@ -1,0 +1,1137 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Fast, multi-backend file and directory analysis for Python">
+      
+      
+      
+      
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.19">
+    
+    
+      
+        <title>Advanced Usage - filoma</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.7e37652d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#advanced-usage" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="filoma" class="md-header__button md-logo" aria-label="filoma" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            filoma
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Advanced Usage
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="filoma" class="md-nav__button md-logo" aria-label="filoma" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    filoma
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Getting Started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quickstart
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Usage
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Usage
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Core Concepts
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scanning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Directory Scanning
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dataframe/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    DataFrame Workflow
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../profiling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    File & Image Profiling
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ml/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ML Splits
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../demo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Demo
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbook/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cookbook
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-quality/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Data Quality
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backends/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Backends
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Performance
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../life-after-filoma/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Life after filoma
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#profiler-quick-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      Profiler Quick Reference
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#smart-file-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      Smart File Discovery
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Smart File Discovery">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fdfinder-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      FdFinder Interface
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#advanced-search-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      Advanced Search Patterns
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#direct-fd-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Direct fd Integration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dataframe-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      DataFrame Analysis
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DataFrame Analysis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-dataframe-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Basic DataFrame Usage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#advanced-dataframe-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Advanced DataFrame Operations
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dataframe-api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      DataFrame API Reference
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backend-control-comparison" class="md-nav__link">
+    <span class="md-ellipsis">
+      Backend Control &amp; Comparison
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#manual-backend-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      Manual Backend Selection
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complex-fd-search-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      Complex fd Search Patterns
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#progress-performance-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Progress &amp; Performance Features
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#analysis-output-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      Analysis Output Structure
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="advanced-usage">Advanced Usage<a class="headerlink" href="#advanced-usage" title="Permanent link">&para;</a></h1>
+<h2 id="profiler-quick-reference">Profiler Quick Reference<a class="headerlink" href="#profiler-quick-reference" title="Permanent link">&para;</a></h2>
+<p>This section shows the three main profilers (<code>DirectoryProfiler</code>, <code>FileProfiler</code>, <code>ImageProfiler</code>), short examples, and the most important constructor/probe arguments with notes about which backend(s) honor them.</p>
+<p>DirectoryProfiler — high-level directory analysis (counts, extensions, empty folders, timing)</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">filoma.directories</span><span class="w"> </span><span class="kn">import</span> <span class="n">DirectoryProfiler</span><span class="p">,</span> <span class="n">DirectoryProfilerConfig</span>
+
+<span class="n">profiler</span> <span class="o">=</span> <span class="n">DirectoryProfiler</span><span class="p">(</span><span class="n">DirectoryProfilerConfig</span><span class="p">(</span>
+    <span class="n">search_backend</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span>   <span class="c1"># &#39;auto&#39;|&#39;rust&#39;|&#39;fd&#39;|&#39;python&#39;</span>
+    <span class="n">use_async</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>         <span class="c1"># Rust async scanner (network-optimized)</span>
+    <span class="n">build_dataframe</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>    <span class="c1"># collect paths into a DataFrame (Polars)</span>
+    <span class="n">show_progress</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">))</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">profiler</span><span class="o">.</span><span class="n">probe</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+<span class="n">profiler</span><span class="o">.</span><span class="n">print_summary</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+</code></pre></div>
+<p>Key arguments (what they do &amp; which backend(s) support them):
+- <code>search_backend</code> — choose preferred backend. Supported values: <code>rust</code>, <code>fd</code>, <code>python</code>, <code>auto</code> (default). All profilers use this to decide implementation.
+- <code>use_async</code> — enable Rust async scanner (when <code>search_backend</code> allows Rust and tokio-enabled build). Backend: Rust (async only).
+- <code>use_parallel</code> / <code>parallel_threshold</code> — prefer parallel Rust scanning when available; adjusts parallel decision heuristics. Backend: Rust (parallel only).
+- <code>build_dataframe</code> — collect discovered paths into a Polars DataFrame for downstream analysis. Backend: works with any discovery backend; building is done in Python when using Rust/fd.
+- <code>max_depth</code> — limit recursion depth. Honored by all backends.
+- <code>follow_links</code> — whether to follow symlinks. Backend support: Rust (explicit flag), fd (discovery flag), Python (depends on os.walk behaviour but passed through by the profiler).
+- <code>search_hidden</code> — include hidden files/dirs. Backend support: Rust, fd, Python (profiler passes preference).
+- <code>no_ignore</code> — ignore .gitignore and similar ignore files (fd/Rust option). Backend support: fd, Rust.
+- <code>threads</code> — number of threads forwarded to <code>fd</code> (if used). Backend: fd.
+- <code>fast_path_only</code> — Rust-only mode to skip expensive metadata collection and only gather file paths (useful for very large trees).</p>
+<p>Notes: when <code>search_backend='auto'</code> filoma chooses the most efficient backend available and applies fd-like defaults (follow hidden, do not respect ignore files) unless you explicitly override flags.</p>
+<p>FileProfiler — probe a single file for metadata and optional hash</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">filoma.files</span><span class="w"> </span><span class="kn">import</span> <span class="n">FileProfiler</span>
+
+<span class="n">filo</span> <span class="o">=</span> <span class="n">FileProfiler</span><span class="p">()</span><span class="o">.</span><span class="n">probe</span><span class="p">(</span><span class="s1">&#39;README.md&#39;</span><span class="p">,</span> <span class="n">compute_hash</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">filo</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span>
+</code></pre></div>
+<p>Key arguments:
+- <code>compute_hash</code> (bool) — compute content hash (sha256). Supported by: FileProfiler (Python implementation) and internal Rust file profilers when enabled; computing a hash may be slower for large files.
+- <code>follow_links</code> — when probing a path that is a symlink, whether to resolve it. Supported by: FileProfiler (behavior depends on implementation; FileProfiler forwards to low-level routines).</p>
+<p>ImageProfiler — high-level entry point that dispatches to specialized image profilers (PNG, TIF, NPY, ZARR or in-memory numpy arrays)</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">filoma.images</span><span class="w"> </span><span class="kn">import</span> <span class="n">ImageProfiler</span>
+
+<span class="c1"># File path</span>
+<span class="n">img_report</span> <span class="o">=</span> <span class="n">ImageProfiler</span><span class="p">()</span><span class="o">.</span><span class="n">probe</span><span class="p">(</span><span class="s1">&#39;images/logo.png&#39;</span><span class="p">)</span>
+
+<span class="c1"># Or pass a numpy array directly</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="n">arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">64</span><span class="p">,</span><span class="mi">64</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+<span class="n">img_report2</span> <span class="o">=</span> <span class="n">ImageProfiler</span><span class="p">()</span><span class="o">.</span><span class="n">probe</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span>
+</code></pre></div>
+<p>Key arguments &amp; notes:
+- <code>path</code> or numpy array input — ImageProfiler accepts either a path-like (dispatches by extension) or an ndarray directly.
+- <code>compute_stats</code> — compute pixel-level statistics (min/max/mean/std) and simple histograms. Supported by: image profilers implemented in Python; some heavy operations may call compiled helpers.
+- <code>load_lazy</code> / <code>fast</code> — some backends/profilers may provide a fast/low-memory mode for very large images (TIF/ZARR). Backend support: varies by specific image profiler (Tif/Zarr profilers often support chunked/lazy reading).</p>
+<p>Assumptions &amp; compatibility
+- The doc lists commonly available options; exact flag names and behavior are implemented in the specific profiler classes. When unspecified, <code>DirectoryProfiler</code> attempts to forward preferences to the chosen backend (<code>rust</code>/<code>fd</code>/<code>python</code>).
+- If you'd like, I can add a small matrix table (argument vs backend) documenting the precise per-backend support for each flag.</p>
+<h2 id="smart-file-discovery">Smart File Discovery<a class="headerlink" href="#smart-file-discovery" title="Permanent link">&para;</a></h2>
+<h3 id="fdfinder-interface">FdFinder Interface<a class="headerlink" href="#fdfinder-interface" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">filoma.directories</span><span class="w"> </span><span class="kn">import</span> <span class="n">FdFinder</span>
+
+<span class="c1"># Create searcher (automatically uses fd if available)</span>
+<span class="n">searcher</span> <span class="o">=</span> <span class="n">FdFinder</span><span class="p">()</span>
+
+<span class="c1"># Find Python files</span>
+<span class="n">python_files</span> <span class="o">=</span> <span class="n">searcher</span><span class="o">.</span><span class="n">find_files</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="sa">r</span><span class="s2">&quot;\.py$&quot;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="n">max_depth</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">python_files</span><span class="p">)</span><span class="si">}</span><span class="s2"> Python files&quot;</span><span class="p">)</span>
+
+<span class="c1"># Find files by extension</span>
+<span class="n">code_files</span> <span class="o">=</span> <span class="n">searcher</span><span class="o">.</span><span class="n">find_by_extension</span><span class="p">([</span><span class="s1">&#39;py&#39;</span><span class="p">,</span> <span class="s1">&#39;rs&#39;</span><span class="p">,</span> <span class="s1">&#39;js&#39;</span><span class="p">],</span> <span class="n">path</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+<span class="n">image_files</span> <span class="o">=</span> <span class="n">searcher</span><span class="o">.</span><span class="n">find_by_extension</span><span class="p">([</span><span class="s1">&#39;.jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;.png&#39;</span><span class="p">,</span> <span class="s1">&#39;.tif&#39;</span><span class="p">],</span> <span class="n">path</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+
+<span class="c1"># Find directories</span>
+<span class="n">test_dirs</span> <span class="o">=</span> <span class="n">searcher</span><span class="o">.</span><span class="n">find_directories</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;test&quot;</span><span class="p">,</span> <span class="n">max_depth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="advanced-search-patterns">Advanced Search Patterns<a class="headerlink" href="#advanced-search-patterns" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Search with glob patterns</span>
+<span class="n">config_files</span> <span class="o">=</span> <span class="n">searcher</span><span class="o">.</span><span class="n">find_files</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;*.config.*&quot;</span><span class="p">,</span> <span class="n">use_glob</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># Search hidden files</span>
+<span class="n">hidden_files</span> <span class="o">=</span> <span class="n">searcher</span><span class="o">.</span><span class="n">find_files</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;.*&quot;</span><span class="p">,</span> <span class="n">hidden</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># Case-insensitive search</span>
+<span class="n">readme_files</span> <span class="o">=</span> <span class="n">searcher</span><span class="o">.</span><span class="n">find_files</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;readme&quot;</span><span class="p">,</span> <span class="n">case_sensitive</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># Recent files (if fd supports time filters)</span>
+<span class="n">recent_files</span> <span class="o">=</span> <span class="n">searcher</span><span class="o">.</span><span class="n">find_recent_files</span><span class="p">(</span><span class="n">changed_within</span><span class="o">=</span><span class="s2">&quot;1d&quot;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">&quot;/logs&quot;</span><span class="p">)</span>
+
+<span class="c1"># Large files</span>
+<span class="n">large_files</span> <span class="o">=</span> <span class="n">searcher</span><span class="o">.</span><span class="n">find_large_files</span><span class="p">(</span><span class="n">min_size</span><span class="o">=</span><span class="s2">&quot;1M&quot;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">&quot;/data&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="direct-fd-integration">Direct fd Integration<a class="headerlink" href="#direct-fd-integration" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">filoma.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">FdIntegration</span>
+
+<span class="c1"># Low-level fd access</span>
+<span class="n">fd</span> <span class="o">=</span> <span class="n">FdIntegration</span><span class="p">()</span>
+<span class="k">if</span> <span class="n">fd</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;fd version: </span><span class="si">{</span><span class="n">fd</span><span class="o">.</span><span class="n">get_version</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Regex pattern search</span>
+    <span class="n">py_files</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="sa">r</span><span class="s2">&quot;\.py$&quot;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">&quot;/src&quot;</span><span class="p">,</span> <span class="n">max_depth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="c1"># Glob pattern search  </span>
+    <span class="n">config_files</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;*.json&quot;</span><span class="p">,</span> <span class="n">use_glob</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">max_results</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+    <span class="c1"># Files only</span>
+    <span class="n">files</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">file_types</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;f&quot;</span><span class="p">],</span> <span class="n">max_depth</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+
+    <span class="c1"># Directories only</span>
+    <span class="n">dirs</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">file_types</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;d&quot;</span><span class="p">],</span> <span class="n">search_hidden</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="dataframe-analysis">DataFrame Analysis<a class="headerlink" href="#dataframe-analysis" title="Permanent link">&para;</a></h2>
+<h3 id="basic-dataframe-usage">Basic DataFrame Usage<a class="headerlink" href="#basic-dataframe-usage" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">filoma.directories</span><span class="w"> </span><span class="kn">import</span> <span class="n">DirectoryProfiler</span><span class="p">,</span> <span class="n">DirectoryProfilerConfig</span>
+
+<span class="c1"># Enable DataFrame building for advanced analysis</span>
+<span class="n">profiler</span> <span class="o">=</span> <span class="n">DirectoryProfiler</span><span class="p">(</span><span class="n">DirectoryProfilerConfig</span><span class="p">(</span><span class="n">build_dataframe</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">profiler</span><span class="o">.</span><span class="n">probe</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+
+<span class="c1"># Get the DataFrame with all file paths</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">profiler</span><span class="o">.</span><span class="n">get_dataframe</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">)</span><span class="si">}</span><span class="s2"> paths&quot;</span><span class="p">)</span>
+
+<span class="c1"># Add path components (parent, name, stem, suffix)</span>
+<span class="n">df_enhanced</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">add_path_components</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">df_enhanced</span><span class="o">.</span><span class="n">head</span><span class="p">())</span>
+</code></pre></div>
+<h3 id="advanced-dataframe-operations">Advanced DataFrame Operations<a class="headerlink" href="#advanced-dataframe-operations" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Filter by file type</span>
+<span class="n">python_files</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">filter_by_extension</span><span class="p">(</span><span class="s1">&#39;.py&#39;</span><span class="p">)</span>
+<span class="n">image_files</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">filter_by_extension</span><span class="p">([</span><span class="s1">&#39;.jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;.png&#39;</span><span class="p">,</span> <span class="s1">&#39;.tif&#39;</span><span class="p">])</span>
+
+<span class="c1"># Group and probe</span>
+<span class="n">extension_counts</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">group_by_extension</span><span class="p">()</span>
+<span class="n">directory_counts</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">group_by_directory</span><span class="p">()</span>
+
+<span class="c1"># Add file statistics</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">add_file_stats_cols</span><span class="p">()</span>  <span class="c1"># size, timestamps, etc.</span>
+
+<span class="c1"># Add depth information</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">add_depth_col</span><span class="p">()</span>
+
+<span class="c1"># Export for further analysis</span>
+<span class="n">df</span><span class="o">.</span><span class="n">save_csv</span><span class="p">(</span><span class="s2">&quot;file_analysis.csv&quot;</span><span class="p">)</span>
+<span class="n">df</span><span class="o">.</span><span class="n">save_parquet</span><span class="p">(</span><span class="s2">&quot;file_analysis.parquet&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="dataframe-api-reference">DataFrame API Reference<a class="headerlink" href="#dataframe-api-reference" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Path manipulation</span>
+<span class="n">df</span><span class="o">.</span><span class="n">add_path_components</span><span class="p">()</span>     <span class="c1"># Add parent, name, stem, suffix columns</span>
+<span class="n">df</span><span class="o">.</span><span class="n">add_depth_col</span><span class="p">()</span>        <span class="c1"># Add directory depth column</span>
+<span class="n">df</span><span class="o">.</span><span class="n">add_file_stats_cols</span><span class="p">()</span>          <span class="c1"># Add size, timestamps, file type info</span>
+
+<span class="c1"># Filtering</span>
+<span class="n">df</span><span class="o">.</span><span class="n">filter_by_extension</span><span class="p">(</span><span class="s1">&#39;.py&#39;</span><span class="p">)</span>              <span class="c1"># Filter by single extension</span>
+<span class="n">df</span><span class="o">.</span><span class="n">filter_by_extension</span><span class="p">([</span><span class="s1">&#39;.jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;.png&#39;</span><span class="p">])</span>   <span class="c1"># Filter by multiple extensions</span>
+<span class="n">df</span><span class="o">.</span><span class="n">filter_by_pattern</span><span class="p">(</span><span class="s1">&#39;test&#39;</span><span class="p">)</span>               <span class="c1"># Filter by path pattern</span>
+
+<span class="c1"># Analysis</span>
+<span class="n">df</span><span class="o">.</span><span class="n">group_by_extension</span><span class="p">()</span>      <span class="c1"># Group and count by file extension</span>
+<span class="n">df</span><span class="o">.</span><span class="n">group_by_directory</span><span class="p">()</span>      <span class="c1"># Group and count by parent directory</span>
+
+<span class="c1"># Export</span>
+<span class="n">df</span><span class="o">.</span><span class="n">save_csv</span><span class="p">(</span><span class="s2">&quot;analysis.csv&quot;</span><span class="p">)</span>           <span class="c1"># Export to CSV</span>
+<span class="n">df</span><span class="o">.</span><span class="n">save_parquet</span><span class="p">(</span><span class="s2">&quot;analysis.parquet&quot;</span><span class="p">)</span>   <span class="c1"># Export to Parquet</span>
+<span class="n">df</span><span class="o">.</span><span class="n">to_polars</span><span class="p">()</span>                        <span class="c1"># Get underlying Polars DataFrame</span>
+</code></pre></div>
+<h2 id="backend-control-comparison">Backend Control &amp; Comparison<a class="headerlink" href="#backend-control-comparison" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">filoma.directories</span><span class="w"> </span><span class="kn">import</span> <span class="n">DirectoryProfiler</span><span class="p">,</span> <span class="n">DirectoryProfilerConfig</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+<span class="c1"># Test all available backends</span>
+<span class="n">backends</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;python&quot;</span><span class="p">,</span> <span class="s2">&quot;rust&quot;</span><span class="p">,</span> <span class="s2">&quot;fd&quot;</span><span class="p">]</span>
+<span class="n">results</span> <span class="o">=</span> <span class="p">{}</span>
+
+<span class="k">for</span> <span class="n">backend</span> <span class="ow">in</span> <span class="n">backends</span><span class="p">:</span>
+    <span class="k">try</span><span class="p">:</span>
+    <span class="n">profiler</span> <span class="o">=</span> <span class="n">DirectoryProfiler</span><span class="p">(</span><span class="n">DirectoryProfilerConfig</span><span class="p">(</span><span class="n">search_backend</span><span class="o">=</span><span class="n">backend</span><span class="p">))</span>
+        <span class="c1"># Check if the specific backend is available</span>
+        <span class="n">available</span> <span class="o">=</span> <span class="p">((</span><span class="n">backend</span> <span class="o">==</span> <span class="s2">&quot;rust&quot;</span> <span class="ow">and</span> <span class="n">profiler</span><span class="o">.</span><span class="n">is_rust_available</span><span class="p">())</span> <span class="ow">or</span>
+                    <span class="p">(</span><span class="n">backend</span> <span class="o">==</span> <span class="s2">&quot;fd&quot;</span> <span class="ow">and</span> <span class="n">profiler</span><span class="o">.</span><span class="n">is_fd_available</span><span class="p">())</span> <span class="ow">or</span>
+                    <span class="p">(</span><span class="n">backend</span> <span class="o">==</span> <span class="s2">&quot;python&quot;</span><span class="p">))</span>  <span class="c1"># Python always available</span>
+        <span class="k">if</span> <span class="n">available</span><span class="p">:</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">profiler</span><span class="o">.</span><span class="n">probe</span><span class="p">(</span><span class="s2">&quot;/test/directory&quot;</span><span class="p">)</span>
+            <span class="n">elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+            <span class="n">results</span><span class="p">[</span><span class="n">backend</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;time&#39;</span><span class="p">:</span> <span class="n">elapsed</span><span class="p">,</span>
+                <span class="s1">&#39;files&#39;</span><span class="p">:</span> <span class="n">result</span><span class="p">[</span><span class="s1">&#39;summary&#39;</span><span class="p">][</span><span class="s1">&#39;total_files&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;available&#39;</span><span class="p">:</span> <span class="kc">True</span>
+            <span class="p">}</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✅ </span><span class="si">{</span><span class="n">backend</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">elapsed</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">s - </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;summary&#39;</span><span class="p">][</span><span class="s1">&#39;total_files&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> files&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;❌ </span><span class="si">{</span><span class="n">backend</span><span class="si">}</span><span class="s2">: Not available&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ </span><span class="si">{</span><span class="n">backend</span><span class="si">}</span><span class="s2">: Error - </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># Find the fastest</span>
+<span class="k">if</span> <span class="n">results</span><span class="p">:</span>
+    <span class="n">fastest</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">k</span><span class="p">:</span> <span class="n">results</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;time&#39;</span><span class="p">])</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;🏆 Fastest backend: </span><span class="si">{</span><span class="n">fastest</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="manual-backend-selection">Manual Backend Selection<a class="headerlink" href="#manual-backend-selection" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="c1"># Force specific backends</span>
+<span class="n">profiler_python</span> <span class="o">=</span> <span class="n">DirectoryProfiler</span><span class="p">(</span><span class="n">DirectoryProfilerConfig</span><span class="p">(</span><span class="n">search_backend</span><span class="o">=</span><span class="s2">&quot;python&quot;</span><span class="p">,</span> <span class="n">show_progress</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+<span class="n">profiler_rust</span> <span class="o">=</span> <span class="n">DirectoryProfiler</span><span class="p">(</span><span class="n">DirectoryProfilerConfig</span><span class="p">(</span><span class="n">search_backend</span><span class="o">=</span><span class="s2">&quot;rust&quot;</span><span class="p">,</span> <span class="n">show_progress</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>  
+<span class="n">profiler_fd</span> <span class="o">=</span> <span class="n">DirectoryProfiler</span><span class="p">(</span><span class="n">DirectoryProfilerConfig</span><span class="p">(</span><span class="n">search_backend</span><span class="o">=</span><span class="s2">&quot;fd&quot;</span><span class="p">,</span> <span class="n">show_progress</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+
+<span class="c1"># Disable progress for pure benchmarking</span>
+<span class="n">profiler_benchmark</span> <span class="o">=</span> <span class="n">DirectoryProfiler</span><span class="p">(</span><span class="n">DirectoryProfilerConfig</span><span class="p">(</span><span class="n">show_progress</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">fast_path_only</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+
+<span class="c1"># Check which backend is actually being used</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Python backend available: True&quot;</span><span class="p">)</span>  <span class="c1"># Always available</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Rust backend available: </span><span class="si">{</span><span class="n">profiler_rust</span><span class="o">.</span><span class="n">is_rust_available</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;fd backend available: </span><span class="si">{</span><span class="n">profiler_fd</span><span class="o">.</span><span class="n">is_fd_available</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="complex-fd-search-patterns">Complex fd Search Patterns<a class="headerlink" href="#complex-fd-search-patterns" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">filoma.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">FdIntegration</span>
+
+<span class="n">fd</span> <span class="o">=</span> <span class="n">FdIntegration</span><span class="p">()</span>
+
+<span class="k">if</span> <span class="n">fd</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+    <span class="c1"># Complex regex patterns</span>
+    <span class="n">test_files</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">find</span><span class="p">(</span>
+        <span class="n">pattern</span><span class="o">=</span><span class="sa">r</span><span class="s2">&quot;test.*\.py$&quot;</span><span class="p">,</span>
+        <span class="n">path</span><span class="o">=</span><span class="s2">&quot;/src&quot;</span><span class="p">,</span>
+        <span class="n">max_depth</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+        <span class="n">case_sensitive</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Glob patterns with exclusions</span>
+    <span class="n">source_files</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">find</span><span class="p">(</span>
+        <span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;*.{py,rs,js}&quot;</span><span class="p">,</span>
+        <span class="n">use_glob</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">exclude_patterns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;*test*&quot;</span><span class="p">,</span> <span class="s2">&quot;*__pycache__*&quot;</span><span class="p">],</span>
+        <span class="n">max_depth</span><span class="o">=</span><span class="mi">5</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Find large files</span>
+    <span class="n">large_files</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">find</span><span class="p">(</span>
+        <span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">,</span>
+        <span class="n">file_types</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;f&quot;</span><span class="p">],</span>
+        <span class="n">absolute_paths</span><span class="o">=</span><span class="kc">True</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Search hidden files</span>
+    <span class="n">hidden_files</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">find</span><span class="p">(</span>
+        <span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;.*&quot;</span><span class="p">,</span>
+        <span class="n">search_hidden</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">max_results</span><span class="o">=</span><span class="mi">100</span>
+    <span class="p">)</span>
+</code></pre></div>
+<h2 id="progress-performance-features">Progress &amp; Performance Features<a class="headerlink" href="#progress-performance-features" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">filoma.directories</span><span class="w"> </span><span class="kn">import</span> <span class="n">DirectoryProfiler</span>
+
+<span class="c1"># Most profilers support progress bars via `show_progress=True` (behavior may</span>
+<span class="c1"># differ depending on backend availability and interactive environment)</span>
+<span class="n">profiler</span> <span class="o">=</span> <span class="n">DirectoryProfiler</span><span class="p">(</span><span class="n">DirectoryProfilerConfig</span><span class="p">(</span><span class="n">show_progress</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">profiler</span><span class="o">.</span><span class="n">probe</span><span class="p">(</span><span class="s2">&quot;/path/to/large/directory&quot;</span><span class="p">)</span>
+<span class="n">profiler</span><span class="o">.</span><span class="n">print_summary</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+<span class="c1"># Fast path only mode (just finds file paths, no metadata)</span>
+<span class="n">profiler_fast</span> <span class="o">=</span> <span class="n">DirectoryProfiler</span><span class="p">(</span><span class="n">DirectoryProfilerConfig</span><span class="p">(</span><span class="n">show_progress</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">fast_path_only</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+<span class="n">result_fast</span> <span class="o">=</span> <span class="n">profiler_fast</span><span class="o">.</span><span class="n">probe</span><span class="p">(</span><span class="s2">&quot;/path/to/large/directory&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="n">result_fast</span><span class="p">[</span><span class="s1">&#39;summary&#39;</span><span class="p">][</span><span class="s1">&#39;total_files&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> files (fast path only)&quot;</span><span class="p">)</span>
+
+<span class="c1"># Disable progress for benchmarking</span>
+<span class="n">profiler_benchmark</span> <span class="o">=</span> <span class="n">DirectoryProfiler</span><span class="p">(</span><span class="n">DirectoryProfilerConfig</span><span class="p">(</span><span class="n">show_progress</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+</code></pre></div>
+<h2 id="analysis-output-structure">Analysis Output Structure<a class="headerlink" href="#analysis-output-structure" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+    <span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/probed/path&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;summary&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;total_files&quot;</span><span class="p">:</span> <span class="mi">150</span><span class="p">,</span>
+        <span class="s2">&quot;total_folders&quot;</span><span class="p">:</span> <span class="mi">25</span><span class="p">,</span>
+        <span class="s2">&quot;total_size_bytes&quot;</span><span class="p">:</span> <span class="mi">1048576</span><span class="p">,</span>
+        <span class="s2">&quot;total_size_mb&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="s2">&quot;avg_files_per_folder&quot;</span><span class="p">:</span> <span class="mf">6.0</span><span class="p">,</span>
+        <span class="s2">&quot;max_depth&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="s2">&quot;empty_folder_count&quot;</span><span class="p">:</span> <span class="mi">2</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;file_extensions&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;.py&quot;</span><span class="p">:</span> <span class="mi">45</span><span class="p">,</span> <span class="s2">&quot;.txt&quot;</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="s2">&quot;.md&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">},</span>
+    <span class="s2">&quot;common_folder_names&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;src&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;tests&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;docs&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+    <span class="s2">&quot;empty_folders&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;/path/to/empty1&quot;</span><span class="p">,</span> <span class="s2">&quot;/path/to/empty2&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;top_folders_by_file_count&quot;</span><span class="p">:</span> <span class="p">[(</span><span class="s2">&quot;/path/with/most/files&quot;</span><span class="p">,</span> <span class="mi">25</span><span class="p">)],</span>
+    <span class="s2">&quot;depth_distribution&quot;</span><span class="p">:</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">3</span><span class="p">:</span> <span class="mi">7</span><span class="p">},</span>
+    <span class="s2">&quot;dataframe&quot;</span><span class="p">:</span> <span class="n">filoma</span><span class="o">.</span><span class="n">DataFrame</span>  <span class="c1"># When build_dataframe=True</span>
+<span class="p">}</span>
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.92b07e13.min.js"></script>
+      
+    
+  </body>
+</html>
