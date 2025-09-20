@@ -9,6 +9,8 @@ build:
     # Install the docs requirements in the RTD build environment.
     - pip install --upgrade pip
     - pip install -r docs/requirements-docs.txt
+    # Make package importable for mkdocstrings by copying source to repo root
+    - cp -r src/filoma .
 
 # (No explicit `python.version` key — installation is handled in
 # `build.commands` to avoid RTD schema validation errors.)
@@ -16,11 +18,8 @@ build:
 mkdocs:
   configuration: mkdocs.yml
 
-# Make the local `src` layout importable without pip-installing the package.
-# This avoids calling the project's build backend (maturin) during the
-# docs build and prevents the need for a Rust toolchain on Read the Docs.
-env:
-  PYTHONPATH: src
+# Make the package importable by copying `src/filoma` to the repo root during
+# the build. This avoids needing to set `PYTHONPATH` in the RTD YAML.
 
 # Notes for maintainers:
 # - If you want RTD to install the package itself (e.g. for examples that
