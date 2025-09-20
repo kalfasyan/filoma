@@ -6,10 +6,13 @@
     <a href="https://badge.fury.io/py/filoma">
         <img src="https://badge.fury.io/py/filoma.svg" alt="PyPI version">
     </a>
+    <a href="https://filoma.readthedocs.io/en/latest/">
+        <img src="https://readthedocs.org/projects/filoma/badge/?version=latest" alt="Documentation Status">
+    </a>
     <img alt="Code style: ruff" src="https://img.shields.io/badge/code%20style-ruff-blueviolet">
     <img alt="Contributions welcome" src="https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat">
-    <a href="https://github.com/filoma/filoma/actions/workflows/ci.yml">
-        <img src="https://github.com/filoma/filoma/actions/workflows/ci.yml/badge.svg" alt="Tests">
+    <a href="https://github.com/kalfasyan/filoma/actions/workflows/ci.yml">
+        <img src="https://github.com/kalfasyan/filoma/actions/workflows/ci.yml/badge.svg" alt="Tests">
     </a>
 </p>
 
