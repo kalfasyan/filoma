@@ -92,7 +92,7 @@ mkdocstrings==0.30.0
     #   mkdocstrings-python
 mkdocstrings-python==1.18.2
     # via filoma (pyproject.toml)
-numpy==2.3.2
+numpy==2.2.6
     # via filoma (pyproject.toml)
 packaging==25.0
     # via mkdocs
