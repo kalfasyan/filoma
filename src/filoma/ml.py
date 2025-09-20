@@ -289,46 +289,57 @@ def split_data(
     """
     Split a filoma DataFrame into train/val/test based on filename/path-derived features.
 
-    Args:
-        df: a Polars DataFrame or filoma.DataFrame wrapper containing a 'path' column.
-        train_val_test: three integers or ratios for train/val/test; they will be
-                        normalized to fractions.
-        feature: which feature to use for grouping. May be:
-            - a sequence of column names (e.g. ('user','session')) to group by existing columns;
-            - a single column name string to group by that column;
-            - one of 'path_parts', 'filename', 'stem', 'parent', 'suffix' to derive the feature from the `path_col`.
-        path_parts: an iterable of integers selecting Path.parts indices (supports negative
-            indices). Only used when `feature=='path_parts'`. Default picks -1 (filename).
-        seed: optional integer to alter hashing for reproducible, different splits.
-        random_state: alias for `seed` (if provided it takes precedence). Named to match
-            sklearn's `train_test_split` for familiarity.
-        discover: if True, automatically discover filename tokens and add columns
-            named `prefix1`, `prefix2`, ... (or `token1`... if prefix=None).
-        sep: separator used to split filename stems when `discover=True`.
-        feat_prefix: prefix to use for discovered token column names. If None,
-            discovered token columns will be named `token1`, `token2`, ...
-        token_names: optional list of column names to use for tokens, or 'auto' to
-                    automatically generate readable names (uses prefix if set).
-        max_tokens: maximum number of tokens to extract when discovering.
-        include_parent: if True, add a `parent` column with the immediate parent folder name.
-        include_all_parts: if True, add columns `path_part0`, `path_part1`, ... for all Path.parts.
-        verbose: if True (default) log a short warning when achieved split counts
-            differ noticeably from requested ratios (common with small datasets or
-            grouped features).
-        validate_counts: if True, log a warning when the set of unique feature
-            values (or combined-column feature) is not identical across the
-            train/val/test splits. This helps detect unrepresentative splits.
-        return_type: one of 'polars' (default), 'filoma' (wrap Polars into filoma.DataFrame),
-                or 'pandas' (convert to pandas.DataFrame). If 'pandas' is chosen,
-                pandas must be available.
+    Parameters
+    ----------
+    data : Union[pl.DataFrame, Any]
+        A Polars DataFrame or filoma.DataFrame wrapper containing a 'path' column.
+    train_val_test : tuple[float, float, float]
+        Three integers or ratios for train/val/test; they will be normalized to fractions.
+    feature : Union[str, Sequence[str]]
+        Which feature to use for grouping. May be a sequence of column names
+        (group by existing columns), a single column name string, or one of
+        'path_parts', 'filename', 'stem', 'parent', 'suffix' to derive the feature from `path_col`.
+    path_parts : Optional[Iterable[int]]
+        Iterable selecting indices in Path.parts (supports negative indices). Only used
+        when `feature=='path_parts'`. Default picks -1 (filename).
+    seed : Optional[int]
+        Optional integer to alter hashing for reproducible, different splits.
+    random_state : Optional[int]
+        Alias for `seed` (if provided it takes precedence).
+    discover : bool
+        If True, automatically discover filename tokens and add columns named
+        `prefix1`, `prefix2`, ... (or `token1`... if prefix=None).
+    sep : str
+        Separator used to split filename stems when `discover=True`.
+    feat_prefix : str
+        Prefix to use for discovered token column names. If None, names will be
+        `token1`, `token2`, ...
+    token_names : Optional[Union[str, Sequence[str]]]
+        Optional list of column names to use for tokens, or 'auto' to automatically
+        generate readable names (uses prefix if set).
+    max_tokens : Optional[int]
+        Maximum number of tokens to extract when discovering.
+    include_parent : bool
+        If True, add a `parent` column with the immediate parent folder name.
+    include_all_parts : bool
+        If True, add columns `path_part0`, `path_part1`, ... for all Path.parts.
+    verbose : bool
+        If True (default) log a short warning when achieved split counts differ noticeably
+        from requested ratios (common with small datasets or grouped features).
+    validate_counts : bool
+        If True, log a warning when the set of unique feature values (or combined-column
+        feature) is not identical across the train/val/test splits.
+    return_type : str
+        One of 'polars' (default), 'filoma' (wrap Polars into filoma.DataFrame), or
+        'pandas' (convert to pandas.DataFrame). If 'pandas' is chosen, pandas must be available.
 
         Returns:
-            (train_df, val_df, test_df) as Polars DataFrames.
+            tuple: (train_df, val_df, test_df) as Polars DataFrames.
 
-        Notes:
-            - Splits are deterministic and grouped by the chosen feature to avoid
+        Note:
+            Splits are deterministic and grouped by the chosen feature to avoid
             leaking similar files into multiple sets when they share the same feature.
-            - The method uses sha256 hashing of the feature string to map to [0,1).
+            The method uses sha256 hashing of the feature string to map to [0,1).
     """
     assert train_val_test is not None and len(train_val_test) == 3, "train_val_test must be a tuple of three numbers"
 

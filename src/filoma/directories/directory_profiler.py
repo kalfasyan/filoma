@@ -254,24 +254,12 @@ class DirectoryProfiler:
         """
         Initialize the directory profiler.
 
-        Args:
-            use_rust: Whether to use the Rust implementation when available.
-                     Falls back to Python if Rust is not available.
-            use_parallel: Whether to use parallel processing in Rust (when available).
-                         Only effective when use_rust=True.
-            use_fd: Whether to use fd for file discovery when available.
-            search_backend: Backend to use ("rust", "python", "fd", "auto").
-                          "auto" chooses the best available backend.
-            parallel_threshold: Minimum estimated directory size to trigger parallel processing.
-                              Larger values = less likely to use parallel processing.
-            build_dataframe: Whether to build a DataFrame with all file paths for enhanced analysis.
-                           Requires polars to be installed. When using Rust acceleration,
-                           statistics are computed in Rust but file paths are collected
-                           using Python for DataFrame consistency.
-            show_progress: Whether to show progress indication during analysis.
-            progress_callback: Optional callback function for custom progress handling.
-                             Signature: callback(message: str, current: int, total: int)
-            fast_path_only: Internal flag to use fast path (no metadata) in Rust backend.
+        The profiler is configured with a `DirectoryProfilerConfig` instance which
+        holds options such as whether to use Rust acceleration, parallel processing,
+        fd integration, thresholding for parallelism, DataFrame building, and progress
+        reporting callbacks. Pass a `DirectoryProfilerConfig` object as the single
+        `config` argument. See `DirectoryProfilerConfig` for descriptions of each
+        configurable field.
         """
         # Expect a DirectoryProfilerConfig object — no legacy kwargs supported.
         if not hasattr(config, "__class__") or config.__class__.__name__ != "DirectoryProfilerConfig":
