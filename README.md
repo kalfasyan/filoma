@@ -19,6 +19,7 @@
 
 <p align="center">
   <a href="docs/installation.md">Installation</a> •
+  <a href="https://filoma.readthedocs.io/en/latest/">Documentation</a> •
   <a href="docs/quickstart.md">Quickstart</a> •
   <a href="docs/cookbook.md">Cookbook</a> •
   <a href="https://github.com/kalfasyan/filoma">Source Code</a>
