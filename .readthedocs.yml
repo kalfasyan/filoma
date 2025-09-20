@@ -2,15 +2,19 @@ version: 2
 
 build:
   os: ubuntu-22.04
-  commands:
-    # Copy RTD stubs so the docs build doesn't require the Rust extension.
-    - mkdir -p src/filoma
-    - cp docs/rtd_stubs/filoma_core.py src/filoma/filoma_core.py
-    # Make package importable for mkdocstrings by copying source to repo root
-    - cp -r src/filoma .
-    # Install pip if missing, then install the docs requirements.
-    - python3 -m pip install --upgrade pip || python3 -m ensurepip --upgrade || (curl -sS https://bootstrap.pypa.io/get-pip.py | python3 -)
-    - python3 -m pip install -r docs/requirements-docs.txt
+  tools:
+    python: "3.10"
+  jobs:
+    install:
+      - python3 -m pip install --upgrade pip || python3 -m ensurepip --upgrade || (curl -sS https://bootstrap.pypa.io/get-pip.py | python3 -)
+      - python3 -m pip install -r docs/requirements-docs.txt
+    pre_build:
+      - mkdir -p src/filoma
+      - cp docs/rtd_stubs/filoma_core.py src/filoma/filoma_core.py
+      - cp -r src/filoma .
+    build:
+      html:
+        - mkdocs build -d "$READTHEDOCS_OUTPUT/html"
 
 # (No explicit `python.version` key — installation is handled in
 # `build.commands` to avoid RTD schema validation errors.)
