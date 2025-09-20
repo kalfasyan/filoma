@@ -3,19 +3,15 @@ version: 2
 build:
   os: ubuntu-22.04
   commands:
+    # Copy RTD stubs so the docs build doesn't require the Rust extension.
+    - mkdir -p src/filoma
+    - cp docs/rtd_stubs/filoma_core.py src/filoma/filoma_core.py
     # Install the docs requirements in the RTD build environment.
     - pip install --upgrade pip
     - pip install -r docs/requirements-docs.txt
 
-# Use Python 3.11 to match project requirements
-python:
-  version: 3.11
-  install:
-    # Install only the documentation-specific requirements to avoid
-    # triggering a full package build (which would attempt to compile
-    # the Rust extension via maturin).
-    - requirements: docs/requirements-docs.txt
-
+# (No explicit `python.version` key — installation is handled in
+# `build.commands` to avoid RTD schema validation errors.)
 # Tell RTD we are using MkDocs and point at the repo config
 mkdocs:
   configuration: mkdocs.yml
