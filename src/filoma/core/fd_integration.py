@@ -55,17 +55,20 @@ class FdIntegration:
 
         Args:
         ----
-            pattern: Search pattern (regex by default, glob if use_glob=True)
-            path: Root directory to search in (default: current directory)
-            max_depth: Maximum search depth
-            file_types: Filter by type ('f'=file, 'd'=directory, 'l'=symlink, etc.)
-            exclude_patterns: Patterns to exclude
-            case_sensitive: Force case-sensitive search
-            follow_links: Follow symbolic links
-            search_hidden: Include hidden files/directories
-            max_results: Maximum number of results to return
-            absolute_paths: Return absolute paths
-            use_glob: Use glob patterns instead of regex
+            pattern: Search pattern (regex by default, glob if use_glob=True).
+            path: Root directory to search in (default: current directory).
+            max_depth: Maximum search depth.
+            file_types: Filter by type ('f'=file, 'd'=directory, 'l'=symlink, etc.).
+            exclude_patterns: Patterns to exclude.
+            case_sensitive: Force case-sensitive search.
+            follow_links: Follow symbolic links.
+            search_hidden: Include hidden files/directories.
+            max_results: Maximum number of results to return.
+            absolute_paths: Return absolute paths.
+            use_glob: Use glob patterns instead of regex.
+            threads: Number of threads to pass to `fd`.
+            no_ignore: When True, disable fd's ignore-file behavior.
+            **kwargs: Additional keyword arguments passed through to `fd`.
 
         Returns:
         -------

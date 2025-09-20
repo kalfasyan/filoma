@@ -93,9 +93,9 @@ def _maybe_discover(
     token_names: Optional[Union[str, Sequence[str]]],
     path_col: str,
 ) -> Any:
-    """If `discover` is True, ensure filename-token columns exist and return
-    a `filoma.DataFrame` wrapper. If `discover` is False, wrap the provided
-    object in a `filoma.DataFrame` if necessary and return it unchanged.
+    """If `discover` is True, ensure filename-token columns exist and return a `filoma.DataFrame` wrapper.
+
+    If `discover` is False, wrap the provided object in a `filoma.DataFrame` if necessary and return it unchanged.
     """
     if not discover:
         # If it's already a filoma.DataFrame just return it; otherwise wrap it
@@ -352,6 +352,8 @@ def split_data(
     return_type : str
         One of 'polars' (default), 'filoma' (wrap Polars into filoma.DataFrame), or
         'pandas' (convert to pandas.DataFrame). If 'pandas' is chosen, pandas must be available.
+    path_col : str
+        Column name in the input DataFrame containing file paths used for deriving features.
 
     Returns
     -------

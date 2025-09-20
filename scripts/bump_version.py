@@ -95,7 +95,7 @@ def update_version_files(new_version):
 
 
 def main():
-    """Main function."""
+    """Parse arguments and perform the version bump."""
     parser = argparse.ArgumentParser(description="Bump filoma package version")
     parser.add_argument(
         "bump_type", choices=["major", "minor", "patch"], help="Type of version bump"

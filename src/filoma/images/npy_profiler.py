@@ -11,6 +11,7 @@ class NpyProfiler(BaseImageProfiler):
     """Profiler for `.npy` files (placeholder implementation)."""
 
     def __init__(self):
+        """Initialize the NpyProfiler."""
         super().__init__()
 
     def probe(self, path) -> ImageReport:

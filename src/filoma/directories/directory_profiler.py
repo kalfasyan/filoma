@@ -14,14 +14,12 @@ from typing import Callable, Dict, List, Optional
 
 from loguru import logger
 from rich.console import Console
-from rich.progress import (BarColumn, Progress, SpinnerColumn, TextColumn,
-                           TimeElapsedColumn)
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
 # Try to import the Rust implementation
 try:
-    from filoma.filoma_core import (probe_directory_rust,
-                                    probe_directory_rust_parallel)
+    from filoma.filoma_core import probe_directory_rust, probe_directory_rust_parallel
 
     RUST_AVAILABLE = True
     RUST_PARALLEL_AVAILABLE = True

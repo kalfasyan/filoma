@@ -10,6 +10,7 @@ class PngProfiler(BaseImageProfiler):
     """Profiler that analyzes PNG image files using Pillow."""
 
     def __init__(self):
+        """Initialize the PNG profiler."""
         super().__init__()
 
     def probe(self, path) -> ImageReport:

@@ -51,12 +51,15 @@ class ImageReport(Mapping):
         return self.to_dict()
 
     def __getitem__(self, key):
+        """Get a value by key from the internal mapping."""
         return self._as_dict()[key]
 
     def __iter__(self):
+        """Iterate over mapping keys."""
         return iter(self._as_dict())
 
     def __len__(self):
+        """Return the number of items in the mapping."""
         return len(self._as_dict())
 
 

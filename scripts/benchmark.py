@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Benchmark script to compare Python vs Rust implementation performance
-"""
+"""Benchmark script to compare Python vs Rust implementation performance."""
 
 import tempfile
 import time
@@ -49,10 +48,10 @@ def benchmark_implementation(profiler, test_path: str, name: str):
 
 
 def main():
+    """Run the benchmark comparing the Python and Rust implementations."""
     # Import after potential building
     try:
-        from filoma.directories import (DirectoryProfiler,
-                                        DirectoryProfilerConfig)
+        from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
     except ImportError:
         print("❌ Could not import DirectoryProfiler. Make sure filoma is installed.")
         return

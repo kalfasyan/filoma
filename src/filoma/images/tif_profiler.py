@@ -8,6 +8,7 @@ class TifProfiler(BaseImageProfiler):
     """Profiler for TIFF files (currently placeholder)."""
 
     def __init__(self):
+        """Initialize the TIFF profiler."""
         super().__init__()
 
     def probe(self, path) -> ImageReport:

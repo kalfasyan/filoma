@@ -73,7 +73,13 @@ select = [
 
 ignore = []
 
-per-file-ignores = {"tests/**" = ["D"]}
+# Suppress specific pydocstyle checks that are incompatible or intentionally omitted
+extend-ignore = ["D203", "D213"]
+
+# Per-file ignores for ruff (use table form for complex keys)
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+"notebooks/*.ipynb" = ["D"]
 
 [tool.ruff.format]
 quote-style = "double"

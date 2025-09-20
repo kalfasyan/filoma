@@ -54,20 +54,18 @@ class FdFinder:
         r"""Find files matching pattern.
 
         Args:
-        ----
-            pattern: Search pattern (regex by default, glob if use_glob=True)
-            path: Directory to search in
-            max_depth: Maximum depth to search
-            hidden: Include hidden files
-            case_sensitive: Force case sensitivity
-            **fd_options: Additional fd options (e.g., use_glob=True for glob patterns)
+            pattern: Search pattern (regex by default, glob if use_glob=True).
+            path: Directory to search in.
+            max_depth: Maximum depth to search.
+            hidden: Include hidden files.
+            case_sensitive: Force case sensitivity.
+            threads: Optional number of worker threads to use for the search.
+            **fd_options: Additional fd options (e.g., use_glob=True for glob patterns).
 
         Returns:
-        -------
-            List of file paths
+            List of file paths.
 
         Example:
-        -------
             >>> searcher = FdFinder()
             >>> python_files = searcher.find_files(r"\.py$", "/src")
             >>> config_files = searcher.find_files("*.{json,yaml}", use_glob=True)
@@ -95,9 +93,9 @@ class FdFinder:
         threads: Optional[int] = None,
         **fd_options,
     ):
-        """Convenience: run an fd search and return a `filoma.DataFrame` of results.
+        """Run an fd search and return a `filoma.DataFrame` of results.
 
-        If the DataFrame feature isn't available (polars missing), returns a list of paths.
+        If the DataFrame feature isn't available (polars missing), return a list of paths.
         """
         paths = self.find_files(
             pattern=pattern, path=path, threads=threads, **fd_options
@@ -254,18 +252,15 @@ class FdFinder:
         """Find large files.
 
         Args:
-        ----
-            directory: Directory to search in
-            min_size: Minimum file size (e.g., '1M', '100k', '1G')
-            max_depth: Maximum depth to search
-            **fd_options: Additional fd options
+            path: Directory to search in.
+            min_size: Minimum file size (e.g., '1M', '100k', '1G').
+            max_depth: Maximum depth to search.
+            **fd_options: Additional fd options.
 
         Returns:
-        -------
-            List of file paths
+            List of file paths.
 
         Example:
-        -------
             >>> searcher = FdFinder()
             >>> large_files = searcher.find_large_files(min_size="10M")
 
@@ -288,13 +283,11 @@ class FdFinder:
         """Find empty directories.
 
         Args:
-        ----
-            directory: Directory to search in
-            **fd_options: Additional fd options
+            path: Directory to search in.
+            **fd_options: Additional fd options.
 
         Returns:
-        -------
-            List of empty directory paths
+            List of empty directory paths.
 
         """
         try:
@@ -311,14 +304,12 @@ class FdFinder:
         """Count files matching criteria without returning the full list.
 
         Args:
-        ----
-            pattern: Search pattern
-            directory: Directory to search in
-            **fd_options: Additional fd options
+            pattern: Search pattern.
+            path: Directory to search in.
+            **fd_options: Additional fd options.
 
         Returns:
-        -------
-            Number of matching files
+            Number of matching files.
 
         """
         try:
@@ -338,19 +329,16 @@ class FdFinder:
         r"""Execute command on search results using fd's built-in execution.
 
         Args:
-        ----
-            pattern: Search pattern
-            command: Command and arguments to execute
-            directory: Directory to search in
-            parallel: Whether to run commands in parallel
-            **fd_options: Additional fd options
+            pattern: Search pattern.
+            command: Command and arguments to execute.
+            path: Directory to search in.
+            parallel: Whether to run commands in parallel.
+            **fd_options: Additional fd options.
 
         Returns:
-        -------
-            CompletedProcess object
+            CompletedProcess object.
 
         Example:
-        -------
             >>> searcher = FdFinder()
             >>> # Delete all .tmp files
             >>> searcher.execute_on_results(

@@ -1,5 +1,7 @@
-"""filoma - A modular Python tool for profiling files, analyzing
-directory structures, and inspecting image data.
+"""filoma: filesystem profiling and directory analysis.
+
+A modular Python tool for profiling files, analyzing directory structures,
+and inspecting image data.
 
 This module exposes a tiny, ergonomic public surface while importing
 heavy optional dependencies lazily (Polars, Pillow, Rust extension,
@@ -121,9 +123,11 @@ def probe_file(path: str, **kwargs: Any) -> Any:
 
 
 def probe_image(arg: Any, **kwargs: Any) -> Any:
-    """Quick helper: analyze an image. If ``arg`` is a numpy array,
-    :class:`ImageProfiler.probe` is used; if it's path-like, attempt to
-    locate an image-specific profiler or load it to numpy and analyze.
+    """Analyze an image.
+
+    If ``arg`` is a numpy array, :class:`ImageProfiler.probe` is used; if
+    it's path-like, attempt to locate an image-specific profiler or load it
+    to numpy and analyze.
 
     This wrapper favors simplicity for interactive use; for advanced
     control instantiate profilers directly.
@@ -187,9 +191,9 @@ def probe_image(arg: Any, **kwargs: Any) -> Any:
 def probe_to_df(
     path: str, to_pandas: bool = False, enrich: bool = True, **kwargs: Any
 ) -> Any:
-    """Convenience helper: return a Polars DataFrame (or pandas if to_pandas=True).
+    """Return a Polars DataFrame (or pandas if to_pandas=True).
 
-    This forces DataFrame building on the profiler and optionally runs a small
+    Force DataFrame building on the profiler and optionally run a small
     enrichment chain: .add_depth_col(path).add_path_components().add_file_stats_cols().
     """
     # Extract probe-only parameters
