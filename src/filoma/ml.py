@@ -47,9 +47,7 @@ def _stable_hash(s: str, seed: Optional[int] = None) -> int:
     return int.from_bytes(m.digest()[:8], "big")
 
 
-def _get_feature_value(
-    path_str: str, feature: str, path_parts: Optional[Iterable[int]] = None
-) -> str:
+def _get_feature_value(path_str: str, feature: str, path_parts: Optional[Iterable[int]] = None) -> str:
     p = Path(path_str)
     if feature == "path_parts":
         # path_parts is an iterable of part indices (negative allowed)
@@ -149,11 +147,7 @@ def _build_feature_index(
     mapping: dict = {}
 
     # Column-based grouping when feature is a sequence or a column name
-    if isinstance(feature, (list, tuple)) or (
-        isinstance(feature, str)
-        and feature not in PATH_MODES
-        and feature in pl_df.columns
-    ):
+    if isinstance(feature, (list, tuple)) or (isinstance(feature, str) and feature not in PATH_MODES and feature in pl_df.columns):
         if isinstance(feature, str):
             cols = [feature]
         else:
@@ -183,9 +177,7 @@ def _build_feature_index(
     return mapping, paths
 
 
-def _assign_features(
-    feature_to_idxs: dict, ratios: Sequence[float], seed: Optional[int]
-) -> dict:
+def _assign_features(feature_to_idxs: dict, ratios: Sequence[float], seed: Optional[int]) -> dict:
     assignment = {}
     r0, r1 = ratios[0], ratios[0] + ratios[1]
     for feat in feature_to_idxs:
@@ -200,9 +192,7 @@ def _assign_features(
     return assignment
 
 
-def _mask_from_assignment(
-    feature_to_idxs: dict, feature_assignment: dict, total: int
-) -> List[str]:
+def _mask_from_assignment(feature_to_idxs: dict, feature_assignment: dict, total: int) -> List[str]:
     mask: List[str] = [None] * total  # type: ignore
     for feat, idxs in feature_to_idxs.items():
         split = feature_assignment[feat]
@@ -225,11 +215,7 @@ def _add_feature_column(
     """
     PATH_MODES = {"path_parts", "filename", "stem", "parent", "suffix"}
 
-    if isinstance(feature, (list, tuple)) or (
-        isinstance(feature, str)
-        and feature not in PATH_MODES
-        and feature in pl_df.columns
-    ):
+    if isinstance(feature, (list, tuple)) or (isinstance(feature, str) and feature not in PATH_MODES and feature in pl_df.columns):
         if isinstance(feature, str):
             cols = [feature]
         else:
@@ -239,18 +225,10 @@ def _add_feature_column(
         # single preview column. This avoids relying on concat_str semantics
         # which vary between Polars versions.
         def _combine(vals):
-            return "||".join(
-                ("" if vals.get(c) is None else str(vals.get(c))) for c in cols
-            )
+            return "||".join(("" if vals.get(c) is None else str(vals.get(c))) for c in cols)
 
         struct_expr = pl.struct([pl.col(c).alias(c) for c in cols])
-        return pl_df.with_columns(
-            [
-                struct_expr.map_elements(_combine, return_dtype=pl.Utf8).alias(
-                    "_feat_group"
-                )
-            ]
-        )
+        return pl_df.with_columns([struct_expr.map_elements(_combine, return_dtype=pl.Utf8).alias("_feat_group")])
 
     # path-derived: pass the canonical feature name through ('path_parts' etc.)
     how = feature
@@ -365,9 +343,7 @@ def split_data(
             The method uses sha256 hashing of the feature string to map to [0,1).
 
     """
-    assert (
-        train_val_test is not None and len(train_val_test) == 3
-    ), "train_val_test must be a tuple of three numbers"
+    assert train_val_test is not None and len(train_val_test) == 3, "train_val_test must be a tuple of three numbers"
 
     # Accept filoma.DataFrame wrapper or raw Polars DataFrame; discovery
     # (if requested) will wrap raw frames into filoma.DataFrame. Defer the
@@ -396,21 +372,15 @@ def split_data(
         raise ValueError(f"DataFrame must have a '{path_col}' column")
 
     # Feature grouping & assignment
-    feature_to_idxs, paths = _build_feature_index(
-        pl_work, path_col=path_col, feature=feature, path_parts=path_parts
-    )
+    feature_to_idxs, paths = _build_feature_index(pl_work, path_col=path_col, feature=feature, path_parts=path_parts)
     # Determine effective seed: prefer `random_state` if provided for sklearn-like API
     effective_seed = random_state if random_state is not None else seed
-    feature_assignment = _assign_features(
-        feature_to_idxs, ratios=ratios, seed=effective_seed
-    )
+    feature_assignment = _assign_features(feature_to_idxs, ratios=ratios, seed=effective_seed)
     mask = _mask_from_assignment(feature_to_idxs, feature_assignment, total=len(paths))
     tmp = pl_work.with_columns([pl.Series("_split", mask)])
 
     # Feature column for user convenience
-    tmp = _add_feature_column(
-        tmp, path_col=path_col, feature=feature, path_parts=path_parts
-    )
+    tmp = _add_feature_column(tmp, path_col=path_col, feature=feature, path_parts=path_parts)
 
     # Split
     train_df = tmp.filter(pl.col("_split") == "train").drop("_split")
@@ -420,16 +390,10 @@ def split_data(
     # Validate that the unique feature values are represented equally across splits
     if validate_counts:
         PATH_MODES = {"path_parts", "filename", "stem", "parent", "suffix"}
-        if isinstance(feature, (list, tuple)) or (
-            isinstance(feature, str)
-            and feature not in PATH_MODES
-            and feature in pl_work.columns
-        ):
+        if isinstance(feature, (list, tuple)) or (isinstance(feature, str) and feature not in PATH_MODES and feature in pl_work.columns):
             feat_col = "_feat_group"
         else:
-            feat_col = (
-                "_feat_path_parts" if feature == "path_parts" else f"_feat_{feature}"
-            )
+            feat_col = "_feat_path_parts" if feature == "path_parts" else f"_feat_{feature}"
 
         try:
             train_set = set(train_df[feat_col].to_list())
@@ -459,9 +423,7 @@ def split_data(
                 missing_in_test,
             )
 
-    _maybe_log_ratio_drift(
-        len(train_df), len(val_df), len(test_df), len(paths), ratios, verbose
-    )
+    _maybe_log_ratio_drift(len(train_df), len(val_df), len(test_df), len(paths), ratios, verbose)
 
     # Return requested type (default: filoma.DataFrame wrappers)
     if return_type == "filoma" or return_type is None:

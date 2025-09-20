@@ -29,9 +29,7 @@ class FdFinder:
         self.fd = FdIntegration()
 
         if not self.fd.is_available():
-            logger.warning(
-                "fd command not found. Install fd for enhanced search capabilities: https://github.com/sharkdp/fd#installation"
-            )
+            logger.warning("fd command not found. Install fd for enhanced search capabilities: https://github.com/sharkdp/fd#installation")
 
     def is_available(self) -> bool:
         """Check if fd is available for use."""
@@ -97,9 +95,7 @@ class FdFinder:
 
         If the DataFrame feature isn't available (polars missing), return a list of paths.
         """
-        paths = self.find_files(
-            pattern=pattern, path=path, threads=threads, **fd_options
-        )
+        paths = self.find_files(pattern=pattern, path=path, threads=threads, **fd_options)
         if _HAS_DF and FilomaDataFrame is not None:
             return FilomaDataFrame(paths)
         return paths
@@ -235,9 +231,7 @@ class FdFinder:
             fd_options["extension"] = extension
 
         try:
-            return self.fd.find_recent_files(
-                path=path, changed_within=changed_within, **fd_options
-            )
+            return self.fd.find_recent_files(path=path, changed_within=changed_within, **fd_options)
         except Exception as e:
             logger.warning(f"FdFinder.find_recent_files failed for path '{path}': {e}")
             return []
@@ -277,9 +271,7 @@ class FdFinder:
             logger.warning(f"FdFinder.find_large_files failed for path '{path}': {e}")
             return []
 
-    def find_empty_directories(
-        self, path: Union[str, Path] = ".", **fd_options
-    ) -> List[str]:
+    def find_empty_directories(self, path: Union[str, Path] = ".", **fd_options) -> List[str]:
         """Find empty directories.
 
         Args:
@@ -293,14 +285,10 @@ class FdFinder:
         try:
             return self.fd.find_empty_directories(path=path, **fd_options)
         except Exception as e:
-            logger.warning(
-                f"FdFinder.find_empty_directories failed for path '{path}': {e}"
-            )
+            logger.warning(f"FdFinder.find_empty_directories failed for path '{path}': {e}")
             return []
 
-    def count_files(
-        self, pattern: str = "", path: Union[str, Path] = ".", **fd_options
-    ) -> int:
+    def count_files(self, pattern: str = "", path: Union[str, Path] = ".", **fd_options) -> int:
         """Count files matching criteria without returning the full list.
 
         Args:

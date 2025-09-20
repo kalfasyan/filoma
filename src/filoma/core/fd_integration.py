@@ -122,11 +122,7 @@ class FdIntegration:
                 cmd.extend(["-e", str(extensions)])
 
         # file_type / file_types -> -t
-        ft = (
-            kwargs.pop("file_type", None)
-            or kwargs.pop("file_types", None)
-            or file_types
-        )
+        ft = kwargs.pop("file_type", None) or kwargs.pop("file_types", None) or file_types
         if ft:
             if isinstance(ft, (list, tuple)):
                 for t in ft:
@@ -175,9 +171,7 @@ class FdIntegration:
             result = CommandRunner.run_command(cmd)
 
             # Split output into lines and filter empty lines
-            paths = [
-                line.strip() for line in result.stdout.splitlines() if line.strip()
-            ]
+            paths = [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
             logger.debug(f"fd found {len(paths)} results")
             return paths
@@ -259,9 +253,7 @@ class FdIntegration:
 
         return CommandRunner.run_streaming(cmd, text=True)
 
-    def find_by_extension(
-        self, extensions: Union[str, List[str]], path: Union[str, Path] = ".", **kwargs
-    ) -> List[str]:
+    def find_by_extension(self, extensions: Union[str, List[str]], path: Union[str, Path] = ".", **kwargs) -> List[str]:
         """Find files by extension(s).
 
         Args:
@@ -282,9 +274,7 @@ class FdIntegration:
             **kwargs,
         )
 
-    def find_recent_files(
-        self, path: Union[str, Path] = ".", changed_within: str = "1d", **kwargs
-    ) -> List[str]:
+    def find_recent_files(self, path: Union[str, Path] = ".", changed_within: str = "1d", **kwargs) -> List[str]:
         """Find recently modified files.
 
         Args:
@@ -305,9 +295,7 @@ class FdIntegration:
             **kwargs,
         )
 
-    def find_empty_directories(
-        self, path: Union[str, Path] = ".", **kwargs
-    ) -> List[str]:
+    def find_empty_directories(self, path: Union[str, Path] = ".", **kwargs) -> List[str]:
         """Find empty directories.
 
         Args:
