@@ -6,11 +6,11 @@ build:
     # Copy RTD stubs so the docs build doesn't require the Rust extension.
     - mkdir -p src/filoma
     - cp docs/rtd_stubs/filoma_core.py src/filoma/filoma_core.py
-    # Install the docs requirements in the RTD build environment.
-    - pip install --upgrade pip
-    - pip install -r docs/requirements-docs.txt
     # Make package importable for mkdocstrings by copying source to repo root
     - cp -r src/filoma .
+    # Install the docs requirements in the RTD build environment.
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install -r docs/requirements-docs.txt
 
 # (No explicit `python.version` key — installation is handled in
 # `build.commands` to avoid RTD schema validation errors.)
