@@ -1,3 +1,9 @@
+"""Base classes for image profilers.
+
+This module defines the `BaseImageProfiler` abstract base class and
+helpers used by concrete image profiler implementations.
+"""
+
 from abc import ABC, abstractmethod
 from typing import Union
 
@@ -8,18 +14,24 @@ from .image_profiler import ImageReport
 
 
 class BaseImageProfiler(ABC):
+    """Abstract base for image profilers exposing a common API."""
+
     def __init__(self):
+        """Initialize the profiler with a Rich console for reporting."""
         self.console = Console()
 
     @abstractmethod
     def probe(self, path):
-        """Perform analysis and return an ImageReport."""
+        """Perform analysis of the file at `path` and return an ImageReport.
+
+        Concrete implementations must return an :class:`ImageReport`.
+        """
         pass
 
     def print_report(self, report: Union[dict, "ImageReport"]):
-        """Print a formatted report of the analysis.
+        """Print a formatted report of analysis results.
 
-        Accepts either a dict or an `ImageReport` dataclass.
+        Accepts either a mapping or an :class:`ImageReport` instance.
         """
         # Support both dicts and ImageReport instances
         if hasattr(report, "to_dict"):
