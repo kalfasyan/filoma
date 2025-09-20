@@ -13,9 +13,6 @@ python:
     - requirements: docs/requirements-docs.txt
 
 # Tell RTD we are using MkDocs and point at the repo config
-formats:
-  - mkdocs
-
 mkdocs:
   configuration: mkdocs.yml
 
