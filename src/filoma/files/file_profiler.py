@@ -74,25 +74,11 @@ class FileProfiler:
             "path": full_path,
             "size": st.st_size,
             "mode": oct(st.st_mode),
-            "owner": (
-                pwd.getpwuid(st.st_uid).pw_name
-                if hasattr(pwd, "getpwuid")
-                else st.st_uid
-            ),
-            "group": (
-                grp.getgrgid(st.st_gid).gr_name
-                if hasattr(grp, "getgrgid")
-                else st.st_gid
-            ),
-            "created": datetime.datetime.fromtimestamp(st.st_ctime).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "modified": datetime.datetime.fromtimestamp(st.st_mtime).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "accessed": datetime.datetime.fromtimestamp(st.st_atime).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
+            "owner": (pwd.getpwuid(st.st_uid).pw_name if hasattr(pwd, "getpwuid") else st.st_uid),
+            "group": (grp.getgrgid(st.st_gid).gr_name if hasattr(grp, "getgrgid") else st.st_gid),
+            "created": datetime.datetime.fromtimestamp(st.st_ctime).strftime("%Y-%m-%d %H:%M:%S"),
+            "modified": datetime.datetime.fromtimestamp(st.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+            "accessed": datetime.datetime.fromtimestamp(st.st_atime).strftime("%Y-%m-%d %H:%M:%S"),
             "is_symlink": is_symlink,
             "rights": rights,
         }
@@ -177,10 +163,7 @@ class FileProfiler:
             try:
                 import xattr as _xattr
 
-                xa = {
-                    k.decode(): _xattr.get(path, k).decode(errors="ignore")
-                    for k in _xattr.listxattr(path)
-                }
+                xa = {k.decode(): _xattr.get(path, k).decode(errors="ignore") for k in _xattr.listxattr(path)}
                 return xa
             except Exception:
                 # fallback to os.listxattr if available
@@ -193,11 +176,7 @@ class FileProfiler:
                                 kk = k.decode(errors="ignore")
                             else:
                                 kk = k
-                            xa[kk] = (
-                                v.decode(errors="ignore")
-                                if isinstance(v, (bytes, bytearray))
-                                else str(v)
-                            )
+                            xa[kk] = v.decode(errors="ignore") if isinstance(v, (bytes, bytearray)) else str(v)
                         except Exception:
                             xa[k] = None
                     return xa
