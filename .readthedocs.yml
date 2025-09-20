@@ -1,0 +1,34 @@
+version: 2
+
+build:
+  image: ubuntu-22.04
+
+# Use Python 3.11 to match project requirements
+python:
+  version: 3.11
+  install:
+    # Install only the documentation-specific requirements to avoid
+    # triggering a full package build (which would attempt to compile
+    # the Rust extension via maturin).
+    - requirements: docs/requirements-docs.txt
+
+# Tell RTD we are using MkDocs and point at the repo config
+formats:
+  - mkdocs
+
+mkdocs:
+  configuration: mkdocs.yml
+
+# Make the local `src` layout importable without pip-installing the package.
+# This avoids calling the project's build backend (maturin) during the
+# docs build and prevents the need for a Rust toolchain on Read the Docs.
+env:
+  PYTHONPATH: src
+
+# Notes for maintainers:
+# - If you want RTD to install the package itself (e.g. for examples that
+#   import compiled extensions), add a pip install step (path: .) but be
+#   aware that this will invoke the build backend and require Rust/tooling.
+# - If you later need a Rust extension present in RTD builds, enable a
+#   pre-build step to install rust (or use a custom build image) and
+#   then pip-install the package in editable mode with the docs extras.
