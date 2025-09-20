@@ -13,8 +13,7 @@ def test_basic_functionality():
     """Test basic DataFrame functionality."""
     try:
         from filoma import DataFrame
-        from filoma.directories.directory_profiler import (
-            DirectoryProfiler, DirectoryProfilerConfig)
+        from filoma.directories.directory_profiler import DirectoryProfiler, DirectoryProfilerConfig
 
         print("✅ Imports successful")
 

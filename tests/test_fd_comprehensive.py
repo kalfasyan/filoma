@@ -12,8 +12,7 @@ from pathlib import Path
 import pytest
 
 from filoma.core import FdIntegration
-from filoma.directories import (DirectoryProfiler, DirectoryProfilerConfig,
-                                FdFinder)
+from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig, FdFinder
 
 
 class TestFdBackend:

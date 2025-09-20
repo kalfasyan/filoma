@@ -67,9 +67,13 @@ select = [
     "W",  # pycodestyle warnings
     "F",  # pyflakes
     "I",  # isort
+    "D",  # docstring conventions (pydocstyle)
+
 ]
 
 ignore = []
+
+per-file-ignores = {"tests/**" = ["D"]}
 
 [tool.ruff.format]
 quote-style = "double"

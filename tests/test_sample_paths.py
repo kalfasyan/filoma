@@ -1,5 +1,4 @@
-from filoma.directories.directory_profiler import (DirectoryProfiler,
-                                                   DirectoryProfilerConfig)
+from filoma.directories.directory_profiler import DirectoryProfiler, DirectoryProfilerConfig
 
 
 def test_sample_paths_fd_flags(monkeypatch, tmp_path):

@@ -1,3 +1,10 @@
+"""Directory profiling utilities.
+
+This module provides :class:`DirectoryProfiler` which analyzes directory
+trees and returns a :class:`DirectoryAnalysis` dataclass with summary
+statistics and optional DataFrame support.
+"""
+
 import time
 from collections import Counter, defaultdict
 from collections.abc import Mapping
@@ -7,14 +14,12 @@ from typing import Callable, Dict, List, Optional
 
 from loguru import logger
 from rich.console import Console
-from rich.progress import (BarColumn, Progress, SpinnerColumn, TextColumn,
-                           TimeElapsedColumn)
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
 # Try to import the Rust implementation
 try:
-    from filoma.filoma_core import (probe_directory_rust,
-                                    probe_directory_rust_parallel)
+    from filoma.filoma_core import probe_directory_rust, probe_directory_rust_parallel
 
     RUST_AVAILABLE = True
     RUST_PARALLEL_AVAILABLE = True
@@ -88,6 +93,11 @@ class DirectoryProfilerConfig:
     threads: Optional[int] = None
 
     def __post_init__(self):
+        """Validate configuration fields after initialization.
+
+        Ensures values are within acceptable ranges and relationships are
+        enforced (for example, network tuning only when async is enabled).
+        """
         # Basic validations
         if self.search_backend not in ("auto", "rust", "fd", "python"):
             raise ValueError(
@@ -159,6 +169,19 @@ class DirectoryAnalysis(Mapping):
 
     @classmethod
     def from_dict(cls, d: Dict) -> "DirectoryAnalysis":
+        """Create a :class:`DirectoryAnalysis` from a plain dict.
+
+        Parameters
+        ----------
+        d : dict
+            Dictionary in the shape produced by :meth:`DirectoryProfiler.probe`.
+
+        Returns
+        -------
+        DirectoryAnalysis
+            Constructed dataclass instance.
+
+        """
         return cls(
             path=d.get("path"),
             summary=d.get("summary", {}),
@@ -173,6 +196,7 @@ class DirectoryAnalysis(Mapping):
         )
 
     def to_dict(self) -> Dict:
+        """Return a plain ``dict`` representation of this analysis."""
         # Convert to a plain dict shape
         d = {
             "path": self.path,
@@ -210,6 +234,10 @@ class DirectoryAnalysis(Mapping):
         return self.dataframe
 
     def as_dict(self) -> Dict:
+        """Alias for :meth:`to_dict`.
+
+        Provided for backward compatibility with dict-based APIs.
+        """
         return self.to_dict()
 
     # Convenience printing helpers so callers can write `analysis.print_summary()`
@@ -243,21 +271,26 @@ class DirectoryAnalysis(Mapping):
         return self.to_dict()
 
     def __getitem__(self, key):
+        """Mapping-style access to analysis fields by key."""
         return self._as_dict()[key]
 
     def __iter__(self):
+        """Iterate over analysis mapping keys."""
         return iter(self._as_dict())
 
     def __len__(self):
+        """Return number of top-level fields in the analysis mapping."""
         return len(self._as_dict())
 
 
 class DirectoryProfiler:
     """Analyzes directory structures for basic statistics and patterns.
+
     Provides file counts, folder patterns, empty directories, and extension analysis.
 
     Can use either a pure Python implementation or a faster Rust implementation
     when available. Supports both sequential and parallel Rust processing.
+
     """
 
     def __init__(self, config: "DirectoryProfilerConfig"):
@@ -448,6 +481,7 @@ class DirectoryProfiler:
         ----
             path: Path to the root directory to probe
             max_depth: Maximum depth to traverse (None for unlimited)
+            threads: Optional override for number of threads when using fd backend
 
         Returns:
         -------
@@ -779,6 +813,8 @@ class DirectoryProfiler:
             max_depth: Maximum depth for analysis
             existing_progress: Existing progress bar to reuse (avoids conflicts)
             existing_task_id: Existing task ID to update
+            path_root: The resolved root Path for the probe (used for depth calculations)
+            prebuilt_dataframe: Optional DataFrame supplied to avoid rebuilding inside probe
 
         """
         # Initialize counters and collections

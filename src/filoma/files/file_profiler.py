@@ -1,3 +1,9 @@
+"""File system profiling utilities.
+
+This module exposes :class:`FileProfiler` and the :class:`Filo` dataclass used
+to represent file metadata collected from the filesystem.
+"""
+
 import datetime
 import grp
 import os
@@ -15,18 +21,27 @@ from filoma import dedup as _dedup
 
 
 class FileProfiler:
-    """Profiles a file for system metadata: size, permissions, owner, group, timestamps, etc.
-    Uses lstat to correctly identify symlinks, and also checks the target type if symlink.
-    Also reports current user's access rights.
+    """Profiles a file for system metadata.
+
+    The profiler collects size, permissions, owner, group, timestamps and
+    optionally computes hashes or delves into extended attributes. It prefers
+    :func:`os.lstat` to correctly handle symlinks.
     """
 
     def probe(self, path: str, compute_hash: bool = False) -> "Filo":
-        """Profile a file and return a `Filo` dataclass.
+        """Profile a file and return a :class:`Filo` dataclass.
 
-        Args:
-        ----
-            path: filesystem path to probe
-            compute_hash: whether to compute SHA256 (may be slow)
+        Parameters
+        ----------
+        path : str
+            Filesystem path to probe.
+        compute_hash : bool
+            Whether to compute SHA256 (may be slow).
+
+        Returns
+        -------
+        Filo
+            A dataclass containing file metadata.
 
         """
         path_obj = Path(path)
@@ -108,7 +123,7 @@ class FileProfiler:
         return Filo.from_report(report)
 
     def print_report(self, report: "Filo"):
-        """Print a human-friendly report for a `Filo` dataclass."""
+        """Print a human-friendly report for a :class:`Filo` dataclass."""
         if not isinstance(report, Filo):
             raise TypeError("print_report expects a Filo dataclass")
 
@@ -140,7 +155,10 @@ class FileProfiler:
         console.print(table)
 
     def _compute_sha256(self, path: str, chunk_size: int = 1 << 20) -> str | None:
-        """Compute SHA256 of a file in streaming fashion. Returns hex digest or None on error."""
+        """Compute SHA256 of a file in streaming fashion.
+
+        Returns the hex digest or ``None`` on error.
+        """
         import hashlib
 
         h = hashlib.sha256()
@@ -153,7 +171,7 @@ class FileProfiler:
             return None
 
     def _get_xattrs(self, path: str) -> dict | None:
-        """Return extended attributes as a dict if available, otherwise None."""
+        """Return extended attributes as a dict if available, otherwise ``None``."""
         try:
             # xattr API differs by platform; try to import common modules
             try:
@@ -189,9 +207,9 @@ class FileProfiler:
 
     # --- Dedup integration helpers ---
     def text_shingles(self, path: str, k: int = 3) -> set | None:
-        """Return k-shingles for a text file (or None on error).
+        """Return k-shingles for a text file (or ``None`` on error).
 
-        Uses the same normalization / shingle function used by the dedup module.
+        Uses the same normalization/shingle function used by the :mod:`filoma.dedup` module.
         """
         try:
             with open(path, "r", encoding="utf8") as f:
@@ -208,9 +226,10 @@ class FileProfiler:
         text_k: int = 3,
         image_hash: str = "ahash",
     ) -> dict:
-        """High-level fingerprint useful for duplicate detection.
+        """Return a high-level fingerprint useful for duplicate detection.
 
-        Returns a dict with keys: `path`, `size`, `sha256`, optionally `text_shingles`, `image_hash`.
+        The returned dict contains keys: ``path``, ``size``, ``sha256`` and
+        optionally ``text_shingles`` and ``image_hash`` depending on the flags.
         """
         report = {"path": path}
         try:
@@ -242,9 +261,10 @@ class FileProfiler:
 
 @dataclass
 class Filo(Mapping):
-    """Structured container for file metadata collected by FileProfiler.
+    """Structured container for file metadata collected by :class:`FileProfiler`.
 
-    `path` is a pathlib.Path and date fields are datetime.datetime objects.
+    The :attr:`path` field is a :class:`pathlib.Path` and date fields are
+    :class:`datetime.datetime` objects.
     """
 
     path: Path
@@ -269,6 +289,10 @@ class Filo(Mapping):
 
     @classmethod
     def from_report(cls, report: dict) -> "Filo":
+        """Construct a :class:`Filo` from a plain dict report.
+
+        The function accepts the dict shape produced by :meth:`FileProfiler.probe`.
+        """
         # Convert path string to Path
         path_val = report.get("path")
         path_obj = Path(path_val) if path_val is not None else None
@@ -327,6 +351,7 @@ class Filo(Mapping):
 
     # alias for requested API: as_dict()
     def as_dict(self) -> dict:
+        """Return a JSON-serializable dictionary representation of this Filo."""
         return self.to_dict()
 
     # Mapping protocol so dict-style access (report['path']) keeps working
@@ -334,10 +359,13 @@ class Filo(Mapping):
         return self.to_dict()
 
     def __getitem__(self, key):
+        """Mapping-style access: return the value for ``key``."""
         return self._as_dict()[key]
 
     def __iter__(self):
+        """Iterate over mapping keys for this Filo."""
         return iter(self._as_dict())
 
     def __len__(self):
+        """Return the number of fields in this Filo mapping."""
         return len(self._as_dict())

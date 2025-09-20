@@ -15,8 +15,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from filoma.core import FdIntegration
-from filoma.directories import (DirectoryProfiler, DirectoryProfilerConfig,
-                                FdFinder)
+from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig, FdFinder
 
 # Detect Rust availability by checking module spec (avoids importing at test collection)
 RUST_AVAILABLE_LOCAL = importlib.util.find_spec("filoma.filoma_core") is not None

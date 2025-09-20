@@ -30,6 +30,7 @@ except Exception:  # pragma: no cover - datasketch optional
 
 
 def compute_sha256(path: str, block_size: int = 65536) -> str:
+    """Compute the SHA256 hex digest for a file at `path`."""
     h = hashlib.sha256()
     with open(path, "rb") as f:
         for block in iter(lambda: f.read(block_size), b""):
@@ -38,6 +39,7 @@ def compute_sha256(path: str, block_size: int = 65536) -> str:
 
 
 def file_fingerprint(path: str) -> Dict[str, object]:
+    """Return a small fingerprint dict for `path` (size, mtime, sha256)."""
     st = os.stat(path)
     return {
         "path": path,
@@ -63,6 +65,7 @@ def _normalize_tokens(text: str) -> List[str]:
 
 
 def text_shingles(text: str, k: int = 3) -> Set[str]:
+    """Return k-shingles (space-joined tokens) for `text`."""
     tokens = _normalize_tokens(text)
     if len(tokens) < k:
         return set([" ".join(tokens)])
@@ -70,6 +73,7 @@ def text_shingles(text: str, k: int = 3) -> Set[str]:
 
 
 def jaccard_similarity(a: Set[str], b: Set[str]) -> float:
+    """Compute Jaccard similarity between two shingle sets."""
     if not a and not b:
         return 1.0
     if not a or not b:
@@ -106,6 +110,7 @@ def _hamming_int(a: int, b: int) -> int:
 
 
 def ahash_image(path: str, hash_size: int = 8) -> str:
+    """Compute average-hash (aHash) for an image file at `path`."""
     if Image is None:
         raise RuntimeError("Pillow is required for image hashing (install pillow)")
     img = (
@@ -122,6 +127,7 @@ def ahash_image(path: str, hash_size: int = 8) -> str:
 
 
 def dhash_image(path: str, hash_size: int = 8) -> str:
+    """Compute difference-hash (dHash) for an image file at `path`."""
     if Image is None:
         raise RuntimeError("Pillow is required for image hashing (install pillow)")
     img = (
@@ -140,6 +146,7 @@ def dhash_image(path: str, hash_size: int = 8) -> str:
 
 
 def hamming_distance_hex(a_hex: str, b_hex: str) -> int:
+    """Return Hamming distance between two hex-encoded hashes."""
     a = int(a_hex, 16)
     b = int(b_hex, 16)
     return _hamming_int(a, b)
@@ -149,6 +156,7 @@ IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tif", ".tiff", ".webp"}
 
 
 def is_image_path(path: str) -> bool:
+    """Return True if `path` has a known image file extension."""
     return os.path.splitext(path)[1].lower() in IMAGE_EXTS
 
 
@@ -160,11 +168,26 @@ def find_duplicates(
     image_hash: str = "ahash",
     image_max_distance: int = 5,
 ) -> Dict[str, List[List[str]]]:
-    """Find duplicates among `paths`.
+    """Find duplicate groups among `paths` and return them by type.
 
-    Returns a dict with keys `exact`, `text`, `image` containing lists of groups.
+    Returns a dict with keys ``exact``, ``text``, and ``image`` each mapping
+    to lists of duplicate groups found.
 
-    - `mode`: 'auto' (choose by extension), 'exact', 'text', 'image', or 'mixed'.
+    Parameters
+    ----------
+    paths : Iterable[str]
+        Iterable of filesystem paths to inspect.
+    mode : str
+        Search mode: 'auto', 'exact', 'text', 'image', or 'mixed'.
+    text_k : int
+        Shingle size used for text similarity.
+    text_threshold : float
+        Jaccard similarity threshold for grouping text duplicates.
+    image_hash : str
+        Which image hash to use: 'ahash' or 'dhash'.
+    image_max_distance : int
+        Maximum Hamming distance to consider images duplicates.
+
     """
     paths = list(paths)
     exact_groups = defaultdict(list)

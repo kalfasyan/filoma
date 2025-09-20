@@ -4,8 +4,7 @@ from loguru import logger
 
 from filoma import ml
 from filoma.dataframe import DataFrame as FDataFrame
-from filoma.ml import \
-    _maybe_log_ratio_drift  # internal helper (acceptable for focused test)
+from filoma.ml import _maybe_log_ratio_drift  # internal helper (acceptable for focused test)
 
 
 def test_discover_filename_features_tokens_parent_parts():

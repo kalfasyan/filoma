@@ -51,8 +51,7 @@ def benchmark_implementation(profiler, test_path: str, name: str):
 def main():
     # Import after potential building
     try:
-        from filoma.directories import (DirectoryProfiler,
-                                        DirectoryProfilerConfig)
+        from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
     except ImportError:
         print("❌ Could not import DirectoryProfiler. Make sure filoma is installed.")
         return
