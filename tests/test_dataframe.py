@@ -13,7 +13,8 @@ import polars as pl
 import pytest
 
 from filoma.dataframe import DataFrame
-from filoma.directories.directory_profiler import DirectoryProfiler, DirectoryProfilerConfig
+from filoma.directories.directory_profiler import (DirectoryProfiler,
+                                                   DirectoryProfilerConfig)
 
 # Skip tests on CI where external discovery tools (fd) are not available by default
 CI = os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true"
