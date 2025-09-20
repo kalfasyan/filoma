@@ -5,6 +5,7 @@ toolchain. It provides no real functionality — only the symbols needed by
 mkdocstrings at import time so the docs can be rendered.
 """
 
+
 def probe_directory_rust(*args, **kwargs):
     """Stub function used for docs builds. Returns an empty dict placeholder."""
     return {}
