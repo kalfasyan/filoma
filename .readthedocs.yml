@@ -2,6 +2,10 @@ version: 2
 
 build:
   os: ubuntu-22.04
+  commands:
+    # Install the docs requirements in the RTD build environment.
+    - pip install --upgrade pip
+    - pip install -r docs/requirements-docs.txt
 
 # Use Python 3.11 to match project requirements
 python:
