@@ -47,6 +47,11 @@ from filoma import dedup as _dedup
 
 from .files.file_profiler import FileProfiler
 
+# Note: filename-token discovery is implemented as the instance method
+# `DataFrame.add_filename_features`. The standalone helper was intentionally
+# removed to keep the API filoma-first and to avoid duplicate implementations.
+
+
 try:
     import pandas as pd
 except ImportError:
@@ -250,13 +255,11 @@ class DataFrame:
         Returns native Polars objects (Series or DataFrame) to match the default
         Polars-first behavior of this wrapper.
         """
-        self._ensure_polars()
         return self._df.__getitem__(key)
 
     def __setitem__(self, key, value):
         """Forward item assignment to the underlying Polars DataFrame."""
         # Polars DataFrame supports column assignment via df[key] = value
-        self._ensure_polars()
         # Try to support common user-friendly patterns: assigning a Python
         # sequence or a Series to create/replace a column. Polars' native
         # __setitem__ may raise TypeError in some versions, so handle that
@@ -359,14 +362,11 @@ class DataFrame:
 
     def head(self, n: int = 5) -> pl.DataFrame:
         """Get the first n rows."""
-        self._ensure_polars()
-        return self._df.head(n)
+        return DataFrame(self._df.head(n))
 
     def tail(self, n: int = 5) -> pl.DataFrame:
         """Get the last n rows."""
-
-        self._ensure_polars()
-        return self._df.tail(n)
+        return DataFrame(self._df.tail(n))
 
     def add_path_components(self, inplace: bool = False) -> "DataFrame":
         """
@@ -375,7 +375,6 @@ class DataFrame:
         Returns:
             New DataFrame with additional path component columns
         """
-        self._ensure_polars()
         df_with_components = self._df.with_columns(
             [
                 pl.col("path").map_elements(lambda x: str(Path(x).parent), return_dtype=pl.String).alias("parent"),
@@ -407,8 +406,6 @@ class DataFrame:
         Raises:
             ValueError: If the specified path column does not exist.
         """
-        self._ensure_polars()
-
         if path not in self._df.columns:
             raise ValueError(f"Column '{path}' not found in DataFrame")
 
@@ -546,7 +543,6 @@ class DataFrame:
                 # Path is not relative to the provided root path
                 return len(Path(path_str).parts)
 
-        self._ensure_polars()
         df_with_depth = self._df.with_columns([pl.col("path").map_elements(calculate_depth, return_dtype=pl.Int64).alias("depth")])
         if inplace:
             self._df = df_with_depth
@@ -575,8 +571,6 @@ class DataFrame:
                 ext = "." + ext
             normalized_extensions.append(ext.lower())
 
-        # Ensure we have a Polars DataFrame to operate on
-        self._ensure_polars()
         filtered_df = self._df.filter(pl.col("path").map_elements(lambda x: Path(x).suffix.lower() in normalized_extensions, return_dtype=pl.Boolean))
         return DataFrame(filtered_df)
 
@@ -591,7 +585,6 @@ class DataFrame:
             Filtered DataFrame
         """
 
-        self._ensure_polars()
         filtered_df = self._df.filter(pl.col("path").str.contains(pattern))
         return DataFrame(filtered_df)
 
@@ -602,7 +595,7 @@ class DataFrame:
         Returns:
             Polars DataFrame with extension counts
         """
-        self._ensure_polars()
+        # underlying `_df` is expected to be a Polars DataFrame
         df_with_ext = self._df.with_columns(
             [
                 pl.col("path")
@@ -620,7 +613,7 @@ class DataFrame:
         Returns:
             Polars DataFrame with directory counts
         """
-        self._ensure_polars()
+        # underlying `_df` is expected to be a Polars DataFrame
         df_with_parent = self._df.with_columns(
             [pl.col("path").map_elements(lambda x: str(Path(x).parent), return_dtype=pl.String).alias("parent_dir")]
         )
@@ -629,9 +622,7 @@ class DataFrame:
 
     def to_polars(self) -> pl.DataFrame:
         """Get the underlying Polars DataFrame."""
-
-        # Ensure we return a Polars DataFrame
-        return self._ensure_polars()
+        return self._df
 
     def to_pandas(self, force: bool = False) -> Any:
         """Convert to a pandas DataFrame.
@@ -761,7 +752,8 @@ class DataFrame:
         Args:
             percentiles: List of percentiles to include (default: [0.25, 0.5, 0.75])
         """
-        return self._df.describe(percentiles=percentiles)
+        # Polars' describe returns a new DataFrame summarizing columns; wrap it
+        return DataFrame(self._df.describe(percentiles=percentiles))
 
     def info(self) -> None:
         """Print concise summary of the DataFrame."""
@@ -890,7 +882,6 @@ class DataFrame:
 
         Returns the raw dict produced by `filoma.dedup.find_duplicates`.
         """
-        self._ensure_polars()
         if path_col not in self._df.columns:
             raise ValueError(f"Column '{path_col}' not found in DataFrame")
 
@@ -924,54 +915,121 @@ class DataFrame:
 
         return res
 
-    def add_filename_features(self, enrich: bool = False, inplace: bool = False, **kwargs) -> "DataFrame":
+    def add_filename_features(
+        self,
+        path_col: str = "path",
+        sep: str = "_",
+        prefix: Optional[str] = "feat",
+        max_tokens: Optional[int] = None,
+        include_parent: bool = False,
+        include_all_parts: bool = False,
+        token_names: Optional[Union[str, Sequence[str]]] = None,
+        enrich: bool = False,
+        inplace: bool = False,
+    ) -> "DataFrame":
         """
-        Discover filename features using filoma.ml.add_filename_features.
+        Discover filename features and add them as columns on this DataFrame.
 
-        This is a thin wrapper around ``filoma.ml.add_filename_features``
-        so you can call ``df.add_filename_features(...)`` directly on a
-        filoma DataFrame instance.
+        This instance method discovers separator-based tokens from filename
+        stems and adds columns (e.g., `feat1`, `feat2` or `token1`, ...).
 
         Args:
-            enrich: If True, automatically enrich the DataFrame with path components
-                    and file stats before discovering filename features.
-            inplace: If True, perform the operation in-place and return self.
-                     If False (default), return a new DataFrame with the changes.
-            kwargs: Additional keyword arguments passed to
-                ``filoma.ml.add_filename_features``.
+            path_col: Column containing path strings to analyze (default: 'path').
+            sep: Separator used to split filename stems (default: '_').
+            prefix: Column name prefix for discovered tokens (default: 'feat').
+            max_tokens: Optional cap on extracted tokens; by default uses observed max.
+            include_parent: If True, add a `parent` column containing immediate parent folder name.
+            include_all_parts: If True, add `path_part0`, `path_part1`, ... for all Path.parts.
+            token_names: Optional list of token column names or 'auto' to generate readable names.
+            enrich: If True, automatically enrich the DataFrame with path components and file stats before discovery.
+            inplace: If True, perform the operation in-place and return self. Otherwise returns a new `filoma.DataFrame`.
 
         Returns:
-            A new or modified filoma.DataFrame with discovered filename features.
+            A new or modified `filoma.DataFrame` with discovered filename features.
         """
-        from . import ml  # type: ignore
-
-        # Determine the base DataFrame for feature discovery
+        # Determine the base Polars DataFrame for feature discovery
         base_df = self
         if enrich and not self.with_enrich:
             logger.info("Enriching DataFrame before discovering filename features")
-            # Create an enriched version to work from, respecting inplace for the final result
             base_df = self.enrich(inplace=False)
 
-        # The ML helper returns a new filoma.DataFrame wrapper
-        result_df = ml.add_filename_features(base_df, **kwargs)
+        # Polars-native implementation inlined here (formerly a top-level helper).
+        pl_df = base_df._df
+        if path_col not in pl_df.columns:
+            raise ValueError(f"DataFrame must have a '{path_col}' column")
 
-        # The result could be a filoma.DataFrame or a raw polars/other frame
-        if not isinstance(result_df, DataFrame):
-            enriched_wrapper = DataFrame(result_df)
+        stems = [Path(s).stem for s in pl_df[path_col].to_list()]
+        split_tokens = [stem.split(sep) if stem is not None else [""] for stem in stems]
+        observed_max = max((len(t) for t in split_tokens), default=0)
+        if max_tokens is None:
+            eff_max = observed_max
         else:
-            enriched_wrapper = result_df
+            eff_max = max_tokens
 
+        # Normalize token_names
+        if token_names == "auto":
+            token_names_seq = None
+            auto_mode = True
+        elif isinstance(token_names, (list, tuple)):
+            token_names_seq = list(token_names)
+            auto_mode = False
+        else:
+            token_names_seq = None
+            auto_mode = False
+
+        new_cols = []
+        for i in range(eff_max):
+            if token_names_seq is not None and i < len(token_names_seq) and token_names_seq[i]:
+                col_name = token_names_seq[i]
+            elif auto_mode:
+                base = prefix if prefix else "token"
+                col_name = f"{base}{i + 1}"
+            else:
+                if prefix:
+                    col_name = f"{prefix}{i + 1}"
+                else:
+                    col_name = f"token{i + 1}"
+
+            def pick_token(s: str, idx=i):
+                st = Path(s).stem
+                parts = st.split(sep) if st is not None else [""]
+                try:
+                    return parts[idx]
+                except Exception:
+                    return ""
+
+            new_cols.append(pl.col(path_col).map_elements(pick_token, return_dtype=pl.Utf8).alias(col_name))
+
+        if include_parent:
+            new_cols.append(pl.col(path_col).map_elements(lambda s: Path(s).parent.name, return_dtype=pl.Utf8).alias("parent"))
+
+        if include_all_parts:
+            parts_lists = [list(Path(s).parts) for s in pl_df[path_col].to_list()]
+            max_parts = max((len(p) for p in parts_lists), default=0)
+            for i in range(max_parts):
+                col_name = f"path_part{i}"
+
+                def pick_part(s: str, idx=i):
+                    try:
+                        parts = list(Path(s).parts)
+                        return parts[idx]
+                    except Exception:
+                        return ""
+
+                new_cols.append(pl.col(path_col).map_elements(pick_part, return_dtype=pl.Utf8).alias(col_name))
+
+        pl_result = pl_df.with_columns(new_cols)
+
+        # Wrap the result in a filoma.DataFrame
+        enriched_wrapper = DataFrame(pl_result)
         enriched_wrapper.with_filename_features = True
 
         if inplace:
-            # Update the internal state of the current object
             self._df = enriched_wrapper._df
             self.with_filename_features = True
-            # If enrichment also happened, mark it
             if enrich and not self.with_enrich:
                 self.with_enrich = True
             self.invalidate_pandas_cache()
             return self
 
-        # Return the new, enriched DataFrame instance
         return enriched_wrapper

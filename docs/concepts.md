@@ -5,7 +5,7 @@
 | Helper | Purpose | Returns |
 |--------|---------|---------|
 | `probe(path)` | Analyze a directory (or dispatch to file) | DirectoryAnalysis or File dataclass |
-| `probe_to_df(path)` | Analyze + return Polars DataFrame | polars.DataFrame |
+| `probe_to_df(path)` | Analyze + return filoma.DataFrame wrapper | filoma.DataFrame |
 | `probe_file(path)` | Single file metadata | File dataclass |
 | `probe_image(path|ndarray)` | Image stats/metadata | ImageReport |
 

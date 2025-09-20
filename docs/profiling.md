@@ -31,9 +31,8 @@ probe_file('big.bin', compute_hash=False)
 Batch profile selected files via DataFrame:
 ```python
 from filoma import probe_to_df
-pl_df = probe_to_df('.')  # returns polars.DataFrame
-from filoma.dataframe import DataFrame
-wrapper = DataFrame(pl_df).filter_by_extension('.py').add_file_stats_cols()
+dfw = probe_to_df('.')  # returns filoma.DataFrame wrapper
+wrapper = dfw.filter_by_extension('.py').add_file_stats_cols()
 ```
 
 What you get (file dataclass key fields):

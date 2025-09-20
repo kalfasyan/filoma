@@ -213,12 +213,12 @@ def probe_to_df(path: str, to_pandas: bool = False, enrich: bool = True, **kwarg
             # If enrichment fails for any reason, fall back to the raw DataFrame
             pass
 
-    # Return requested format: Polars DataFrame or pandas
-    pl_df = df_enriched.df
+    # Return requested format: filoma.DataFrame wrapper (default) or pandas
+    # Keep the `to_pandas` convenience for callers that explicitly want pandas
     if to_pandas:
         try:
-            return pl_df.to_pandas()
+            return df_enriched.df.to_pandas()
         except Exception as e:
             raise RuntimeError(f"Failed to convert Polars DataFrame to pandas: {e}")
 
-    return pl_df
+    return df_enriched

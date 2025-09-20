@@ -3,6 +3,7 @@ import pytest
 from loguru import logger
 
 from filoma import ml
+from filoma.dataframe import DataFrame as FDataFrame
 from filoma.ml import _maybe_log_ratio_drift  # internal helper (acceptable for focused test)
 
 
@@ -15,13 +16,16 @@ def test_discover_filename_features_tokens_parent_parts():
             ]
         }
     )
-    out = ml.add_filename_features(
-        df,
-        sep="_",
-        prefix=None,
-        include_parent=True,
-        include_all_parts=True,
-        path_col="path",
+    out = (
+        FDataFrame(df)
+        .add_filename_features(
+            sep="_",
+            prefix=None,
+            include_parent=True,
+            include_all_parts=True,
+            path_col="path",
+        )
+        .df
     )
     # Basic expected columns
     for col in ["token1", "token2", "token3", "parent", "path_part0"]:
@@ -124,7 +128,7 @@ def test_pandas_return_type_conversion():
     except ImportError:
         pytest.skip("pyarrow required for polars -> pandas conversion")
     df = pl.DataFrame({"path": ["a/x_1.txt", "b/y_2.txt", "c/z_3.txt"]})
-    df2 = ml.add_filename_features(df, sep="_", prefix=None, path_col="path")
+    df2 = FDataFrame(df).add_filename_features(sep="_", prefix=None, path_col="path").df
     tr, va, te = ml.split_data(df2, train_val_test=(60, 20, 20), path_col="path", seed=0, return_type="pandas")
     for part in (tr, va, te):
         assert isinstance(part, pd.DataFrame)

@@ -7523,12 +7523,12 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=1f1acab5">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=1f1acab5">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [1]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Basic environment and import checks</span>
@@ -7565,6 +7565,22 @@ a.anchor-link {
 </div>
 </div>
 </div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child jp-OutputArea-executeResult">
+<div class="jp-OutputPrompt jp-OutputArea-prompt">Out[1]:</div>
+<div class="jp-RenderedText jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/plain" tabindex="0">
+<pre>{'filoma': '1.7.6',
+ 'polars': 'available',
+ 'numpy': 'available',
+ 'PIL': 'available',
+ 'cwd': '/home/kalfasy/repos/filoma/notebooks'}</pre>
+</div>
+</div>
+</div>
+</div>
 </div>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=5492a20b">
 <div class="jp-Cell-inputWrapper" tabindex="0">
@@ -7576,12 +7592,12 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=623b0d1e">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=623b0d1e">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [2]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">file_candidate</span> <span class="o">=</span> <span class="s2">"../README.md"</span>
@@ -7623,6 +7639,37 @@ a.anchor-link {
 </div>
 </div>
 </div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
+<pre><span class="ansi-green-fg">2025-09-20 16:11:30.289</span> | <span class="ansi-blue-intense-fg ansi-bold">DEBUG   </span> | <span class="ansi-cyan-fg">filoma.directories.directory_profiler</span>:<span class="ansi-cyan-fg">__init__</span>:<span class="ansi-cyan-fg">352</span> - <span class="ansi-blue-intense-fg ansi-bold">Interactive environment detected, disabling progress bars to avoid conflicts</span>
+<span class="ansi-green-fg">2025-09-20 16:11:30.289</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">filoma.directories.directory_profiler</span>:<span class="ansi-cyan-fg">probe</span>:<span class="ansi-cyan-fg">439</span> - <span class="ansi-bold">Starting directory analysis of '../tests/' using 🦀 Rust (Parallel) implementation</span>
+<span class="ansi-green-fg">2025-09-20 16:11:30.291</span> | <span class="ansi-green-intense-fg ansi-bold">SUCCESS </span> | <span class="ansi-cyan-fg">filoma.directories.directory_profiler</span>:<span class="ansi-cyan-fg">probe</span>:<span class="ansi-cyan-fg">455</span> - <span class="ansi-green-intense-fg ansi-bold">Directory analysis completed in 0.00s - Found 146 items (121 files, 25 folders) using 🦀 Rust (Parallel)</span>
+<span class="ansi-green-fg">2025-09-20 16:11:30.291</span> | <span class="ansi-yellow-intense-fg ansi-bold">WARNING </span> | <span class="ansi-cyan-fg">filoma.directories.directory_profiler</span>:<span class="ansi-cyan-fg">to_df</span>:<span class="ansi-cyan-fg">193</span> - <span class="ansi-yellow-intense-fg ansi-bold">No DataFrame available for analysis at path /home/kalfasy/repos/filoma/tests. DataFrame building is disabled by default or 'polars' is not installed. Call DirectoryProfiler(build_dataframe=True) or use filoma.probe_to_df(...) to obtain a DataFrame.</span>
+<span class="ansi-green-fg">2025-09-20 16:11:30.289</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">filoma.directories.directory_profiler</span>:<span class="ansi-cyan-fg">probe</span>:<span class="ansi-cyan-fg">439</span> - <span class="ansi-bold">Starting directory analysis of '../tests/' using 🦀 Rust (Parallel) implementation</span>
+<span class="ansi-green-fg">2025-09-20 16:11:30.291</span> | <span class="ansi-green-intense-fg ansi-bold">SUCCESS </span> | <span class="ansi-cyan-fg">filoma.directories.directory_profiler</span>:<span class="ansi-cyan-fg">probe</span>:<span class="ansi-cyan-fg">455</span> - <span class="ansi-green-intense-fg ansi-bold">Directory analysis completed in 0.00s - Found 146 items (121 files, 25 folders) using 🦀 Rust (Parallel)</span>
+<span class="ansi-green-fg">2025-09-20 16:11:30.291</span> | <span class="ansi-yellow-intense-fg ansi-bold">WARNING </span> | <span class="ansi-cyan-fg">filoma.directories.directory_profiler</span>:<span class="ansi-cyan-fg">to_df</span>:<span class="ansi-cyan-fg">193</span> - <span class="ansi-yellow-intense-fg ansi-bold">No DataFrame available for analysis at path /home/kalfasy/repos/filoma/tests. DataFrame building is disabled by default or 'polars' is not installed. Call DirectoryProfiler(build_dataframe=True) or use filoma.probe_to_df(...) to obtain a DataFrame.</span>
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>probing file -&gt; ../README.md
+file probe result type: &lt;class 'filoma.files.file_profiler.Filo'&gt;
+Filo(path=PosixPath('/home/kalfasy/repos/filoma/README.md'), size=6413, mode='0o100664', mode_str='-rw-rw-r--', owner='kalfasy', group='kalfasy', created=datetime.datetime(2025, 9, 20, 0, 24, 52), modified=datetime.datetime(2025, 9, 20, 0, 24, 52), accessed=datetime.datetime(2025, 9, 20, 0, 24, 52), is_symlink=False, is_file=True, is_dir=False, target_is_file=None, target_is_dir=None, rights={'read': True, 'write': True, 'execute': False}, inode=7601600, nlink=1, sha256=None, xattrs={})
+probing directory -&gt; ../tests/
+directory probe returned an object of type: &lt;class 'filoma.directories.directory_profiler.DirectoryAnalysis'&gt;
+to_df() -&gt; wrapper type: &lt;class 'NoneType'&gt;
+</pre>
+</div>
+</div>
+</div>
+</div>
 </div>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=6762e273">
 <div class="jp-Cell-inputWrapper" tabindex="0">
@@ -7634,12 +7681,12 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=57537daa">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=57537daa">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [3]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">sample_paths</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">"../README.md"</span><span class="p">),</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"../pyproject.toml"</span><span class="p">),</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"../Cargo.toml"</span><span class="p">))</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">exists</span><span class="p">()]</span>
@@ -7677,6 +7724,71 @@ a.anchor-link {
 </div>
 </div>
 </div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>sample paths used: [PosixPath('../README.md'), PosixPath('../pyproject.toml'), PosixPath('../Cargo.toml')]
+Initial wrapper and head:
+filoma.DataFrame with 3 rows
+shape: (3, 1)
+┌───────────────────┐
+│ path              │
+│ ---               │
+│ str               │
+╞═══════════════════╡
+│ ../README.md      │
+│ ../pyproject.toml │
+│ ../Cargo.toml     │
+└───────────────────┘
+With path components:
+filoma.DataFrame with 3 rows
+shape: (3, 5)
+┌───────────────────┬────────┬────────────────┬───────────┬────────┐
+│ path              ┆ parent ┆ name           ┆ stem      ┆ suffix │
+│ ---               ┆ ---    ┆ ---            ┆ ---       ┆ ---    │
+│ str               ┆ str    ┆ str            ┆ str       ┆ str    │
+╞═══════════════════╪════════╪════════════════╪═══════════╪════════╡
+│ ../README.md      ┆ ..     ┆ README.md      ┆ README    ┆ .md    │
+│ ../pyproject.toml ┆ ..     ┆ pyproject.toml ┆ pyproject ┆ .toml  │
+│ ../Cargo.toml     ┆ ..     ┆ Cargo.toml     ┆ Cargo     ┆ .toml  │
+└───────────────────┴────────┴────────────────┴───────────┴────────┘
+With file stats:
+filoma.DataFrame with 3 rows
+shape: (3, 13)
+┌───────────────┬────────────┬──────────────┬──────────────┬───┬─────────┬───────┬────────┬────────┐
+│ path          ┆ size_bytes ┆ modified_tim ┆ created_time ┆ … ┆ inode   ┆ nlink ┆ sha256 ┆ xattrs │
+│ ---           ┆ ---        ┆ e            ┆ ---          ┆   ┆ ---     ┆ ---   ┆ ---    ┆ ---    │
+│ str           ┆ i64        ┆ ---          ┆ str          ┆   ┆ i64     ┆ i64   ┆ str    ┆ str    │
+│               ┆            ┆ str          ┆              ┆   ┆         ┆       ┆        ┆        │
+╞═══════════════╪════════════╪══════════════╪══════════════╪═══╪═════════╪═══════╪════════╪════════╡
+│ ../README.md  ┆ 6413       ┆ 2025-09-20   ┆ 2025-09-20   ┆ … ┆ 7601600 ┆ 1     ┆ null   ┆ {}     │
+│               ┆            ┆ 00:24:52     ┆ 00:24:52     ┆   ┆         ┆       ┆        ┆        │
+│ ../pyproject. ┆ 2092       ┆ 2025-09-20   ┆ 2025-09-20   ┆ … ┆ 7579961 ┆ 1     ┆ null   ┆ {}     │
+│ toml          ┆            ┆ 00:34:30     ┆ 00:34:30     ┆   ┆         ┆       ┆        ┆        │
+│ ../Cargo.toml ┆ 481        ┆ 2025-08-30   ┆ 2025-08-30   ┆ … ┆ 7579934 ┆ 1     ┆ null   ┆ {}     │
+│               ┆            ┆ 20:14:29     ┆ 20:14:29     ┆   ┆         ┆       ┆        ┆        │
+└───────────────┴────────────┴──────────────┴──────────────┴───┴─────────┴───────┴────────┴────────┘
+Add depth column relative to repo root:
+filoma.DataFrame with 3 rows
+shape: (3, 2)
+┌───────────────────┬───────┐
+│ path              ┆ depth │
+│ ---               ┆ ---   │
+│ str               ┆ i64   │
+╞═══════════════════╪═══════╡
+│ ../README.md      ┆ 2     │
+│ ../pyproject.toml ┆ 2     │
+│ ../Cargo.toml     ┆ 2     │
+└───────────────────┴───────┘
+</pre>
+</div>
+</div>
+</div>
+</div>
 </div>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=73602797">
 <div class="jp-Cell-inputWrapper" tabindex="0">
@@ -7684,16 +7796,16 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="3)-Build-a-DataFrame-from-a-directory-using-probe_to_df">3) Build a DataFrame from a directory using <code>probe_to_df</code><a class="anchor-link" href="#3)-Build-a-DataFrame-from-a-directory-using-probe_to_df">¶</a></h2><p>This uses filoma's convenience <code>probe_to_df</code> which will build a Polars DataFrame if <code>polars</code> is installed. We request a lightweight folder under <code>tests/</code> to keep runtime small.</p>
+<h2 id="3)-Build-a-DataFrame-from-a-directory-using-probe_to_df">3) Build a DataFrame from a directory using <code>probe_to_df</code><a class="anchor-link" href="#3)-Build-a-DataFrame-from-a-directory-using-probe_to_df">¶</a></h2><p>This uses filoma's convenience <code>probe_to_df</code> which returns a <code>filoma.DataFrame</code> wrapper (Polars is used internally if available). We request a lightweight folder under <code>tests/</code> to keep runtime small.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=883738ea">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=883738ea">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [4]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">filoma</span><span class="w"> </span><span class="kn">import</span> <span class="n">probe_to_df</span>
@@ -7703,26 +7815,76 @@ a.anchor-link {
     <span class="nb">print</span><span class="p">(</span><span class="s2">"No test directory available for probe_to_df; skip this cell."</span><span class="p">)</span>
 <span class="k">else</span><span class="p">:</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="n">pl_df</span> <span class="o">=</span> <span class="n">probe_to_df</span><span class="p">(</span><span class="n">dir_path</span><span class="p">,</span> <span class="n">to_pandas</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">max_depth</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">threads</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">"probe_to_df returned a Polars DataFrame with shape:"</span><span class="p">,</span> <span class="n">pl_df</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">dfw</span> <span class="o">=</span> <span class="n">probe_to_df</span><span class="p">(</span><span class="n">dir_path</span><span class="p">,</span> <span class="n">to_pandas</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">enrich</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">max_depth</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">threads</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">"probe_to_df returned a filoma.DataFrame with shape:"</span><span class="p">,</span> <span class="n">dfw</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
         <span class="c1"># Show a small sample and a group_by_extension summary when available</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="s2">"Sample rows:"</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="n">pl_df</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">dfw</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span>
         <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
             <span class="k">pass</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="s2">"Extension counts:"</span><span class="p">)</span>
-            <span class="c1"># wrap it in a DataFrame wrapper if needed</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">filoma</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataFrame</span> <span class="k">as</span> <span class="n">DFWrap</span>
-
-            <span class="n">wrapper</span> <span class="o">=</span> <span class="n">DFWrap</span><span class="p">(</span><span class="n">pl_df</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="n">wrapper</span><span class="o">.</span><span class="n">group_by_extension</span><span class="p">()</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">))</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">dfw</span><span class="o">.</span><span class="n">group_by_extension</span><span class="p">()</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">))</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="s2">"group_by_extension failed:"</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="nb">print</span><span class="p">(</span><span class="s2">"probe_to_df failed:"</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
 </pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
+<pre><span class="ansi-green-fg">2025-09-20 16:11:30.308</span> | <span class="ansi-blue-intense-fg ansi-bold">DEBUG   </span> | <span class="ansi-cyan-fg">filoma.directories.directory_profiler</span>:<span class="ansi-cyan-fg">__init__</span>:<span class="ansi-cyan-fg">352</span> - <span class="ansi-blue-intense-fg ansi-bold">Interactive environment detected, disabling progress bars to avoid conflicts</span>
+<span class="ansi-green-fg">2025-09-20 16:11:30.308</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">filoma.directories.directory_profiler</span>:<span class="ansi-cyan-fg">probe</span>:<span class="ansi-cyan-fg">439</span> - <span class="ansi-bold">Starting directory analysis of '../tests' using 🦀 Rust (Parallel) implementation</span>
+<span class="ansi-green-fg">2025-09-20 16:11:30.311</span> | <span class="ansi-green-intense-fg ansi-bold">SUCCESS </span> | <span class="ansi-cyan-fg">filoma.directories.directory_profiler</span>:<span class="ansi-cyan-fg">probe</span>:<span class="ansi-cyan-fg">455</span> - <span class="ansi-green-intense-fg ansi-bold">Directory analysis completed in 0.00s - Found 146 items (121 files, 25 folders) using 🦀 Rust (Parallel)</span>
+<span class="ansi-green-fg">2025-09-20 16:11:30.308</span> | <span class="ansi-bold">INFO    </span> | <span class="ansi-cyan-fg">filoma.directories.directory_profiler</span>:<span class="ansi-cyan-fg">probe</span>:<span class="ansi-cyan-fg">439</span> - <span class="ansi-bold">Starting directory analysis of '../tests' using 🦀 Rust (Parallel) implementation</span>
+<span class="ansi-green-fg">2025-09-20 16:11:30.311</span> | <span class="ansi-green-intense-fg ansi-bold">SUCCESS </span> | <span class="ansi-cyan-fg">filoma.directories.directory_profiler</span>:<span class="ansi-cyan-fg">probe</span>:<span class="ansi-cyan-fg">455</span> - <span class="ansi-green-intense-fg ansi-bold">Directory analysis completed in 0.00s - Found 146 items (121 files, 25 folders) using 🦀 Rust (Parallel)</span>
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>probe_to_df returned a filoma.DataFrame with shape: (122, 18)
+Sample rows:
+filoma.DataFrame with 5 rows
+shape: (5, 18)
+┌───────────────────┬───────┬──────────┬──────────────────┬───┬──────────┬───────┬────────┬────────┐
+│ path              ┆ depth ┆ parent   ┆ name             ┆ … ┆ inode    ┆ nlink ┆ sha256 ┆ xattrs │
+│ ---               ┆ ---   ┆ ---      ┆ ---              ┆   ┆ ---      ┆ ---   ┆ ---    ┆ ---    │
+│ str               ┆ i64   ┆ str      ┆ str              ┆   ┆ i64      ┆ i64   ┆ str    ┆ str    │
+╞═══════════════════╪═══════╪══════════╪══════════════════╪═══╪══════════╪═══════╪════════╪════════╡
+│ ../tests/test_asy ┆ 1     ┆ ../tests ┆ test_async_rust_ ┆ … ┆ 7601345  ┆ 1     ┆ null   ┆ {}     │
+│ nc_rust_extra…    ┆       ┆          ┆ extra.py         ┆   ┆          ┆       ┆        ┆        │
+│ ../tests/test_bas ┆ 1     ┆ ../tests ┆ test_basic_dataf ┆ … ┆ 7602664  ┆ 1     ┆ null   ┆ {}     │
+│ ic_dataframe.…    ┆       ┆          ┆ rame.py          ┆   ┆          ┆       ┆        ┆        │
+│ ../tests/scripts  ┆ 1     ┆ ../tests ┆ scripts          ┆ … ┆ 13593175 ┆ 3     ┆ null   ┆ {}     │
+│ ../tests/test_ml_ ┆ 1     ┆ ../tests ┆ test_ml_core.py  ┆ … ┆ 7602966  ┆ 1     ┆ null   ┆ {}     │
+│ core.py           ┆       ┆          ┆                  ┆   ┆          ┆       ┆        ┆        │
+│ ../tests/test_rus ┆ 1     ┆ ../tests ┆ test_rust_absolu ┆ … ┆ 7601819  ┆ 1     ┆ null   ┆ {}     │
+│ t_absolute_pa…    ┆       ┆          ┆ te_paths.py      ┆   ┆          ┆       ┆        ┆        │
+└───────────────────┴───────┴──────────┴──────────────────┴───┴──────────┴───────┴────────┴────────┘
+Extension counts:
+filoma.DataFrame with 3 rows
+shape: (3, 2)
+┌────────────────┬─────┐
+│ extension      ┆ len │
+│ ---            ┆ --- │
+│ str            ┆ u32 │
+╞════════════════╪═════╡
+│ .pyc           ┆ 61  │
+│ .py            ┆ 37  │
+│ &lt;no extension&gt; ┆ 24  │
+└────────────────┴─────┘
+</pre>
 </div>
 </div>
 </div>
@@ -7738,12 +7900,12 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=01d15e2e">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=01d15e2e">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [5]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="k">try</span><span class="p">:</span>
@@ -7763,6 +7925,20 @@ a.anchor-link {
 </div>
 </div>
 </div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>probe_image on numpy array returned type: &lt;class 'filoma.images.image_profiler.ImageReport'&gt;
+ImageReport(path=None, file_type=None, shape=(16, 16), dtype='float64', min=-3.0769991667160514, max=2.811917177753129, mean=0.022458441685517746, nans=0, infs=0, unique=256, status=None)
+</pre>
+</div>
+</div>
+</div>
+</div>
 </div>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=d521ed6e">
 <div class="jp-Cell-inputWrapper" tabindex="0">
@@ -7774,12 +7950,12 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=77b6aacb">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=77b6aacb">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [6]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">out_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"/tmp/filoma_example.csv"</span><span class="p">)</span>
@@ -7809,6 +7985,20 @@ a.anchor-link {
 <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">"Saving CSV failed:"</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
 </pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>Saved CSV to /tmp/filoma_example.csv
+CSV sample: ['path,size_bytes,modified_time,created_time,is_file,is_dir,owner,group,mode_str,inode,nlink,sha256,xattrs', '../README.md,6413,2025-09-20 00:24:52,2025-09-20 00:24:52,true,false,kalfasy,kalfasy,-rw-rw-r--,7601600,1,,{}', '../pyproject.toml,2092,2025-09-20 00:34:30,2025-09-20 00:34:30,true,false,kalfasy,kalfasy,-rw-rw-r--,7579961,1,,{}', '../Cargo.toml,481,2025-08-30 20:14:29,2025-08-30 20:14:29,true,false,kalfasy,kalfasy,-rw-rw-r--,7579934,1,,{}']
+</pre>
 </div>
 </div>
 </div>

@@ -11,11 +11,11 @@ print(filo.size)
 analysis = probe('.')            # directory summary
 analysis.print_summary()
 
-df = probe_to_df('.')            # Polars DataFrame of paths
+df = probe_to_df('.')            # filoma.DataFrame wrapper containing a Polars DataFrame of paths
 df.add_path_components()         # add columns for e.g. parent, stem, suffix
 df.add_file_stats_cols()         # add file stats columns (like size, mtime, etc.)
 df.add_depth_col()               # add depth column (file nesting level)
-df.add_filename_features()       # see the Demo for details
+df.add_filename_features()       # instance method: discover filename tokens (see Demo)
 
 # ML-ready splits
 train, val, test = df.split_data(seed=42, train_val_test=(70,20,10), feature='XYZ')

@@ -2,6 +2,7 @@ import polars as pl
 import pytest
 
 from filoma import ml
+from filoma.dataframe import DataFrame as FDataFrame
 
 
 def test_return_type_filoma():
@@ -12,8 +13,8 @@ def test_return_type_filoma():
     ]
     df = pl.DataFrame({"path": paths})
 
-    # discover tokens so token1 exists
-    df2 = ml.add_filename_features(df, sep="_", prefix=None, include_parent=True, path_col="path")
+    # discover tokens via filoma.DataFrame instance method so token1 exists
+    df2 = FDataFrame(df).add_filename_features(sep="_", prefix=None, include_parent=True, path_col="path").df
 
     tr, va, te = ml.split_data(df2, train_val_test=(60, 20, 20), path_col="path", return_type="filoma", seed=0)
 
@@ -33,7 +34,7 @@ def test_return_type_pandas():
     ]
     df = pl.DataFrame({"path": paths})
 
-    df2 = ml.add_filename_features(df, sep="_", prefix=None, include_parent=True, path_col="path")
+    df2 = FDataFrame(df).add_filename_features(sep="_", prefix=None, include_parent=True, path_col="path").df
 
     tr, va, te = ml.split_data(df2, train_val_test=(60, 20, 20), path_col="path", return_type="pandas", seed=0)
 

@@ -7,47 +7,50 @@ Practical, copy‑paste recipes for common tasks.
 from filoma import probe_to_df
 import polars as pl
 
-pl_df = probe_to_df('.')  # Polars DataFrame
-largest = pl_df.select(['path','size_bytes']).sort('size_bytes', descending=True).head(10)
+# filoma-first: probe_to_df returns a filoma.DataFrame wrapper
+dfw = probe_to_df('.')
+# If you need the raw polars.DataFrame use `dfw.df` or `dfw.to_polars()`
+largest = dfw.df.select(['path','size_bytes']).sort('size_bytes', descending=True).head(10)
 print(largest)
 ```
 
 ## Extension Distribution
 ```python
 from filoma import probe_to_df
-pl_df = probe_to_df('.')
-(by_ext := pl_df.groupby('suffix').count().sort('count', descending=True).head(15))
+dfw = probe_to_df('.')
+(by_ext := dfw.df.groupby('suffix').count().sort('count', descending=True).head(15))
 ```
 
 ## Count Files per Directory (Depth 1)
 ```python
 from filoma import probe_to_df
-pl_df = probe_to_df('.')
-# add parent
-pl_df = pl_df.with_columns(pl_df['path'].str.split('/').list.slice(-2,1).alias('parent'))
-counts = pl_df.groupby('parent').count().sort('count', descending=True)
+dfw = probe_to_df('.')
+# add parent using the raw polars DataFrame via `dfw.df`
+counts = dfw.df.with_columns(dfw.df['path'].str.split('/').list.slice(-2,1).alias('parent')).groupby('parent').count().sort('count', descending=True)
 ```
 
 ## Filter Only Python Sources
 ```python
 from filoma import probe_to_df
-pl_df = probe_to_df('.')
-py = pl_df.filter(pl_df['path'].str.ends_with('.py'))
+dfw = probe_to_df('.')
+# polars-style filter on the underlying DataFrame
+py = dfw.df.filter(dfw.df['path'].str.ends_with('.py'))
 ```
 
 ## Add File Metadata Later (Lazy Enrichment)
 ```python
 from filoma import probe_to_df
 from filoma.dataframe import DataFrame
-base = DataFrame(probe_to_df('.', enrich=False))
+# If probe_to_df returns a wrapper, pass its raw polars via .df when needed
+base = DataFrame(probe_to_df('.', enrich=False).df)
 with_stats = base.add_file_stats_cols()  # adds size, times, owner, etc.
 ```
 
 ## Fast Path Discovery (Skip Metadata)
 ```python
 from filoma.directories import DirectoryProfiler
-# Prefer the convenience helper when you want a Polars DataFrame directly:
-pl_df = probe_to_df('.', enrich=False)
+# Prefer the convenience helper when you want a filoma.DataFrame wrapper:
+dfw = probe_to_df('.', enrich=False)
 
 # Or explicitly enable DataFrame building when using DirectoryProfiler:
 analysis = DirectoryProfiler(DirectoryProfilerConfig(fast_path_only=True, build_dataframe=True)).probe('.')
@@ -58,47 +61,55 @@ paths_df = analysis.to_df().df
 ```python
 from datetime import datetime, timedelta
 from filoma import probe_to_df
-pl_df = probe_to_df('.')
+dfw = probe_to_df('.')
 cutoff = datetime.utcnow() - timedelta(hours=24)
-recent = pl_df.filter(pl_df['modified_time'] > cutoff.isoformat())
+# Work on the polars DataFrame via `dfw.df`
+recent = dfw.df.filter(dfw.df['modified_time'] > cutoff.isoformat())
 ```
 
 ## Train/Val/Test Split (70/15/15)
 ```python
 from filoma import probe_to_df, ml
-pl_df = probe_to_df('.')
-train, val, test = ml.split_data(pl_df, train_val_test=(70,15,15), seed=42)
+dfw = probe_to_df('.')
+# preferred: pass the filoma.DataFrame wrapper to ml.split_data
+train, val, test = ml.split_data(dfw, train_val_test=(70,15,15), seed=42)
 ```
 
 ## Group Split by Parent Folder
 ```python
 from filoma import probe_to_df, ml
-pl_df = probe_to_df('.')
-train, val, test = ml.split_data(pl_df, how='parts', parts=(-2,), seed=42)
+dfw = probe_to_df('.')
+train, val, test = ml.split_data(dfw, how='parts', parts=(-2,), seed=42)
 ```
 
 ## Discover Filename Tokens Then Split
 ```python
-from filoma import probe_to_df, ml
-pl_df = probe_to_df('.')
-pl_df = ml.add_filename_features(pl_df, sep='_')
-train, val, test = ml.split_data(pl_df, how='tokens')
+from filoma import probe_to_df
+from filoma.dataframe import DataFrame
+base = DataFrame(probe_to_df('.').df)
+# Preferred: use the DataFrame method
+df = base.add_filename_features(sep='_')
+train, val, test = df.split_data(feature=('feat1',))
 ```
+
+Use `DataFrame.add_filename_features(...)` to discover filename tokens; it
+returns a `filoma.DataFrame` wrapper.
 
 ## Export for Downstream Processing
 ```python
 from filoma import probe_to_df
-pl_df = probe_to_df('.')
-pl_df.write_parquet('files.parquet')
-pl_df.write_csv('files.csv')
+dfw = probe_to_df('.')
+# Use wrapper's convenience save methods or raw polars via `dfw.df`
+dfw.save_parquet('files.parquet')
+dfw.save_csv('files.csv')
 ```
 
 ## Profile Subset (e.g., Only Large Images)
 ```python
 from filoma import probe_to_df, probe_image
 import polars as pl
-pl_df = probe_to_df('.')
-images = pl_df.filter(pl_df['suffix'].is_in(['.png','.tif','.npy']))
+dfw = probe_to_df('.')
+images = dfw.df.filter(dfw.df['suffix'].is_in(['.png','.tif','.npy']))
 large = images.filter(images['size_bytes'] > 5_000_000)
 reports = [probe_image(p) for p in large['path'].to_list()]
 ```
@@ -118,10 +129,10 @@ for p in paths:
 ```python
 from filoma import probe_to_df, probe_file
 import collections
-pl_df = probe_to_df('.')
-# coarse group by file size
-cand = pl_df.groupby('size_bytes').count().filter(pl_df['count']>1)['size_bytes'].to_list()
-subset = pl_df.filter(pl_df['size_bytes'].is_in(cand))
+dfw = probe_to_df('.')
+# coarse group by file size (use raw polars via `dfw.df`)
+cand = dfw.df.groupby('size_bytes').count().filter(dfw.df['count']>1)['size_bytes'].to_list()
+subset = dfw.df.filter(dfw.df['size_bytes'].is_in(cand))
 # compute hashes only for candidates
 hash_map = collections.defaultdict(list)
 for path in subset['path'].to_list():
@@ -133,16 +144,16 @@ duplicates = [v for v in hash_map.values() if len(v) > 1]
 ## Depth Histogram
 ```python
 from filoma import probe_to_df
-pl_df = probe_to_df('.')
-pl_df.groupby('depth').count().sort('depth')
+dfw = probe_to_df('.')
+dfw.df.groupby('depth').count().sort('depth')
 ```
 
 ## Largest Directories by File Count
 ```python
 from filoma import probe_to_df
-pl_df = probe_to_df('.')
-# parent column (quick derivation)
-parents = pl_df.with_columns(pl_df['path'].str.split('/').list.slice(-2,1).alias('parent'))
+dfw = probe_to_df('.')
+# parent column (quick derivation) using the raw polars DataFrame
+parents = dfw.df.with_columns(dfw.df['path'].str.split('/').list.slice(-2,1).alias('parent'))
 parents.groupby('parent').count().sort('count', descending=True).head(20)
 ```
 

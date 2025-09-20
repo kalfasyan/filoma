@@ -3,8 +3,8 @@
 Get a Polars DataFrame directly:
 ```python
 from filoma import probe_to_df
-pl_df = probe_to_df('.')
-print(pl_df.head())
+dfw = probe_to_df('.')  # filoma.DataFrame wrapper
+print(dfw.head())
 ```
 
 Wrap existing analysis:
@@ -12,29 +12,25 @@ Wrap existing analysis:
 from filoma import probe
 analysis = probe('.')
 # Prefer using probe_to_df() to get a DataFrame in one step. If you already
-# have an analysis object, request a DataFrame explicitly when probing:
-#
-#   from filoma import probe_to_df
-#   pl_df = probe_to_df('.')
-#
-# Or re-run probing with DataFrame building enabled:
+# have an analysis object, request a DataFrame explicitly when probing and
+# access the raw Polars DataFrame via `wrapper.df` when needed.
 analysis = probe('.', build_dataframe=True)
 wrapper = analysis.to_df()
-pl_df = wrapper.df
+# access raw polars via wrapper.df
 ```
 
 Enrichment helpers (chainable):
 ```python
 from filoma import probe_to_df
-pl_df = probe_to_df('.', enrich=True)  # depth, path parts, file stats
+dfw = probe_to_df('.', enrich=True)  # depth, path parts, file stats
 ```
 
 Manual enrichment:
 ```python
 from filoma import probe_to_df
-pl_df = probe_to_df('.', enrich=False)
+dfw = probe_to_df('.', enrich=False)
 from filoma.dataframe import DataFrame
-wrapper = DataFrame(pl_df)
+wrapper = DataFrame(dfw.df)
 wrapper = wrapper.add_depth_col().add_path_components().add_file_stats_cols()
 ```
 

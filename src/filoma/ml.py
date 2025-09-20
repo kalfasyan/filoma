@@ -74,102 +74,15 @@ def _get_feature_value(path_str: str, feature: str, path_parts: Optional[Iterabl
         raise ValueError(f"Unknown feature='{feature}'")
 
 
-def add_filename_features(
-    pl_df: pl.DataFrame,
-    sep: str = "_",
-    prefix: Optional[str] = "feat",
-    max_tokens: Optional[int] = None,
-    include_parent: bool = False,
-    include_all_parts: bool = False,
-    token_names: Optional[Union[str, Sequence[str]]] = None,
-    path_col: str = "path",
-) -> pl.DataFrame:
-    """
-    Discover separator-based tokens from filename stems and add them as columns.
-
-    Args:
-        pl_df: Polars DataFrame with a 'path' column.
-        sep: separator to split the stem (default '_').
-        prefix: prefix for generated feature columns (columns will be prefix1, prefix2, ...).
-        max_tokens: optional max number of tokens to extract (otherwise uses observed max).
-        include_parent: if True, add a 'parent' column containing the immediate parent folder name.
-
-    Returns:
-        Polars DataFrame with added feature columns.
-    """
-    if path_col not in pl_df.columns:
-        raise ValueError(f"DataFrame must have a '{path_col}' column")
-
-    # Extract stems and split by sep to discover token counts
-    stems = [Path(s).stem for s in pl_df[path_col].to_list()]
-    split_tokens = [stem.split(sep) if stem is not None else [""] for stem in stems]
-    observed_max = max((len(t) for t in split_tokens), default=0)
-    if max_tokens is None:
-        max_tokens = observed_max
-
-    # Normalize token_names
-    # token_names may be: None, 'auto', or a sequence of names
-    if token_names == "auto":
-        token_names_seq = None
-        auto_mode = True
-    elif isinstance(token_names, (list, tuple)):
-        token_names_seq = list(token_names)
-        auto_mode = False
-    else:
-        token_names_seq = None
-        auto_mode = False
-
-    # For each token index create a column
-    new_cols = []
-    for i in range(max_tokens):
-        # Decide column name: explicit token_names > prefix > generic token
-        if token_names_seq is not None and i < len(token_names_seq) and token_names_seq[i]:
-            col_name = token_names_seq[i]
-        elif auto_mode:
-            # auto generates readable token names using 'token' base or prefix if present
-            base = prefix if prefix else "token"
-            col_name = f"{base}{i + 1}"
-        else:
-            if prefix:
-                col_name = f"{prefix}{i + 1}"
-            else:
-                col_name = f"token{i + 1}"
-
-        def pick_token(s: str, idx=i):
-            st = Path(s).stem
-            parts = st.split(sep) if st is not None else [""]
-            try:
-                return parts[idx]
-            except Exception:
-                return ""
-
-        new_cols.append(pl.col(path_col).map_elements(pick_token, return_dtype=pl.Utf8).alias(col_name))
-
-    if include_parent:
-        new_cols.append(pl.col(path_col).map_elements(lambda s: Path(s).parent.name, return_dtype=pl.Utf8).alias("parent"))
-
-    # Optionally add all path parts as features (path_part0 is root/first part)
-    if include_all_parts:
-        parts_lists = [list(Path(s).parts) for s in pl_df[path_col].to_list()]
-        max_parts = max((len(p) for p in parts_lists), default=0)
-        for i in range(max_parts):
-            col_name = f"path_part{i}"
-
-            def pick_part(s: str, idx=i):
-                try:
-                    parts = list(Path(s).parts)
-                    return parts[idx]
-                except Exception:
-                    return ""
-
-            new_cols.append(pl.col(path_col).map_elements(pick_part, return_dtype=pl.Utf8).alias(col_name))
-
-    return pl_df.with_columns(new_cols)
+# NOTE: filename-feature discovery is provided as a method on
+# `filoma.dataframe.DataFrame.add_filename_features`. We no longer expose a
+# standalone `ml.add_filename_features` function to encourage using the
+# DataFrame API which returns filoma.DataFrame wrappers.
 
 
 # ------------ Internal helper functions for modular split_data ------------ #
 def _maybe_discover(
-    pl_df: pl.DataFrame,
+    df_obj: Any,
     discover: bool,
     sep: str,
     feat_prefix: str,
@@ -178,19 +91,42 @@ def _maybe_discover(
     include_all_parts: bool,
     token_names: Optional[Union[str, Sequence[str]]],
     path_col: str,
-) -> pl.DataFrame:
+) -> Any:
+    """If `discover` is True, ensure filename-token columns exist and return
+    a `filoma.DataFrame` wrapper. If `discover` is False, wrap the provided
+    object in a `filoma.DataFrame` if necessary and return it unchanged.
+    """
     if not discover:
-        return pl_df
-    return add_filename_features(
-        pl_df,
+        # If it's already a filoma.DataFrame just return it; otherwise wrap it
+        from .dataframe import DataFrame as FDataFrame
+
+        if hasattr(df_obj, "df"):
+            return df_obj
+        return FDataFrame(df_obj)
+
+    # Use the filoma.DataFrame instance method for discovery to ensure we
+    # consistently work with filoma.DataFrame wrappers. Wrap polars frames
+    # when necessary and return the filoma.DataFrame result.
+    from .dataframe import DataFrame as FDataFrame
+
+    if hasattr(df_obj, "df"):
+        base = df_obj
+    else:
+        base = FDataFrame(df_obj)
+
+    res = base.add_filename_features(
+        path_col=path_col,
         sep=sep,
         prefix=feat_prefix,
         max_tokens=max_tokens,
         include_parent=include_parent,
         include_all_parts=include_all_parts,
         token_names=token_names,
-        path_col=path_col,
+        enrich=False,
+        inplace=False,
     )
+
+    return res
 
 
 def _build_feature_index(
@@ -348,7 +284,7 @@ def split_data(
     path_col: str = "path",
     verbose: bool = True,
     validate_counts: bool = True,
-    return_type: str = "polars",
+    return_type: str = "filoma",
 ) -> Tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
     """
     Split a filoma DataFrame into train/val/test based on filename/path-derived features.
@@ -396,20 +332,16 @@ def split_data(
     """
     assert train_val_test is not None and len(train_val_test) == 3, "train_val_test must be a tuple of three numbers"
 
-    # Accept filoma.DataFrame wrapper or raw Polars DataFrame
-    if hasattr(data, "df"):
-        pl_df = data.df
-    else:
-        pl_df = data
-
-    if path_col not in pl_df.columns:
-        raise ValueError(f"DataFrame must have a '{path_col}' column")
+    # Accept filoma.DataFrame wrapper or raw Polars DataFrame; discovery
+    # (if requested) will wrap raw frames into filoma.DataFrame. Defer the
+    # `path_col` existence check until after discovery to avoid unwrapping
+    # the filoma.DataFrame more than once.
 
     ratios = _normalize_ratios(train_val_test)
 
-    # Discovery
-    pl_work = _maybe_discover(
-        pl_df,
+    # Discovery: return a filoma.DataFrame wrapper (or wrap the input if not discovering)
+    df_work = _maybe_discover(
+        data,
         discover=discover,
         sep=sep,
         feat_prefix=feat_prefix,
@@ -419,6 +351,12 @@ def split_data(
         token_names=token_names,
         path_col=path_col,
     )
+
+    # Extract the underlying Polars DataFrame for downstream processing
+    pl_work = df_work.df
+
+    if path_col not in pl_work.columns:
+        raise ValueError(f"DataFrame must have a '{path_col}' column")
 
     # Feature grouping & assignment
     feature_to_idxs, paths = _build_feature_index(pl_work, path_col=path_col, feature=feature, path_parts=path_parts)
@@ -474,11 +412,8 @@ def split_data(
 
     _maybe_log_ratio_drift(len(train_df), len(val_df), len(test_df), len(paths), ratios, verbose)
 
-    # Return requested type
-    if return_type == "polars" or return_type is None:
-        return train_df, val_df, test_df
-
-    if return_type == "filoma":
+    # Return requested type (default: filoma.DataFrame wrappers)
+    if return_type == "filoma" or return_type is None:
         # Lazy import filoma.DataFrame wrapper to avoid heavy imports at module import time
         try:
             from .dataframe import DataFrame as FDataFrame
@@ -486,6 +421,9 @@ def split_data(
             from filoma.dataframe import DataFrame as FDataFrame
 
         return FDataFrame(train_df), FDataFrame(val_df), FDataFrame(test_df)
+
+    if return_type == "polars":
+        return train_df, val_df, test_df
 
     if return_type == "pandas":
         try:
