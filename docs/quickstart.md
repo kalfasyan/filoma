@@ -2,9 +2,37 @@
 
 `filoma` is a fast and flexible Python tool for filesystem analysis. It helps you understand the contents of your directories, profile individual files, and prepare datasets for machine learning.
 
+## Two Ways to Get Started
+
+### 1. Interactive CLI (Recommended for Beginners)
+
+Launch the interactive terminal interface for visual exploration:
+
+```bash
+filoma                    # Start in current directory
+filoma /path/to/analyze   # Start in specific directory
+```
+
+Use arrow keys to navigate, probe files and directories, and analyze results with a beautiful terminal interface. Perfect for exploration and ad-hoc analysis.
+
+**[Learn more about the Interactive CLI →](cli.md)**
+
+### 2. Python API (For Scripting and Automation)
+
+For programmatic use, integration into scripts, or Jupyter notebooks:
+
+```python
+from filoma import probe_to_df
+
+df = probe_to_df('.')  # Scan current directory
+df.df.head()          # View first few rows
+```
+
+**[Continue with the Interactive Demo →](demo.md)**
+
 ## Getting Started: The Interactive Demo
 
-The best way to get started with `filoma` is to run the interactive demo notebook. It covers the most common workflows in a hands-on way.
+The best way to get started with the Python API is to run the interactive demo notebook. It covers the most common workflows in a hands-on way.
 
 - **[View the Interactive Demo](./demo.md)**
 

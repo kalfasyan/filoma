@@ -9,6 +9,7 @@ nav:
     - Quickstart: quickstart.md
     - Installation: installation.md
   - Usage:
+    - Interactive CLI: cli.md
     - Core Concepts: concepts.md
     - Directory Scanning: scanning.md
     - DataFrame Workflow: dataframe.md

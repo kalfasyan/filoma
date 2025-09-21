@@ -23,6 +23,7 @@
 <p align="center">
   <a href="docs/installation.md">Installation</a> •
   <a href="https://filoma.readthedocs.io/en/latest/">Documentation</a> •
+  <a href="docs/cli.md">Interactive CLI</a> •
   <a href="docs/quickstart.md">Quickstart</a> •
   <a href="docs/cookbook.md">Cookbook</a> •
   <a href="https://github.com/kalfasyan/filoma">Source Code</a>
@@ -35,7 +36,7 @@
 ---
 
 ## Key Features
-
+- **🖥️ Interactive CLI**: Beautiful terminal interface for filesystem exploration and DataFrame analysis [📖 **CLI Documentation →**](docs/cli.md)
 - **🚀 High-Performance Backends**: Automatic selection of Rust, `fd`, or Python for the best performance.
 - **📊 Rich Directory Analysis**: Get detailed statistics on file counts, extensions, sizes, and more.
 - **🔍 Smart File Search**: Use regex and glob patterns to find files with `FdFinder`.

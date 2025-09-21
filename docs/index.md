@@ -21,7 +21,19 @@ df.add_filename_features()       # instance method: discover filename tokens (se
 train, val, test = df.split_data(seed=42, train_val_test=(70,20,10), feature='XYZ')
 ```
 
+## Interactive CLI
+
+Prefer a visual interface? Use the interactive CLI for filesystem exploration and data analysis:
+
+```bash
+filoma                    # Launch interactive file browser
+filoma /path/to/analyze   # Start in specific directory
+```
+
+Navigate with arrow keys, probe files and directories, and analyze DataFrames—all with beautiful terminal UI powered by Rich and questionary. [Learn more →](cli.md)
+
 ## Why filoma?
+- **Interactive CLI**: Beautiful terminal interface for exploration and analysis
 - **Automatic speed**: Rust / fd / Python backend selection
 - **DataFrame-first**: Direct Polars integration + enrichment helpers
 - **One-liners**: `probe`, `probe_to_df`, `probe_file`, `probe_image`
