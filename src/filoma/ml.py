@@ -192,12 +192,34 @@ def _assign_features(feature_to_idxs: dict, ratios: Sequence[float], seed: Optio
     return assignment
 
 
+def _assign_features_by_mapping(feature_to_idxs: dict, split_mapping: dict) -> dict:
+    """Assign features to splits based on explicit mapping."""
+    assignment = {}
+    unmapped_features = []
+
+    for feat in feature_to_idxs:
+        if feat in split_mapping:
+            mapped_split = split_mapping[feat]
+            if mapped_split not in {"train", "val", "test"}:
+                raise ValueError(f"split_mapping values must be 'train', 'val', or 'test', got '{mapped_split}' for feature '{feat}'")
+            assignment[feat] = mapped_split
+        else:
+            unmapped_features.append(feat)
+
+    if unmapped_features:
+        logger.warning(f"split_mapping: {len(unmapped_features)} feature(s) not found in mapping and will be excluded: {unmapped_features[:5]}...")
+
+    return assignment
+
+
 def _mask_from_assignment(feature_to_idxs: dict, feature_assignment: dict, total: int) -> List[str]:
     mask: List[str] = [None] * total  # type: ignore
     for feat, idxs in feature_to_idxs.items():
-        split = feature_assignment[feat]
-        for i in idxs:
-            mask[i] = split  # type: ignore
+        if feat in feature_assignment:  # Only assign if feature is mapped
+            split = feature_assignment[feat]
+            for i in idxs:
+                mask[i] = split  # type: ignore
+        # If feat not in feature_assignment, those indices remain None and will be filtered out
     return mask
 
 
@@ -284,6 +306,7 @@ def split_data(
     verbose: bool = True,
     validate_counts: bool = True,
     return_type: str = "filoma",
+    split_mapping: Optional[dict] = None,
 ) -> Tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
     """Split a filoma DataFrame into train/val/test based on filename/path-derived features.
 
@@ -330,6 +353,11 @@ def split_data(
     return_type : str
         One of 'polars' (default), 'filoma' (wrap Polars into filoma.DataFrame), or
         'pandas' (convert to pandas.DataFrame). If 'pandas' is chosen, pandas must be available.
+    split_mapping : Optional[dict]
+        If provided, maps feature values to specific splits instead of using ratios.
+        Keys should be feature values (e.g., folder names), values should be 'train', 'val', or 'test'.
+        Example: {'training': 'train', 'validation': 'val', 'testing': 'test'}.
+        When used, train_val_test ratios are ignored.
     path_col : str
         Column name in the input DataFrame containing file paths used for deriving features.
 
@@ -373,9 +401,15 @@ def split_data(
 
     # Feature grouping & assignment
     feature_to_idxs, paths = _build_feature_index(pl_work, path_col=path_col, feature=feature, path_parts=path_parts)
-    # Determine effective seed: prefer `random_state` if provided for sklearn-like API
-    effective_seed = random_state if random_state is not None else seed
-    feature_assignment = _assign_features(feature_to_idxs, ratios=ratios, seed=effective_seed)
+
+    # Choose assignment method based on whether split_mapping is provided
+    if split_mapping is not None:
+        feature_assignment = _assign_features_by_mapping(feature_to_idxs, split_mapping)
+    else:
+        # Determine effective seed: prefer `random_state` if provided for sklearn-like API
+        effective_seed = random_state if random_state is not None else seed
+        feature_assignment = _assign_features(feature_to_idxs, ratios=ratios, seed=effective_seed)
+
     mask = _mask_from_assignment(feature_to_idxs, feature_assignment, total=len(paths))
     tmp = pl_work.with_columns([pl.Series("_split", mask)])
 

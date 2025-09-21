@@ -20,6 +20,8 @@
   <strong>Fast, multi-backend file/directory profiling and data preparation for machine learning workflows.</strong>
 </p>
 
+> 🚧 **Filoma is under active development** — new features are being added regularly, APIs may evolve, and I'm always looking for feedback! Think of it as your friendly neighborhood file analysis toolkit that's still learning new tricks. Contributions, bug reports, and feature requests are more than welcome! 🎉
+
 <p align="center">
   <a href="docs/installation.md">Installation</a> •
   <a href="https://filoma.readthedocs.io/en/latest/">Documentation</a> •
