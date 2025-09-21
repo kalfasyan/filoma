@@ -845,6 +845,7 @@ class DataFrame:
         verbose: bool = True,
         return_type: str = "filoma",
         split_mapping: Optional[dict] = None,
+        files_only: bool = True,
     ):
         """Deterministically split this filoma DataFrame into train/val/test.
 
@@ -876,6 +877,7 @@ class DataFrame:
             verbose=verbose,
             return_type=return_type,
             split_mapping=split_mapping,
+            files_only=files_only,
         )
 
     def enrich(self, inplace: bool = False):

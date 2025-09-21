@@ -307,6 +307,7 @@ def split_data(
     validate_counts: bool = True,
     return_type: str = "filoma",
     split_mapping: Optional[dict] = None,
+    files_only: bool = True,
 ) -> Tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
     """Split a filoma DataFrame into train/val/test based on filename/path-derived features.
 
@@ -358,6 +359,10 @@ def split_data(
         Keys should be feature values (e.g., folder names), values should be 'train', 'val', or 'test'.
         Example: {'training': 'train', 'validation': 'val', 'testing': 'test'}.
         When used, train_val_test ratios are ignored.
+    files_only : bool
+        If True (default), filter out directories and keep only files before splitting.
+        Looks for 'is_file' column in the DataFrame. If the column doesn't exist,
+        this parameter is ignored.
     path_col : str
         Column name in the input DataFrame containing file paths used for deriving features.
 
@@ -395,6 +400,14 @@ def split_data(
 
     # Extract the underlying Polars DataFrame for downstream processing
     pl_work = df_work.df
+
+    # Filter to files only if requested and column exists
+    if files_only and "is_file" in pl_work.columns:
+        original_count = len(pl_work)
+        pl_work = pl_work.filter(pl.col("is_file"))
+        files_count = len(pl_work)
+        if verbose and original_count > files_count:
+            logger.info(f"Filtered to files only: {files_count:,} files (removed {original_count - files_count:,} directories)")
 
     if path_col not in pl_work.columns:
         raise ValueError(f"DataFrame must have a '{path_col}' column")
