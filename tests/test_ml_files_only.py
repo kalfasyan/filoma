@@ -2,13 +2,11 @@
 Tests for the files_only parameter in split_data function.
 """
 
+import sys
 import tempfile
 from pathlib import Path
 
 import polars as pl
-import pytest
-
-import sys
 
 sys.path.insert(0, "src")
 
@@ -35,7 +33,6 @@ def test_files_only_parameter():
         # Create DataFrame that includes both files and directories
         all_paths = list(temp_path.rglob("*"))
         file_paths = [p for p in all_paths if p.is_file()]
-        dir_paths = [p for p in all_paths if p.is_dir() and p != temp_path]
 
         df_data = {"path": [str(p) for p in all_paths if p != temp_path], "is_file": [p.is_file() for p in all_paths if p != temp_path]}
         df = pl.DataFrame(df_data)

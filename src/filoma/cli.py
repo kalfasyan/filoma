@@ -835,7 +835,7 @@ def split_dataframe_for_ml(df_result: Any, original_path: Path) -> None:
                         break
 
             if obvious_mappings:
-                console.print(f"\n[bold green]🎯 Suggested mapping based on folder names:[/bold green]")
+                console.print("\n[bold green]🎯 Suggested mapping based on folder names:[/bold green]")
                 for split_name, folder_list in obvious_mappings.items():
                     console.print(f"  {split_name.upper()}: {', '.join(folder_list)}")
 
