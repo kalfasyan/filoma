@@ -33,9 +33,7 @@
 
 `filoma` helps you analyze file directory trees, inspect file metadata, and prepare your data for exploration and modelling. It can achieve this blazingly fast using the best available backend (Rust, [`fd`](https://github.com/sharkdp/fd), or pure Python) ⚡🍃
 
----
-## CLI Demo
-<img src="images/demo.gif" alt="filoma CLI screenshot" width="800">
+
 
 ## Key Features
 - **🖥️ Interactive CLI**: Beautiful terminal interface for filesystem exploration and DataFrame analysis [📖 **CLI Documentation →**](docs/cli.md)
@@ -49,6 +47,9 @@
   
 ## Scope of `filoma`  
 <img src="images/flow.png" alt="filoma workflow diagram" width="400">  
+
+## CLI Demo
+<img src="images/demo.gif" alt="filoma CLI screenshot" width="800">
 
 ## Feature Highlights
 Quick, copyable examples showing filoma's standout capabilities and where to learn more.
