@@ -35,3 +35,21 @@ Tips:
 - Provide a seed to stabilize: `seed=42`.
 - Ratios may slightly drift; warnings explain adjustments.
 - Use `return_type='pandas'` if you prefer pandas downstream.
+
+## Analyzing Your Splits
+
+After creating splits, analyze their quality with the visualization module:
+
+```python
+import filoma.plot as plot
+
+# Create analyzer for your splits
+analyzer = plot.analyze_splits((train, val, test), split_names=['train', 'val', 'test'])
+
+# Check balance and distribution quality
+analyzer.balance()                    # Split size distributions
+analyzer.distribution_analysis()      # Feature consistency across splits
+analyzer.characteristics(['size'])    # File metadata analysis
+```
+
+**[Learn more about Split Visualization →](visualizations.md)**

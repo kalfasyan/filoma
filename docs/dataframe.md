@@ -52,6 +52,22 @@ Convert to pandas:
 pandas_df = probe_to_df('.', to_pandas=True)
 ```
 
+## ML Split Analysis
+
+Create and analyze ML splits:
+```python
+# Create splits
+train, val, test = dfw.split_data(train_val_test=(70, 20, 10), feature='path_parts')
+
+# Analyze split quality
+import filoma.plot as plot
+analyzer = plot.analyze_splits((train, val, test))
+analyzer.balance()              # Check distributions
+analyzer.validate()            # Complete quality report
+```
+
+**[Learn more about Split Visualization →](visualizations.md)**
+
 Tips:
 - Use `.add_file_stats_cols()` sparingly on huge trees (it touches filesystem for each path).
 Pandas conversions and caching

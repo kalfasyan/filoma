@@ -19,6 +19,12 @@ df.add_filename_features()       # instance method: discover filename tokens (se
 
 # ML-ready splits
 train, val, test = df.split_data(seed=42, train_val_test=(70,20,10), feature='XYZ')
+
+# Analyze and visualize splits
+import filoma.plot as plot
+analyzer = plot.analyze_splits((train, val, test))
+analyzer.balance()              # Check split distributions
+analyzer.distribution_analysis() # Validate feature consistency
 ```
 
 ## Interactive CLI
