@@ -85,8 +85,8 @@ class DirectoryProfilerConfig:
     fast_path_only: bool = False
 
     # Network tuning (only valid when use_async is True)
-    network_concurrency: int = 64
-    network_timeout_ms: int = 5000
+    network_concurrency: int = 192
+    network_timeout_ms: int = 20000
     network_retries: int = 0
 
     # fd-specific tuning
