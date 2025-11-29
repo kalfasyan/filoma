@@ -110,11 +110,16 @@ class DirectoryProfilerConfig:
         if self.network_retries < 0:
             raise ValueError("network_retries must be non-negative")
 
-        # Relationship validations
-        if not self.use_async and (self.network_concurrency != 64 or self.network_timeout_ms != 5000 or self.network_retries != 0):
+        # Relationship validations - only validate if non-default network params are set
+        # Default values are: network_concurrency=192, network_timeout_ms=20000, network_retries=0
+        has_custom_network_params = self.network_concurrency != 192 or self.network_timeout_ms != 20000 or self.network_retries != 0
+        if not self.use_async and has_custom_network_params:
             raise ValueError("Network tuning parameters only apply when use_async=True")
-        if self.threads is not None and not self.use_fd:
-            raise ValueError("'threads' only applies when use_fd=True")
+
+        # Check if fd backend is being used (either explicitly or via search_backend)
+        is_using_fd = self.use_fd or self.search_backend == "fd"
+        if self.threads is not None and not is_using_fd:
+            raise ValueError("'threads' only applies when use_fd=True or search_backend='fd'")
 
 
 def _is_interactive_environment():
@@ -322,18 +327,15 @@ class DirectoryProfiler:
             raise RuntimeError("DataFrame building requested but Polars/DataFrame support is not available")
 
         # Network args only apply when use_async is True (explicit)
-        if not config.use_async and any(
-            (
-                config.network_concurrency != 64,
-                config.network_timeout_ms != 5000,
-                config.network_retries != 0,
-            )
-        ):
+        # Only validate if user has set custom network params (not using defaults)
+        has_custom_network_params = config.network_concurrency != 192 or config.network_timeout_ms != 20000 or config.network_retries != 0
+        if not config.use_async and has_custom_network_params:
             raise ValueError("Network tuning parameters only apply when use_async=True")
 
-        # Threads only applies when use_fd is True
-        if config.threads is not None and not config.use_fd:
-            raise ValueError("'threads' setting only applies when use_fd=True")
+        # Threads only applies when use_fd is True or search_backend='fd'
+        is_using_fd = config.use_fd or config.search_backend == "fd"
+        if config.threads is not None and not is_using_fd:
+            raise ValueError("'threads' setting only applies when use_fd=True or search_backend='fd'")
 
         # Decide which implementation to use based on search_backend and availability
         backend_choice = config.search_backend
