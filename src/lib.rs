@@ -268,7 +268,7 @@ use analysis::*;
 /// Convert an entry path to an absolute path string relative to the probe root.
 /// If `follow_links` is true we attempt to canonicalize the entry path (resolving
 /// symlinks). If canonicalize fails or follow_links is false, we compose an absolute
-/// path by joining the canonicalized probe root with the entry's path relative to the root.
+/// path by joining the probe root with the entry's path relative to the root.
 pub fn make_absolute_path_str(entry_path: &std::path::Path, root: &std::path::Path, root_abs: &std::path::Path, follow_links: bool) -> String {
     if follow_links {
         if let Ok(canon) = entry_path.canonicalize() {
@@ -277,8 +277,10 @@ pub fn make_absolute_path_str(entry_path: &std::path::Path, root: &std::path::Pa
         // Fall through to path composition if canonicalize fails
     }
 
+    // When not following links, use the original root to avoid canonicalization
+    let base = if follow_links { root_abs } else { root };
     match entry_path.strip_prefix(root) {
-        Ok(rel) => root_abs.join(rel).to_string_lossy().to_string(),
+        Ok(rel) => base.join(rel).to_string_lossy().to_string(),
         Err(_) => entry_path.to_string_lossy().to_string(),
     }
 }
@@ -297,7 +299,7 @@ mod sequential {
     ) -> Result<DirectoryStats, String> {
         let start_time = Instant::now();
         let mut stats = DirectoryStats::new();
-    // Pre-compute absolute root used to construct absolute paths for entries
+    // Pre-compute absolute root for canonicalized paths (when follow_links=true)
     let root_abs = path_root.canonicalize().unwrap_or_else(|_| path_root.to_path_buf());
     let mut walker = WalkDir::new(path_root).follow_links(config.follow_links);
 
@@ -389,7 +391,7 @@ mod parallel {
         let start_time = Instant::now();
         let stats = Arc::new(ParallelDirectoryStats::new());
         
-    // First, compute absolute root used for path composition
+    // Compute absolute root for canonicalized paths (when follow_links=true)
     let root_abs = path_root.canonicalize().unwrap_or_else(|_| path_root.to_path_buf());
     // Probe the root directory itself
     probe_root_directory(path_root, &stats, config)?;
@@ -583,8 +585,12 @@ fn probe_directory_rust_with_config(
     };
 
     // Choose analysis method based on configuration and directory size
-    // Use the root_abs as the canonical absolute probe root for Python consumers
-    let root_abs = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    // Use canonicalized root only when follow_links is true
+    let root_for_output = if config.follow_links {
+        root.canonicalize().unwrap_or_else(|_| root.to_path_buf())
+    } else {
+        root.to_path_buf()
+    };
     let stats = if should_use_parallel_analysis(root, &config) {
         parallel::probe_directory_parallel(root, &config)
     } else {
@@ -593,7 +599,7 @@ fn probe_directory_rust_with_config(
 
     let stats = stats.map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
     
-    Python::with_gil(|py| stats.to_py_dict(py, root_abs.to_string_lossy().as_ref()))
+    Python::with_gil(|py| stats.to_py_dict(py, root_for_output.to_string_lossy().as_ref()))
 }
 
 /// Intelligent decision making for when to use parallel processing
