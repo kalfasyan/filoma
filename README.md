@@ -63,7 +63,8 @@ import filoma as flm
 
 # filoma will pick Rust > fd > Python depending on availability
 analysis = flm.probe('.')
-analysis.print_summary()
+print(f"Total files: {analysis.summary['total_files']}")
+print(f"Total folders: {analysis.summary['total_folders']}")
 ```
 
 - **Polars-first DataFrame wrapper & enrichment:** Returns a `filoma.DataFrame` (Polars) with helpers to add path components, depth, and file stats for immediate analysis. Docs: `docs/dataframe.md`.
@@ -76,8 +77,11 @@ print(df.head())
 - **Ultra-fast discovery with `fd`:** When `fd` is available filoma uses it for very fast file discovery. Advanced usage and patterns: `docs/advanced-usage.md`.
 
 ```python
-if flm.fd.is_available():
-    files = flm.fd.find(pattern=r"\\.py$", path='src', max_depth=3)
+from filoma.directories.fd_finder import FdFinder
+
+finder = FdFinder()
+if finder.is_available():
+    files = finder.find_files(pattern=r"\.py$", path='src', max_depth=3)
     print(len(files), 'python files found')
 ```
 
@@ -119,7 +123,7 @@ import filoma as flm
 file_info = flm.probe_file("README.md")
 
 print(f"Path: {file_info.path}")
-print(f"Size: {file_info.size_str}")
+print(f"Size: {file_info.size} bytes")
 print(f"Modified: {file_info.modified}")
 ```
 
@@ -140,8 +144,9 @@ Scan an entire directory to get a high-level overview.
 # Analyze the current directory
 analysis = flm.probe('.')
 
-# Print a summary report
-analysis.print_summary()
+# Access summary data
+print(f"Total files: {analysis.summary['total_files']}")
+print(f"Total size: {analysis.summary['total_size_mb']:.2f} MB")
 ```
 ```text
 Directory Analysis: /project (🦀 Rust (Parallel)) - 0.27s
@@ -177,7 +182,7 @@ print(df_enriched.head())
 
 ```python
 # Split the data, grouping by parent directory
-train, val, test = flm.ml.split_data(df, how='parts', parts=(-2,), seed=42)
+train, val, test = flm.ml.split_data(df, feature='path_parts', path_parts=(-2,), seed=42)
 
 print(f"Train: {len(train)}, Validation: {len(val)}, Test: {len(test)}")
 ```
