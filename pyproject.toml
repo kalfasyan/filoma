@@ -1,6 +1,6 @@
 [project]
 name = "filoma"
-version = "1.9.4"
+version = "1.9.5"
 description = "Modular Python tool for profiling files, analyzing directory structures, and inspecting image data"
 readme = "README.md"
 requires-python = ">=3.11, <3.13"
