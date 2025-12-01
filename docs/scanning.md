@@ -1,15 +1,22 @@
 # Directory Scanning
 
-Basic scan:
+Basic scan with pretty output:
 ```python
 from filoma import probe
 analysis = probe('.')
-analysis.print_summary()
+analysis.print_summary()  # Rich table with key metrics
 ```
 
-Report:
+Full detailed report:
 ```python
-analysis.print_report()
+analysis.print_report()  # Includes extensions, common folders, empty folders
+```
+
+Access data programmatically:
+```python
+print(analysis.summary)  # Summary statistics dict
+print(list(analysis.file_extensions.items())[:5])  # Top extensions
+print(analysis.top_folders_by_file_count[:3])  # Largest folders
 ```
 
 Limit depth & hide progress:

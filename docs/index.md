@@ -9,7 +9,7 @@ filo = probe_file('README.md')   # single file metadata
 print(filo.size)
 
 analysis = probe('.')            # directory summary
-analysis.print_summary()
+analysis.print_summary()         # pretty Rich table output
 
 df = probe_to_df('.')            # filoma.DataFrame wrapper containing a Polars DataFrame of paths
 df.add_path_components()         # add columns for e.g. parent, stem, suffix

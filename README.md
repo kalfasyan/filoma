@@ -63,8 +63,7 @@ import filoma as flm
 
 # filoma will pick Rust > fd > Python depending on availability
 analysis = flm.probe('.')
-print(f"Total files: {analysis.summary['total_files']}")
-print(f"Total folders: {analysis.summary['total_folders']}")
+analysis.print_summary()  # Pretty Rich table output
 ```
 
 - **Polars-first DataFrame wrapper & enrichment:** Returns a `filoma.DataFrame` (Polars) with helpers to add path components, depth, and file stats for immediate analysis. Docs: `docs/dataframe.md`.
@@ -144,9 +143,8 @@ Scan an entire directory to get a high-level overview.
 # Analyze the current directory
 analysis = flm.probe('.')
 
-# Access summary data
-print(f"Total files: {analysis.summary['total_files']}")
-print(f"Total size: {analysis.summary['total_size_mb']:.2f} MB")
+# Print a beautiful summary table
+analysis.print_summary()
 ```
 ```text
 Directory Analysis: /project (🦀 Rust (Parallel)) - 0.27s

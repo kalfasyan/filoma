@@ -247,7 +247,7 @@ class DirectoryAnalysis(Mapping):
         """
         # Local import to avoid import cycles at module import time
         if profiler is None:
-            profiler = DirectoryProfiler()
+            profiler = DirectoryProfiler(DirectoryProfilerConfig())
         profiler.print_summary(self)
 
     def print_report(self, profiler: "DirectoryProfiler" = None):
@@ -258,7 +258,7 @@ class DirectoryAnalysis(Mapping):
         profilers in the project.
         """
         if profiler is None:
-            profiler = DirectoryProfiler()
+            profiler = DirectoryProfiler(DirectoryProfilerConfig())
         profiler.print_report(self)
 
     # Mapping protocol implementations so callers can still use dict-like access
