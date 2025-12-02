@@ -96,7 +96,7 @@ def minhash_signature(text: str, num_perm: int = 128, k: int = 3):
         return m
     # fallback: return sorted list of small hashes (not true MinHash, but useful for cheap grouping)
     sig = sorted(
-        int(hashlib.sha1(s.encode("utf8")).hexdigest()[:8], 16) for s in shingles
+        int(hashlib.sha1(s.encode("utf8"), usedforsecurity=False).hexdigest()[:8], 16) for s in shingles
     )
     return sig
 
