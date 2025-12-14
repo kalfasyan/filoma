@@ -53,9 +53,6 @@
 ## Scope of `filoma`  
 <img src="images/flow.png" alt="filoma workflow diagram" width="400">  
 
-## CLI Demo
-<img src="images/demo.gif" alt="filoma CLI screenshot" width="800">
-
 ## Feature Highlights
 Quick, copyable examples showing filoma's standout capabilities and where to learn more.
 
@@ -189,6 +186,16 @@ print(f"Train: {len(train)}, Validation: {len(val)}, Test: {len(test)}")
 ```
 
 ---
+
+## CLI Demo
+<img src="images/demo.gif" alt="filoma CLI screenshot" width="800">
+The `filoma` CLI provides an interactive terminal interface for exploring your filesystem and analyzing the resulting DataFrames.
+
+To get started, install the package and run §`filoma` followed by the path you want to analyze:
+
+```bash
+filoma ..
+```
 
 ## License
 
