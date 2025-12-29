@@ -15,13 +15,6 @@ The `filoma.DataFrame` wrapper provides convenience enrichers and helpers that o
 ::: filoma.dataframe.DataFrame
 	handler: python
 
-## ML helpers
-
-Utilities used for dataset splitting and feature handling.
-
-::: filoma.ml
-	handler: python
-
 ## Directory profiler
 
 The directory profiling API and configuration helpers.

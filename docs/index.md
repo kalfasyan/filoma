@@ -16,9 +16,6 @@ df.add_path_components()         # add columns for e.g. parent, stem, suffix
 df.add_file_stats_cols()         # add file stats columns (like size, mtime, etc.)
 df.add_depth_col()               # add depth column (file nesting level)
 df.add_filename_features()       # instance method: discover filename tokens (see Demo)
-
-# ML-ready splits
-train, val, test = df.split_data(seed=42, train_val_test=(70,20,10), feature='XYZ')
 ```
 
 ## Interactive CLI
@@ -37,7 +34,6 @@ Navigate with arrow keys, probe files and directories, and analyze DataFrames—
 - **Automatic speed**: Rust / fd / Python backend selection
 - **DataFrame-first**: Direct Polars integration + enrichment helpers
 - **One-liners**: `probe`, `probe_to_df`, `probe_file`, `probe_image`
-- **Deterministic ML splits**: Group-aware, leakage-resistant
 - **Extensible**: Low-level profilers still accessible
 
 ## Start here
@@ -56,7 +52,6 @@ Best place to begin is the Demo notebook (see the [`Demo` page](demo.md) in the 
 | Largest N files | see Cookbook |
 | Filter extension | `df.filter_by_extension('.py')` |
 | Add stats | `df.add_file_stats_cols()` |
-| ML split | `ml.split_data(df)` |
 
 ## Installation (uv)
 ```bash

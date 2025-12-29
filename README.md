@@ -197,4 +197,4 @@ Contributions welcome! Please check the [issues](https://github.com/filoma/filom
 
 ---
 
-**filoma** - Fast, multi-backend file/directory profiling and data preparation for Python.
+**filoma** - Fast, multi-backend file/directory profiling and data preparation.
