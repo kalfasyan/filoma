@@ -29,7 +29,6 @@ __all__ = [
     "probe_to_df",
     "probe_file",
     "probe_image",
-    "ml",
 ]
 
 
@@ -44,7 +43,6 @@ def __getattr__(name: str):
         "directories": "filoma.directories",
         "files": "filoma.files",
         "images": "filoma.images",
-        "ml": "filoma.ml",
         # common classes placed in submodules (module:attr)
         "DataFrame": "filoma.dataframe:DataFrame",
         "DirectoryProfiler": "filoma.directories.directory_profiler:DirectoryProfiler",
@@ -69,7 +67,7 @@ def __getattr__(name: str):
 
 def __dir__():
     # Helpful for tab-completion in REPLs
-    return sorted(list(globals().keys()) + ["core", "directories", "files", "images", "ml", "DataFrame"])
+    return sorted(list(globals().keys()) + ["core", "directories", "files", "images", "DataFrame"])
 
 
 # Convenience wrappers for quick, one-off usage. These are thin helpers that

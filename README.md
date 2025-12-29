@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <strong>Fast, multi-backend file/directory profiling and data preparation for machine learning workflows.</strong>
+  <strong>Fast, multi-backend file/directory profiling and data preparation.</strong>
 </p>
 
 > 🚧 **Filoma is under active development** — new features are being added regularly, APIs may evolve, and I'm always looking for feedback! Think of it as your friendly neighborhood file analysis toolkit that's still learning new tricks. Contributions, bug reports, and feature requests are more than welcome! 🎉
@@ -36,7 +36,7 @@
 
 ---
 
-`filoma` helps you analyze file directory trees, inspect file metadata, and prepare your data for exploration and modelling. It can achieve this blazingly fast using the best available backend (Rust, [`fd`](https://github.com/sharkdp/fd), or pure Python) ⚡🍃
+`filoma` helps you analyze file directory trees, inspect file metadata, and prepare your data for exploration. It can achieve this blazingly fast using the best available backend (Rust, [`fd`](https://github.com/sharkdp/fd), or pure Python) ⚡🍃
 
 
 
@@ -47,7 +47,6 @@
 - **🔍 Smart File Search**: Use regex and glob patterns to find files with `FdFinder`.
 - **📈 DataFrame Integration**: Convert scan results to [Polars](https://github.com/pola-rs/polars) (or [pandas](https://github.com/pandas-dev/pandas)) DataFrames for powerful analysis.
 - **🖼️ File/Image Profiling**: Extract metadata and statistics from various file formats.
-- **🔀 ML-Ready Splits**: Create deterministic train/validation/test datasets with ease.
 
   
 ## Scope of `filoma`  
@@ -84,13 +83,6 @@ if finder.is_available():
     print(len(files), 'python files found')
 ```
 
-- **ML-ready, deterministic splits:** Group-aware, reproducible train/validation/test splitting to avoid leakage. See `docs/ml.md` for grouping options and examples.
-
-```python
-df = flm.probe_to_df('.', enrich=False)
-train, val, test = flm.ml.split_data(df, train_val_test=(70,15,15), seed=42)
-```
-
 - **Lightweight, lazy top-level API:** Importing `filoma` is cheap; heavy dependencies load only when used. Quickstart and one-line helpers: `docs/quickstart.md`.
 
 ```python
@@ -109,7 +101,7 @@ uv pip install filoma
 
 ## Workflow Demo
 
-This guide follows a typical `filoma` workflow, from basic file profiling to creating machine learning datasets.
+This guide follows a typical `filoma` workflow, from basic file profiling to creating dataframes for exploration.
 
 ### 1. Profile a Single File
 
@@ -172,17 +164,6 @@ Add more context to your DataFrame, like file depth and path components, with th
 df_enriched = df.enrich()
 
 print(df_enriched.head())
-```
-
-### 5. Create ML-Ready Splits
-
-`filoma` makes it easy to split your files into training, validation, and test sets for machine learning. You can even group files by parts of their path to prevent data leakage.
-
-```python
-# Split the data, grouping by parent directory
-train, val, test = flm.ml.split_data(df, feature='path_parts', path_parts=(-2,), seed=42)
-
-print(f"Train: {len(train)}, Validation: {len(val)}, Test: {len(test)}")
 ```
 
 ---

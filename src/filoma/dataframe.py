@@ -37,7 +37,7 @@ cached view is refreshed.
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import polars as pl
 from loguru import logger
@@ -612,7 +612,7 @@ class DataFrame:
     def group_by_extension(self) -> pl.DataFrame:
         """Group files by extension and count them.
 
-        Returns
+        Returns:
         -------
             Polars DataFrame with extension counts
 
@@ -634,7 +634,7 @@ class DataFrame:
     def group_by_directory(self) -> pl.DataFrame:
         """Group files by their parent directory and count them.
 
-        Returns
+        Returns:
         -------
             Polars DataFrame with directory counts
 
@@ -826,59 +826,6 @@ class DataFrame:
         """
         result = self._df.sort(by, descending=descending)
         return DataFrame(result)
-
-    # -------------------- ML convenience API -------------------- #
-    def split_data(
-        self,
-        train_val_test: Tuple[float, float, float] = (80, 10, 10),
-        feature: Union[str, Sequence[str]] = "path_parts",
-        path_parts: Optional[Iterable[int]] = (-1,),
-        seed: Optional[int] = None,
-        discover: bool = False,
-        sep: str = "_",
-        feat_prefix: str = "feat",
-        max_tokens: Optional[int] = None,
-        include_parent: bool = False,
-        include_all_parts: bool = False,
-        token_names: Optional[Union[str, Sequence[str]]] = None,
-        path_col: str = "path",
-        verbose: bool = True,
-        return_type: str = "filoma",
-        split_mapping: Optional[dict] = None,
-        files_only: bool = True,
-    ):
-        """Deterministically split this filoma DataFrame into train/val/test.
-
-        This is a thin wrapper around ``filoma.ml.split_data`` so you can call
-        ``df.split_data(...)`` directly on a filoma DataFrame instance.
-
-        Args mirror :func:`filoma.ml.split_data` except ``df`` is implicit.
-
-        By default ``return_type='filoma'`` so the three returned objects are
-        filoma.DataFrame wrappers.
-        """
-        # Local import to avoid loading ml utilities unless used
-        from . import ml  # type: ignore
-
-        return ml.split_data(
-            self,
-            train_val_test=train_val_test,
-            feature=feature,
-            path_parts=path_parts,
-            seed=seed,
-            discover=discover,
-            sep=sep,
-            feat_prefix=feat_prefix,
-            max_tokens=max_tokens,
-            include_parent=include_parent,
-            include_all_parts=include_all_parts,
-            token_names=token_names,
-            path_col=path_col,
-            verbose=verbose,
-            return_type=return_type,
-            split_mapping=split_mapping,
-            files_only=files_only,
-        )
 
     def enrich(self, inplace: bool = False):
         """Enrich the DataFrame by adding features like path components, file stats, and depth.

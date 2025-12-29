@@ -14,7 +14,6 @@ nav:
     - Directory Scanning: scanning.md
     - DataFrame Workflow: dataframe.md
     - File & Image Profiling: profiling.md
-    - ML Splits: ml.md
   - Demo: demo.md
   - Cookbook: cookbook.md
   - Data Quality: data-quality.md
