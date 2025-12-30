@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="images/logo.png" alt="filoma logo" width="260">
+    <img src="docs/assets/images/logo.png" alt="filoma logo" width="260">
 </p>
 
 <p align="center">
@@ -50,7 +50,7 @@
 
   
 ## Scope of `filoma`  
-<img src="images/flow.png" alt="filoma workflow diagram" width="400">  
+<img src="docs/assets/images/flow.png" alt="filoma workflow diagram" width="400">  
 
 ## Feature Highlights
 Quick, copyable examples showing filoma's standout capabilities and where to learn more.
@@ -122,7 +122,7 @@ For images, `probe_image` gives you additional details like shape and pixel stat
 
 ```python
 # Profile an image
-img_info = flm.probe_image("images/logo.png")
+img_info = flm.probe_image("docs/assets/images/logo.png")
 print(f"Type: {img_info.file_type}")
 print(f"Shape: {img_info.shape}")
 ```
@@ -169,7 +169,7 @@ print(df_enriched.head())
 ---
 
 ## CLI Demo
-<img src="images/demo.gif" alt="filoma CLI screenshot" width="800">
+<img src="docs/assets/images/demo.gif" alt="filoma CLI screenshot" width="800">
 The `filoma` CLI provides an interactive terminal interface for exploring your filesystem and analyzing the resulting DataFrames.
 
 To get started, install the package and run §`filoma` followed by the path you want to analyze:
