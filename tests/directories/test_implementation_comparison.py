@@ -61,11 +61,11 @@ def compare_implementations():
     print("\n🔧 Testing DataFrame methods:")
 
     # Python extensions
-    py_extensions = df_python.group_by_extension()
+    py_extensions = df_python.extension_counts()
     print(f"   Python extensions: {len(py_extensions)} unique")
 
     # Rust extensions
-    rust_extensions = df_rust.group_by_extension()
+    rust_extensions = df_rust.extension_counts()
     print(f"   Rust extensions:   {len(rust_extensions)} unique")
 
     # Compare Python files

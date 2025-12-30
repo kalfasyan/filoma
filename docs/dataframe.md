@@ -37,8 +37,8 @@ wrapper = wrapper.add_depth_col().add_path_components().add_file_stats_cols()
 Filtering & grouping:
 ```python
 wrapper.filter_by_extension('.py')
-wrapper.group_by_extension()
-wrapper.group_by_directory()
+wrapper.extension_counts()
+wrapper.directory_counts()
 ```
 
 Export:

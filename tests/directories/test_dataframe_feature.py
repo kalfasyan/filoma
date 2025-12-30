@@ -60,7 +60,7 @@ def test_dataframe_functionality():
 
             # Group by extension
             print("\n📁 Files by extension:")
-            ext_counts = df.group_by_extension()
+            ext_counts = df.extension_counts()
             print(ext_counts)
 
             # Filter Python files
@@ -113,7 +113,7 @@ def test_standalone_dataframe():
 
     # Group by extension
     print("\nGrouped by extension:")
-    print(df.group_by_extension())
+    print(df.extension_counts())
 
 
 if __name__ == "__main__":

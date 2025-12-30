@@ -169,13 +169,13 @@ class TestDataFrameFunctionality:
         assert isinstance(py_files, DataFrame)
         assert len(py_files) == 2
 
-        # Test group_by_extension
-        ext_counts = df.group_by_extension()
+        # Test extension_counts
+        ext_counts = df.extension_counts()
         assert ext_counts is not None
         assert len(ext_counts) > 0
 
-        # Test group_by_directory
-        dir_counts = df.group_by_directory()
+        # Test directory_counts
+        dir_counts = df.directory_counts()
         assert dir_counts is not None
         assert len(dir_counts) > 0
 
@@ -248,7 +248,7 @@ class TestStandaloneDataFrame:
         user_files = df.filter_by_pattern("user")
         assert len(user_files) == 2
 
-    def test_group_by_extension(self):
+    def test_extension_counts(self):
         """Test grouping by extension."""
         paths = [
             "/path/file1.txt",
@@ -258,10 +258,10 @@ class TestStandaloneDataFrame:
         ]
         df = DataFrame(paths)
 
-        grouped = df.group_by_extension()
+        grouped = df.extension_counts()
         assert len(grouped) >= 2  # At least .txt and <no extension>
 
-    def test_group_by_directory(self):
+    def test_directory_counts(self):
         """Test grouping by directory."""
         paths = [
             "/home/user/file1.txt",
@@ -270,7 +270,7 @@ class TestStandaloneDataFrame:
         ]
         df = DataFrame(paths)
 
-        grouped = df.group_by_directory()
+        grouped = df.directory_counts()
         assert len(grouped) == 2  # Two different parent directories
 
     def test_add_depth_col(self):
@@ -371,12 +371,12 @@ class TestStandaloneDataFrame:
         assert isinstance(py_files, DataFrame)
         assert len(py_files) == 2
 
-        # Test group_by_extension
-        ext_counts = df.group_by_extension()
+        # Test extension_counts
+        ext_counts = df.extension_counts()
         assert ext_counts is not None
         assert len(ext_counts) > 0
 
-        # Test group_by_directory
-        dir_counts = df.group_by_directory()
+        # Test directory_counts
+        dir_counts = df.directory_counts()
         assert dir_counts is not None
         assert len(dir_counts) > 0

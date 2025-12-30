@@ -3,7 +3,7 @@ import polars as pl
 from filoma.dataframe import DataFrame
 
 
-def test_chaining_filter_depth_group_by_extension(tmp_path):
+def test_chaining_filter_depth_extension_counts(tmp_path):
     # Create sample files and directories
     p = tmp_path
     (p / "a").mkdir()
@@ -20,10 +20,10 @@ def test_chaining_filter_depth_group_by_extension(tmp_path):
     ]
     df = DataFrame(paths)
 
-    # Chain operations: filter_by_extension -> add_depth_col -> group_by_extension
-    chained = df.filter_by_extension(".py").add_depth_col(path=p).group_by_extension()
+    # Chain operations: filter_by_extension -> add_depth_col -> extension_counts
+    chained = df.filter_by_extension(".py").add_depth_col(path=p).extension_counts()
 
-    # group_by_extension should return a filoma.DataFrame wrapper
+    # extension_counts should return a filoma.DataFrame wrapper
     assert isinstance(chained, DataFrame)
 
     # Convert to polars and check expected extensions and counts

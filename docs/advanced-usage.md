@@ -161,8 +161,8 @@ python_files = df.filter_by_extension('.py')
 image_files = df.filter_by_extension(['.jpg', '.png', '.tif'])
 
 # Group and probe
-extension_counts = df.group_by_extension()
-directory_counts = df.group_by_directory()
+extension_counts = df.extension_counts()
+directory_counts = df.directory_counts()
 
 # Add file statistics
 df = df.add_file_stats_cols()  # size, timestamps, etc.
@@ -189,8 +189,8 @@ df.filter_by_extension(['.jpg', '.png'])   # Filter by multiple extensions
 df.filter_by_pattern('test')               # Filter by path pattern
 
 # Analysis
-df.group_by_extension()      # Group and count by file extension
-df.group_by_directory()      # Group and count by parent directory
+df.extension_counts()      # Group and count by file extension
+df.directory_counts()      # Group and count by parent directory
 
 # Export
 df.save_csv("analysis.csv")           # Export to CSV

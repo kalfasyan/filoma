@@ -193,8 +193,65 @@ shape: (2, 18)
 - **Seamless Pandas Integration**: Just use `df.pandas` for instant conversion.
 - **Lazy Loading**: `import filoma` is cheap; heavy dependencies load only when needed.
 
+### 4. Specialized DataFrame Operations
+Filoma's `DataFrame` extends Polars with specialized filesystem operations, providing quick ways to filter and summarize your data.
 
+```python
+# Filter by extensions
+df.filter_by_extension([".py", ".rs"])
 
+# Quick frequency analysis (counts)
+df.extension_counts()
+df.directory_counts()
+```
+
+<details>
+<summary><b>🔍 See Operation Examples</b></summary>
+
+**`filter_by_extension([".py", ".rs"])`**
+```text
+shape: (3, 1)
+┌─────────────────────┐
+│ path                │
+│ ---                 │
+│ str                 │
+╞═════════════════════╡
+│ src/async_scan.rs   │
+│ src/lib.rs          │
+│ src/filoma/dedup.py │
+└─────────────────────┘
+```
+
+**`extension_counts()`**
+*Groups files by extension and returns counts.*
+```text
+shape: (3, 2)
+┌────────────┬─────┐
+│ extension  ┆ len │
+│ ---        ┆ --- │
+│ str        ┆ u32 │
+╞════════════╪═════╡
+│ .py        ┆ 240 │
+│ .jpg       ┆ 124 │
+│ .json      ┆ 43  │
+└────────────┴─────┘
+```
+
+**`directory_counts()`**
+*Summarizes file distribution across parent directories.*
+```text
+shape: (3, 2)
+┌────────────┬─────┐
+│ parent_dir ┆ len │
+│ ---        ┆ --- │
+│ str        ┆ u32 │
+╞════════════╪═════╡
+│ src/filoma ┆ 12  │
+│ tests      ┆ 8   │
+│ docs       ┆ 5   │
+└────────────┴─────┘
+```
+</details>
 
 ## License
 

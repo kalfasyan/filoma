@@ -638,7 +638,7 @@ class DataFrame:
         filtered_df = self._df.filter(pl.col("path").str.contains(pattern))
         return DataFrame(filtered_df)
 
-    def group_by_extension(self) -> pl.DataFrame:
+    def extension_counts(self) -> pl.DataFrame:
         """Group files by extension and count them.
 
         Returns
@@ -660,7 +660,7 @@ class DataFrame:
         result = df_with_ext.group_by("extension").len().sort("len", descending=True)
         return DataFrame(result)
 
-    def group_by_directory(self) -> pl.DataFrame:
+    def directory_counts(self) -> pl.DataFrame:
         """Group files by their parent directory and count them.
 
         Returns
