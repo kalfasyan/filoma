@@ -34,3 +34,20 @@ src/**/*.cpython-*.so
 
 # mkdocs build directory
 site/
+
+# Environment variables file
+.env
+
+# Images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.bmp
+*.tiff
+*.webp
+*.ico
+
+*.csv
+*.txt
