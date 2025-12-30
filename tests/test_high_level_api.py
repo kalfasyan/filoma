@@ -260,38 +260,7 @@ class TestReadmeExamples:
         assert "total_files" in analysis.summary
 
 
-class TestMLIntegration:
-    """Test ML-related functionality from high-level API."""
-
-    def test_ml_split_data_basic(self, sample_directory):
-        """Test basic ML data splitting."""
-        from filoma import ml, probe_to_df
-
-        df = probe_to_df(sample_directory)
-
-        # Should be able to split without errors
-        train, val, test = ml.split_data(df, train_val_test=(70, 15, 15), seed=42)
-
-        # Verify we got data in all splits
-        assert len(train) > 0
-        assert len(val) >= 0  # Might be 0 for very small datasets
-        assert len(test) >= 0
-
-        # Total should roughly match original (minus directories if files_only=True)
-        total_split = len(train) + len(val) + len(test)
-        assert total_split > 0
-
-    def test_ml_split_with_path_parts(self, sample_directory):
-        """Test ML splitting with path_parts grouping."""
-        from filoma import ml, probe_to_df
-
-        df = probe_to_df(sample_directory)
-
-        # Example from documentation
-        train, val, test = ml.split_data(df, feature="path_parts", path_parts=(-2,), seed=42)
-
-        # Should complete without errors
-        assert len(train) + len(val) + len(test) > 0
+# ML features were removed from the project; corresponding tests were deleted.
 
 
 class TestDocumentationConsistency:
