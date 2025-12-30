@@ -47,15 +47,21 @@ from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
 
 print(f"filoma version: {filoma.__version__}")
 
-# Check available backends
+# Check which backend is actually being used
+# Note: 'auto' selection prefers Rust over fd for maximum performance.
+# If both are available, Rust will show ✅ and fd will show ❌.
 profiler = DirectoryProfiler(DirectoryProfilerConfig())
-print(f"🦀 Rust: {'✅' if profiler.use_rust else '❌'}")
-print(f"🔍 fd: {'✅' if profiler.use_fd else '❌'}")
+print(f"🦀 Rust (Active): {'✅' if profiler.use_rust else '❌'}")
+print(f"🔍 fd (Active):   {'✅' if profiler.use_fd else '❌'}")
+
+# To check if fd is available even if not active:
+from filoma.core import FdIntegration
+print(f"🔍 fd (Installed): {'✅' if FdIntegration().is_available() else '❌'}")
 
 # Quick test
 from filoma import probe
 result = probe('.')
-print(f"✅ Found {result['summary']['total_files']} files")
+print(f"✅ Found {result['summary']['total_files']} files using {result['timing']['implementation']}")
 ```
 
 ## Troubleshooting
