@@ -1,0 +1,27 @@
+/* High-level Data Preparation Flow */
+digraph data_processing {
+  rankdir=TB;
+  node [shape=box, style="rounded,filled", fillcolor="#f9f9f9", fontname="Helvetica", fontsize=12];
+  edge [fontname="Helvetica", fontsize=10];
+
+  RawData [label="Raw Scan Results\n(File Paths & Basic Metadata)", shape=cylinder, fillcolor="#eeeeee"];
+  
+  subgraph cluster_filoma_df {
+    label = "Filoma DataFrame (Polars/Pandas)";
+    style = rounded;
+    color = "#4caf50";
+    
+    Enrich [label="Enrich\n(Components, Depth, Stats)"];
+    Transform [label="Transform & Chain\n(Map, Filter, Expand)"];
+    Deduplicate [label="Deduplicate\n(Content-based)"];
+  }
+
+  Output [label="Clean, Actionable Data", shape=note, fillcolor="#fff9c4"];
+  Insights [label="Insights & Visualization", shape=parallelogram, fillcolor="#e1f5fe"];
+
+  RawData -> Enrich;
+  Enrich -> Transform;
+  Transform -> Deduplicate;
+  Deduplicate -> Output;
+  Output -> Insights;
+}

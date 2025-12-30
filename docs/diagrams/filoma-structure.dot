@@ -1,0 +1,28 @@
+/* Filoma high-level architecture diagram (Graphviz DOT) */
+digraph filoma {
+  rankdir=LR;
+  node [shape=box, style=rounded, fontsize=10];
+
+  RustCore [label="Core Engine\n(src/*.rs)\nHigh-performance scanning"];
+  PythonPkg [label="Python Package\n(src/filoma)\nHigh-level API"];
+  CLI [label="CLI\n(src/filoma/cli.py)\nUser entrypoints"];
+  Dataframe [label="Data Processing\n(dataframe, dedup)\nChaining & transforms"];
+  Backends [label="Backends & Enrichers\n(core/backends, files, images)"];
+  Directories [label="Directories & Path Helpers\n(directories)"];
+  Tests [label="Tests\n(tests/)\nIntegration & unit tests"];
+  Docs [label="Docs & Notebooks\n(docs/, notebooks/)"];
+  Tooling [label="Tooling & Scripts\n(scripts/, Makefile, Cargo.toml)"];
+  Artifacts [label="Packaging & Artifacts\n(wheels/, target/)"];
+
+  RustCore -> PythonPkg;
+  PythonPkg -> CLI;
+  PythonPkg -> Dataframe;
+  PythonPkg -> Backends;
+  PythonPkg -> Directories;
+  PythonPkg -> Tests;
+  Docs -> PythonPkg;
+  Tooling -> RustCore;
+  Tooling -> PythonPkg;
+  RustCore -> Artifacts;
+  PythonPkg -> Artifacts;
+}

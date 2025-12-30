@@ -4,7 +4,7 @@
 
 <p align="center">
     <a href="https://badge.fury.io/py/filoma">
-        <img src="https://badge.fury.io/py/filoma.svg" alt="PyPI version">
+        <img src="https://badge.fury.io/py/fil fury.io/py/filoma.svg" alt="PyPI version">
     </a>
     <a href="https://filoma.readthedocs.io/en/latest/">
         <img src="https://readthedocs.org/projects/filoma/badge/?version=latest" alt="Documentation Status">
@@ -45,6 +45,7 @@
 - **🚀 High-Performance Backends**: Automatic selection of Rust, `fd`, or Python for the best performance.
 - **📊 Rich Directory Analysis**: Get detailed statistics on file counts, extensions, sizes, and more.
 - **🔍 Smart File Search**: Use regex and glob patterns to find files with `FdFinder`.
+- **🏗️ Architectural Clarity**: High-level visual flows for discovery and processing. [📖 **Architecture Documentation →**](docs/architecture.md)
 - **📈 DataFrame Integration**: Convert scan results to [Polars](https://github.com/pola-rs/polars) (or [pandas](https://github.com/pandas-dev/pandas)) DataFrames for powerful analysis.
 - **🖼️ File/Image Profiling**: Extract metadata and statistics from various file formats.
 

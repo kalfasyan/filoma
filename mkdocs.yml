@@ -15,6 +15,7 @@ nav:
     - DataFrame Workflow: dataframe.md
     - File & Image Profiling: profiling.md
     - Duplicate Detection: dedup.md
+    - Architecture: architecture.md
     - Advanced Usage: advanced-usage.md
   - Demo: demo.md
   - Cookbook: cookbook.md

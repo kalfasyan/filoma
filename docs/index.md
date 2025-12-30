@@ -35,14 +35,18 @@ Navigate with arrow keys, probe files and directories, and analyze DataFrames—
 - **DataFrame-first**: Direct Polars integration + enrichment helpers
 - **One-liners**: `probe`, `probe_to_df`, `probe_file`, `probe_image`
 - **Extensible**: Low-level profilers still accessible
+- **Architectural Clarity**: High-level visual flows for discovery and processing
 
 ## Start here
-Best place to begin is the Demo notebook (see the [`Demo` page](demo.md) in the docs)  
-1. Read the [Quickstart](quickstart.md)  
-2. Learn [Core Concepts](concepts.md)  
-3. Explore the [DataFrame Workflow](dataframe.md)  
-4. Browse recipes in the [Cookbook](cookbook.md)  
-5. Dive into the [API Reference](api.md)  
+
+Best place to begin is the Demo notebook (see the [`Demo` page](demo.md) in the docs).
+
+1. Read the [Quickstart](quickstart.md)
+2. Learn [Core Concepts](concepts.md)
+3. Explore the [Architecture & Flow](architecture.md)
+4. Explore the [DataFrame Workflow](dataframe.md)
+5. Browse recipes in the [Cookbook](cookbook.md)
+6. Dive into the [API Reference](api.md)
 
 ## Common Tasks (TL;DR)
 | Task | Snippet |

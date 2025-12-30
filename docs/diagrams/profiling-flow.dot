@@ -1,0 +1,38 @@
+/* High-level Discovery & Profiling Flow */
+digraph profiling_flow {
+  rankdir=LR;
+  node [shape=box, style="rounded,filled", fillcolor="#f9f9f9", fontname="Helvetica", fontsize=12];
+  edge [fontname="Helvetica", fontsize=10];
+
+  subgraph cluster_fs {
+    label = "Filesystem";
+    style = dashed;
+    color = gray;
+    Files [label="Files & Directories", shape=folder];
+  }
+
+  Scanner [label="Filoma Scanner", style="rounded,filled", fillcolor="#e1f5fe"];
+  
+  subgraph cluster_backends {
+    label = "Smart Multi-Backend Strategy";
+    style = rounded;
+    color = "#0288d1";
+    Rust [label="Rust (Fastest)"];
+    FD [label="fd-find (Fast)"];
+    Python [label="Python (Fallback)"];
+  }
+
+  Enricher [label="Metadata Enricher\n(Stats, Hashes, Images)", style="rounded,filled", fillcolor="#e8f5e9"];
+  Result [label="Rich Analysis / DataFrame", shape=note, fillcolor="#fff9c4"];
+
+  Files -> Scanner;
+  Scanner -> Rust [label="preferred"];
+  Scanner -> FD;
+  Scanner -> Python;
+  
+  Rust -> Enricher;
+  FD -> Enricher;
+  Python -> Enricher;
+  
+  Enricher -> Result;
+}
