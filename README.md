@@ -28,6 +28,10 @@
 </p>
 
 <p align="center">
+  <code>import filoma as flm</code>
+</p>
+
+<p align="center">
   <a href="docs/installation.md">Installation</a> •
   <a href="https://filoma.readthedocs.io/en/latest/">Documentation</a> •
   <a href="docs/cli.md">Interactive CLI</a> •
