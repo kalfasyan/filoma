@@ -1,6 +1,6 @@
 # Quickstart
 
-`filoma` is a fast and flexible Python tool for filesystem analysis. It helps you understand the contents of your directories, profile individual files, and prepare datasets for machine learning.
+`filoma` is a fast and flexible Python tool for filesystem analysis. It helps you understand the contents of your directories, profile individual files, and prepare datasets for downstream analysis.
 
 ## Two Ways to Get Started
 
@@ -83,7 +83,7 @@ print(file_info.as_dict())
 - **Fast Scans**: Uses a Rust backend and `fd` for high-performance directory traversal.
 - **DataFrame-First**: Easily integrates with the Polars for powerful data manipulation and analysis.
 - **Image Profiling**: Extracts metadata from images.
-- **ML-Ready**: Provides tools for creating deterministic train/validation/test splits from your file data.
+-- **Splitting utilities**: Provides helpers for creating deterministic train/validation/test splits from your file data when preparing datasets.
 - **Lazy Loading**: `import filoma` is fast and lightweight. Dependencies like `polars` and `Pillow` are loaded on demand.
 
 ## Where to Go Next

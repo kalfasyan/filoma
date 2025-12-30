@@ -8147,77 +8147,7 @@ Well, since <code>filoma</code> gathers the paths of your files in a DataFrame, 
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=85423605">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="%F0%9F%A4%96-ML-ready-splits-(train,-val,-test)">🤖 ML-ready splits (train, val, test)<a class="anchor-link" href="#%F0%9F%A4%96-ML-ready-splits-(train,-val,-test)">¶</a></h1>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=daabef4e">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p>The next logical thing for <code>filoma</code> to serve in data science workflows is to provide easy ways to create ML-ready splits.</p>
-<p>In a very simple case, you have a dataframe with a <code>split</code>/<code>label</code>/... column that you want to use to create the splits like so:</p>
-<blockquote>
-<p>train, val, test = df[df["split"] == "train"], df[df["split"] == "val"], df[df["split"] == "test"]</p>
-</blockquote>
-<p>But things are rarely that simple in practice.</p>
-<p>When you're given data in the "real world", either in folders &amp; files or in a dataframe, you often need to create the splits yourself.</p>
-<blockquote>
-<p><em>Many practicioners unfortunately often disregard the importance of the data splits and split their data randomly, which can lead to data leakage, overfitting issues and unrealistic performance metrics</em></p>
-</blockquote>
-<p>A minimum best practice is to split your data into 3 sets:</p>
-<ul>
-<li><em>Training set</em>: used to train your model</li>
-<li><em>Validation set</em>: used to tune your model's hyperparameters</li>
-<li><em>Testing set</em>: used to evaluate the final performance of your model</li>
-</ul>
-<p>Ideally, you'd want to use a validation set that is representative of your test set, and both should be representative of your real-world data. So, special care should be taken to ensure that the splits are done correctly.</p>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=43ec30d9">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h5 id="%F0%9F%93%9A-traditional-sklearn-way">📚 traditional <code>sklearn</code> way<a class="anchor-link" href="#%F0%9F%93%9A-traditional-sklearn-way">¶</a></h5>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=d1b50845">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p>A very popular (if not the most popular) way of splitting data, is to use <code>scikit-learn</code>'s function called <code>train_test_split</code> that can split your data into training and testing sets. It can do that for you rather easily, although you'll need to call it twice if you want a 3-way split.:</p>
-<blockquote>
-<p>from sklearn.model_selection import train_test_split<br/>
-train, temp = train_test_split(df, test_size=0.4)<br/>
-val, test = train_test_split(temp, test_size=0.5)</p>
-</blockquote>
-<p>Isn't it confusing that you just wanted a 60/20/20 split but had to specify 40% and then 50%? Imagine doing this for a 70/20/10 split...</p>
-<blockquote>
-<p>from sklearn.model_selection import train_test_split<br/>
-train, temp = train_test_split(df, test_size=0.3)<br/>
-val, test = train_test_split(temp, test_size=0.3333)</p>
-</blockquote>
-</div>
-</div>
-</div>
-</div>
+
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=d84a82bf">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
@@ -8468,7 +8398,7 @@ You can use <code>filoma</code>'s <code>add_filename_features()</code> to extrac
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="%E2%9C%85-Conclusion">✅ Conclusion<a class="anchor-link" href="#%E2%9C%85-Conclusion">¶</a></h2><p>So this is how you can use <code>filoma</code> to go from a scary dataset directory tree to a clean DataFrame with enriched metadata and ML-ready splits, all with just a few lines of code!</p>
+<h2 id="%E2%9C%85-Conclusion">✅ Conclusion<a class="anchor-link" href="#%E2%9C%85-Conclusion">¶</a></h2><p>So this is how you can use <code>filoma</code> to go from a messy directory tree to a clean DataFrame with enriched metadata, ready for analysis and downstream workflows.</p>
 </div>
 </div>
 </div>

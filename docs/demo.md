@@ -1,6 +1,6 @@
 # filoma demo
 
-Explore the interactive demo notebook showing common `filoma` workflows (file probing, image profiling, directory analysis, DataFrame conversion, and ML-ready splits).
+Explore the interactive demo notebook showing common `filoma` workflows (file probing, image profiling, directory analysis, and DataFrame conversion).
 
 - Notebook source: `notebooks/demo.ipynb`
 - Rendered view: `docs/demo.html`

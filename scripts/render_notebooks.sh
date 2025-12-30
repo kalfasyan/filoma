@@ -25,10 +25,7 @@ for nb in "$NOTEBOOKS_DIR"/*.ipynb; do
   [ -e "$nb" ] || continue
   base=$(basename "$nb" .ipynb)
 
-  # Special-case mapping: render ydata-profiling_example.ipynb -> life-after-filoma.html
-  if [ "$base" = "ydata-profiling_example" ]; then
-    out="$OUT_DIR/life-after-filoma.html"
-  elif [ "$base" = "demo" ]; then
+  if [ "$base" = "demo" ]; then
     out="$OUT_DIR/demo.html"
   else
     out="$OUT_DIR/$base.html"
