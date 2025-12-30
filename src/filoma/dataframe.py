@@ -612,7 +612,7 @@ class DataFrame:
     def group_by_extension(self) -> pl.DataFrame:
         """Group files by extension and count them.
 
-        Returns:
+        Returns
         -------
             Polars DataFrame with extension counts
 
@@ -634,7 +634,7 @@ class DataFrame:
     def group_by_directory(self) -> pl.DataFrame:
         """Group files by their parent directory and count them.
 
-        Returns:
+        Returns
         -------
             Polars DataFrame with directory counts
 

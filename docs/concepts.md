@@ -21,6 +21,6 @@ Design goals:
 - Minimal surface: few verbs, predictable results.
 - Opt-in cost: heavy metadata/hash only if you ask.
 - DataFrame-first: move seamlessly into Polars for analysis.
-- Deterministic ML splits: grouping-aware to prevent leakage.
+- Predictable analysis: deterministic results across runs.
 
 When in doubt: start with `probe('.')`, then `probe_to_df('.')` if you need tabular work.

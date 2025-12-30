@@ -10,7 +10,7 @@ print(info.size, info.modified)
 Image:
 ```python
 from filoma import probe_image
-img = probe_image('images/logo.png')
+img = probe_image('docs/assets/images/logo.png')
 print(img.file_type, getattr(img, 'shape', None))
 ```
 

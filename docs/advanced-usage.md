@@ -52,7 +52,7 @@ ImageProfiler — high-level entry point that dispatches to specialized image pr
 from filoma.images import ImageProfiler
 
 # File path
-img_report = ImageProfiler().probe('images/logo.png')
+img_report = ImageProfiler().probe('docs/assets/images/logo.png')
 
 # Or pass a numpy array directly
 import numpy as np
