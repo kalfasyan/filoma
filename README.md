@@ -4,7 +4,7 @@
 
 <p align="center">
     <a href="https://badge.fury.io/py/filoma">
-        <img src="https://badge.fury.io/py/fil fury.io/py/filoma.svg" alt="PyPI version">
+        <img src="https://badge.fury.io/py/filoma.svg" alt="PyPI version">
     </a>
     <a href="https://filoma.readthedocs.io/en/latest/">
         <img src="https://readthedocs.org/projects/filoma/badge/?version=latest" alt="Documentation Status">
@@ -54,147 +54,49 @@
 - **🏗️ Architectural Clarity**: High-level visual flows for discovery and processing. [📖 **Architecture Documentation →**](docs/architecture.md)
 - **🖥️ Interactive CLI**: Beautiful terminal interface for filesystem exploration and DataFrame analysis [📖 **CLI Documentation →**](docs/cli.md)
 
-  
-## Feature Highlights
-Quick, copyable examples showing filoma's standout capabilities and where to learn more.
-
-- **Automatic multi-backend scanning:** filoma picks the fastest available backend (Rust → `fd` → pure Python). You can also force a backend for reproducibility. See the backends docs: `docs/backends.md`.
-
-```python
-import filoma as flm
-
-# filoma will pick Rust > fd > Python depending on availability
-analysis = flm.probe('.')
-analysis.print_summary()  # Pretty Rich table output
-```
-
-- **Polars-first DataFrame wrapper & enrichment:** Returns a `filoma.DataFrame` (Polars) with helpers to add path components, depth, and file stats for immediate analysis. Docs: `docs/dataframe.md`.
-
-```python
-df = flm.probe_to_df('.', enrich=True)  # returns a filoma.DataFrame
-print(df.head(2))
-```
-
-<details>
-<summary><b>📊 See Enriched DataFrame Output</b></summary>
-
-```text
-filoma.DataFrame with 2 rows
-shape: (2, 18)
-┌────────────────┬───────┬────────┬──────────┬───┬─────────┬───────┬────────┬────────┐
-│ path           ┆ depth ┆ parent ┆ name     ┆ … ┆ inode   ┆ nlink ┆ sha256 ┆ xattrs │
-│ ---            ┆ ---   ┆ ---    ┆ ---      ┆   ┆ ---     ┆ ---   ┆ ---    ┆ ---    │
-│ str            ┆ i64   ┆ str    ┆ str      ┆   ┆ i64     ┆ i64   ┆ str    ┆ str    │
-╞════════════════╪═══════╪════════╪══════════╪═══╪═════════╪═══════╪════════╪════════╡
-│ src/filoma.py  ┆ 1     ┆ src    ┆ filo.py  ┆ … ┆ 1465688 ┆ 1     ┆ null   ┆ {}     │
-│ src/core/      ┆ 1     ┆ src    ┆ core     ┆ … ┆ 714364  ┆ 15    ┆ null   ┆ {}     │
-└────────────────┴───────┴────────┴──────────┴───┴─────────┴───────┴────────┴────────┘
-
-✨ Enriched columns added: parent, name, stem, suffix, size_bytes, modified_time, 
-   created_time, is_file, is_dir, owner, group, mode_str, inode, nlink, sha256, xattrs, depth
-```
-</details>
-
-- **Ultra-fast discovery with `fd`:** When `fd` is available filoma uses it for very fast file discovery. Advanced usage and patterns: `docs/advanced-usage.md`.
-
-```python
-from filoma.directories.fd_finder import FdFinder
-
-finder = FdFinder()
-if finder.is_available():
-    files = finder.find_files(pattern=r"\.py$", path='src', max_depth=3)
-    print(len(files), 'python files found')
-```
-
-- **Lightweight, lazy top-level API:** Importing `filoma` is cheap; heavy dependencies load only when used. Quickstart and one-line helpers: `docs/quickstart.md`.
-
-```python
-info = flm.probe_file('README.md')
-df = flm.probe_to_df('.')
-```
-
-- **Seamless Pandas & Polars integration:** `filoma.DataFrame` wraps a Polars DataFrame but provides instant access to pandas.
-
-```python
-df = flm.probe_to_df('.')
-pd_df = df.pandas  # Instant conversion to pandas
-# or set it globally
-flm.set_default_dataframe_backend('pandas')
-df.native  # returns pandas.DataFrame
-```
-
-## Installation
-
-```bash
-pip install filoma
-```
-
 ---
 
-## Workflow Demo
+## ⚡ Quick Start & Capabilities
 
-This guide follows a typical `filoma` workflow, from basic file profiling to creating dataframes for exploration.
+`filoma` provides a unified API for all your filesystem analysis needs. Whether you're inspecting a single file or a million-file directory, it stays fast and intuitive.
 
-### 1. Profile a Single File
-
-Start by inspecting a single file. `filoma` provides a detailed dataclass with metadata.
+### 1. Simple File & Image Profiling
+Extract rich metadata and statistics from any file or image with a single call.
 
 ```python
 import filoma as flm
 
-# Profile a file
-file_info = flm.probe_file("README.md")
-print(file_info)
+# Profile any file
+info = flm.probe_file("README.md")
+print(info)
 ```
 
 <details>
-<summary><b>📄 See File Metadata Output</b></summary>
+<summary><b>📄 See Metadata Output</b></summary>
 
 ```text
 Filo(
     path=PosixPath('README.md'), 
-    size=6683, 
-    mode_str='-rw-r--r--', 
+    size=12237, 
+    mode_str='-rw-rw-r--', 
     owner='user', 
-    modified=datetime.datetime(2025, 12, 30, 12, 59, 19), 
-    is_file=True, 
+    modified=datetime.datetime(2025, 12, 30, 22, 45, 53), 
+    is_file=True,
     ...
 )
 ```
 </details>
 
-For images, `probe_image` gives you additional details like shape and pixel statistics.
+For images, `probe_image` automatically extracts shapes, types, and pixel statistics.
+
+### 2. Blazingly Fast Directory Analysis
+Scan entire directory trees in milliseconds. `filoma` automatically picks the fastest available backend (Rust → `fd` → Python).
 
 ```python
-# Profile an image
-img_info = flm.probe_image("docs/assets/images/logo.png")
-print(img_info)
-```
-
-<details>
-<summary><b>🖼️ See Image Analysis Output</b></summary>
-
-```text
-ImageReport(
-    path='docs/assets/images/logo.png', 
-    file_type='png', 
-    shape=(462, 433, 4), 
-    mean=182.47, 
-    unique=145, 
-    ...
-)
-```
-</details>
-
-### 2. Analyze a Directory
-
-Scan an entire directory to get a high-level overview.
-
-```python
-# Analyze the current directory
+# Analyze a directory
 analysis = flm.probe('.')
 
-# Print a beautiful summary table
+# Print a high-level summary
 analysis.print_summary()
 ```
 
@@ -202,80 +104,97 @@ analysis.print_summary()
 <summary><b>📂 See Directory Summary Table</b></summary>
 
 ```text
- Directory Analysis: /project
-           (🦀 Rust (Parallel)) - 0.50s
+ Directory Analysis: /project (🦀 Rust (Parallel)) - 0.60s
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ Metric                   ┃ Value                ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━┩
-│ Total Files              │ 27,901               │
-│ Total Folders            │ 1,761                │
-│ Total Size               │ 596.21 MB            │
-│ Average Files per Folder │ 15.84                │
+│ Total Files              │ 57,225               │
+│ Total Folders            │ 3,427                │
+│ Total Size               │ 2,084.90 MB          │
+│ Average Files per Folder │ 16.70                │
 │ Maximum Depth            │ 14                   │
-│ Empty Folders            │ 14                   │
-│ Analysis Time            │ 0.50s                │
-│ Processing Speed         │ 59,167 items/sec     │
+│ Empty Folders            │ 103                  │
+│ Analysis Time            │ 0.60s                │
+│ Processing Speed         │ 102,114 items/sec    │
 └──────────────────────────┴──────────────────────┘
 ```
 </details>
 
-### 3. Convert to a DataFrame
-
-For detailed analysis, convert the scan results into a Polars DataFrame.
-
 ```python
-# Scan a directory and get a DataFrame
-df = flm.probe_to_df('.')
-
-print(df.head())
-```
-
-### 4. Enrich Your Data
-
-Add more context to your DataFrame, like file depth and path components, with the `enrich()` method.
-
-```python
-# The DataFrame returned by flm.probe_to_df is a filoma.DataFrame
-# with extra capabilities.
-df_enriched = df.enrich()
-
-print(df_enriched.head(2))
-```
-
-### 5. Seamless Pandas Integration
-
-While `filoma` uses Polars internally for speed, converting to pandas is just one property away.
-
-```python
-# Convert to a standard pandas DataFrame
-pd_df = df_enriched.pandas
-
-print(type(pd_df))
-# <class 'pandas.core.frame.DataFrame'>
+# Or get a detailed report with extensions and folder stats
+analysis.print_report()
 ```
 
 <details>
-<summary><b>✨ See Enriched DataFrame Features</b></summary>
+<summary><b>📊 See Detailed Directory Report</b></summary>
 
-Enrichment adds several groups of columns to your path data:
+```text
+          File Extensions
+┏━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━┓
+┃ Extension  ┃ Count  ┃ Percentage ┃
+┡━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━┩
+│ .py        │ 240    │ 12.8%      │
+│ .jpg       │ 1,204  │ 64.2%      │
+│ .json      │ 431    │ 23.0%      │
+│ .svg       │ 28,674 │ 50.1%      │
+└────────────┴────────┴────────────┘
 
-1.  **Path Components**: `parent`, `name`, `stem`, `suffix`
-2.  **File Statistics**: `size_bytes`, `modified_time`, `created_time`, `is_file`, `is_dir`, `owner`, `group`, `mode_str`, `inode`, `nlink`, `sha256`, `xattrs`
-3.  **Hierarchy**: `depth` (relative nesting level)
+          Common Folder Names
+┏━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
+┃ Folder Name   ┃ Occurrences ┃
+┡━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
+│ src           │ 1           │
+│ tests         │ 1           │
+│ docs          │ 1           │
+│ notebooks     │ 1           │
+└───────────────┴─────────────┘
+
+          Empty Folders (3 found)
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Path                                       ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ /project/data/raw/empty_set_A              │
+│ /project/logs/old/unused                   │
+│ /project/temp/scratch                      │
+└────────────────────────────────────────────┘
+```
+</details>
+
+### 3. DataFrames & Enrichment
+Convert scan results to Polars DataFrames for advanced analysis. Use `.enrich()` to instantly add path components, file stats, and hierarchy data.
+
+```python
+# Scan and get an enriched filoma.DataFrame (Polars)
+df = flm.probe_to_df('src', enrich=True)
+
+print(df.head(2))
+```
+
+<details open>
+<summary><b>📊 See Enriched DataFrame Output</b></summary>
 
 ```text
 filoma.DataFrame with 2 rows
 shape: (2, 18)
-┌────────────────┬───────┬────────┬──────────┬───┬─────────┬───────┬────────┬────────┐
-│ path           ┆ depth ┆ parent ┆ name     ┆ … ┆ inode   ┆ nlink ┆ sha256 ┆ xattrs │
-│ ---            ┆ ---   ┆ ---    ┆ ---      ┆   ┆ ---     ┆ ---   ┆ ---    ┆ ---    │
-│ str            ┆ i64   ┆ str    ┆ str      ┆   ┆ i64     ┆ i64   ┆ str    ┆ str    │
-╞════════════════╪═══════╪════════╪══════════╪═══╪═════════╪═══════╪════════╪════════╡
-│ src/filoma.py  ┆ 1     ┆ src    ┆ filo.py  ┆ … ┆ 1465688 ┆ 1     ┆ null   ┆ {}     │
-│ src/core/      ┆ 1     ┆ src    ┆ core     ┆ … ┆ 714364  ┆ 15    ┆ null   ┆ {}     │
-└────────────────┴───────┴────────┴──────────┴───┴─────────┴───────┴────────┴────────┘
+┌───────────────────┬───────┬────────┬───────────────┬───┬─────────┬───────┬────────┬────────┐
+│ path              ┆ depth ┆ parent ┆ name          ┆ … ┆ inode   ┆ nlink ┆ sha256 ┆ xattrs │
+│ ---               ┆ ---   ┆ ---    ┆ ---           ┆   ┆ ---     ┆ ---   ┆ ---    ┆ ---    │
+│ str               ┆ i64   ┆ str    ┆ str           ┆   ┆ i64     ┆ i64   ┆ str    ┆ str    │
+╞═══════════════════╪═══════╪════════╪═══════════════╪═══╪═════════╪═══════╪════════╪════════╡
+│ src/async_scan.rs ┆ 1     ┆ src    ┆ async_scan.rs ┆ … ┆ 7601121 ┆ 1     ┆ null   ┆ {}     │
+│ src/filoma        ┆ 1     ┆ src    ┆ filoma        ┆ … ┆ 7603126 ┆ 8     ┆ null   ┆ {}     │
+└───────────────────┴───────┴────────┴───────────────┴───┴─────────┴───────┴────────┴────────┘
+
+✨ Enriched columns added: parent, name, stem, suffix, size_bytes, modified_time, 
+   created_time, is_file, is_dir, owner, group, mode_str, inode, nlink, sha256, xattrs, depth
 ```
 </details>
+
+- **Seamless Pandas Integration**: Just use `df.pandas` for instant conversion.
+- **Lazy Loading**: `import filoma` is cheap; heavy dependencies load only when needed.
+
+
+
 
 ## License
 
