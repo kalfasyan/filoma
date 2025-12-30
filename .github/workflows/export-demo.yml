@@ -8,11 +8,14 @@ on:
 jobs:
   export:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -24,16 +27,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install nbconvert nbformat
 
-      - name: Convert notebook to HTML
+      - name: Convert notebooks to HTML
         run: |
           python -m nbconvert --to html notebooks/demo.ipynb --output demo.html --output-dir docs
+          python -m nbconvert --to html notebooks/roboflow_demo.ipynb --output roboflow_demo.html --output-dir docs
 
       - name: Commit and push if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/demo.html || true
+          git add docs/demo.html docs/roboflow_demo.html || true
           git diff --staged --quiet || (
-            git commit -m "chore(docs): export demo.ipynb to docs/demo.html" &&
+            git commit -m "chore(docs): export notebooks to HTML" &&
             git push
           )

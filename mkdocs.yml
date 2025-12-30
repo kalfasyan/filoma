@@ -17,7 +17,9 @@ nav:
     - Duplicate Detection: dedup.md
     - Architecture: architecture.md
     - Advanced Usage: advanced-usage.md
-  - Demo: demo.md
+  - Demo:
+    - Main Demo: demo.md
+    - Roboflow Dataset: roboflow_demo.md
   - Cookbook: cookbook.md
   - Data Quality: data-quality.md
   - Backends: backends.md
