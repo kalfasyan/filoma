@@ -46,7 +46,8 @@ Best place to begin is the Demo notebook (see the [`Demo` page](demo.md) in the 
 3. Explore the [Architecture & Flow](architecture.md)
 4. Explore the [DataFrame Workflow](dataframe.md)
 5. Browse recipes in the [Cookbook](cookbook.md)
-6. Dive into the [API Reference](api.md)
+6. Try the [Roboflow Dataset Analysis Demo](https://github.com/kalfasyan/filoma/blob/main/notebooks/roboflow_demo.ipynb) (real-world computer vision use case)
+7. Dive into the [API Reference](api.md)
 
 ## Common Tasks (TL;DR)
 | Task | Snippet |

@@ -31,6 +31,7 @@
   <a href="docs/cli.md">Interactive CLI</a> •
   <a href="docs/quickstart.md">Quickstart</a> •
   <a href="docs/cookbook.md">Cookbook</a> •
+  <a href="https://github.com/kalfasyan/filoma/blob/main/notebooks/roboflow_demo.ipynb">Roboflow Dataset Demo</a> •
   <a href="https://github.com/kalfasyan/filoma">Source Code</a>
 </p>
 
