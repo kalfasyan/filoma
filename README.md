@@ -49,9 +49,6 @@
 - **🖼️ File/Image Profiling**: Extract metadata and statistics from various file formats.
 
   
-## Scope of `filoma`  
-<img src="docs/assets/images/flow.png" alt="filoma workflow diagram" width="400">  
-
 ## Feature Highlights
 Quick, copyable examples showing filoma's standout capabilities and where to learn more.
 
@@ -164,18 +161,6 @@ Add more context to your DataFrame, like file depth and path components, with th
 df_enriched = df.enrich()
 
 print(df_enriched.head())
-```
-
----
-
-## CLI Demo
-<img src="docs/assets/images/demo.gif" alt="filoma CLI screenshot" width="800">
-The `filoma` CLI provides an interactive terminal interface for exploring your filesystem and analyzing the resulting DataFrames.
-
-To get started, install the package and run §`filoma` followed by the path you want to analyze:
-
-```bash
-filoma ..
 ```
 
 ## License
