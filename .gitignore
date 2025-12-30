@@ -42,6 +42,10 @@ site/
 *.png
 *.jpg
 *.jpeg
+!/docs/assets/images/*.png
+!/docs/assets/images/*.jpg
+!/docs/assets/images/*.jpeg
+!/docs/assets/images/*.svg
 *.gif
 *.svg
 *.bmp

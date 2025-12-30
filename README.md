@@ -43,7 +43,9 @@
 
 `filoma` helps you analyze file directory trees, inspect file metadata, and prepare your data for exploration. It can achieve this blazingly fast using the best available backend (Rust, [`fd`](https://github.com/sharkdp/fd), or pure Python) ⚡🍃
 
-
+<p align="center">
+    <img src="docs/assets/images/filoma_graph.jpg" alt="Filoma Package Overview" width="800">
+</p>
 
 ## Key Features
 - **🚀 High-Performance Backends**: Automatic selection of Rust, `fd`, or Python for the best performance.
