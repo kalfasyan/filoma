@@ -1,66 +1,45 @@
 # Installation
 
-## Quick Start
+The simplest way to install `filoma` is via `pip`:
 
-```bash
-# 🚀 RECOMMENDED: Using uv (modern, fast Python package manager)
-uv add filoma
-
-# Traditional method
-pip install filoma
-```
-
-## Installation Methods
-
-### For uv Projects (Recommended)
-```bash
-# Install uv first if you don't have it
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Add to your project
-uv add filoma
-```
-
-### For Scripts or Standalone Use
-```bash
-uv pip install filoma
-```
-
-### Traditional pip
 ```bash
 pip install filoma
 ```
 
-## Performance Optimization (Optional)
+## Performance Tiers
 
-### Option 1: Rust Backend (2.5x faster)
+`filoma` is designed to be fast by default and automatically selects the best available backend:
+
+- **🦀 Rust (Fastest)**: Built-in high-performance backend.
+- **🔍 fd (Fast)**: Uses the [`fd`](https://github.com/sharkdp/fd) command if available.
+- **🐍 Python (Universal)**: Pure Python implementation that works everywhere.
+
+### Optimization (Optional)
+
+To ensure you have the **Fastest (Rust)** backend active, you should have the Rust toolchain installed when installing `filoma` so it can compile the extension:
+
 ```bash
 # Install Rust toolchain
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source ~/.cargo/env
 
-# Reinstall to build Rust extension
-uv add filoma --force  # or: pip install --force-reinstall filoma
+# Install/Reinstall filoma
+pip install --force-reinstall filoma
 ```
 
-### Option 2: fd Command (Competitive Alternative)
+Alternatively, installing `fd` provides a great performance boost without needing a compiler:
+
 ```bash
 # Ubuntu/Debian
 sudo apt install fd-find
 
 # macOS
 brew install fd
-
-# Other systems: https://github.com/sharkdp/fd#installation
 ```
 
-## Performance Tiers
-
-- **Basic**: Pure Python (works everywhere, ~30K files/sec)
-- **Fast**: + fd command (competitive alternative, ~46K files/sec)
-- **Fastest**: + Rust backend (best performance, ~70K files/sec, auto-selected)
-
 ## Verification
+
+You can verify your installation and see which backends are active with this snippet:
 
 ```python
 import filoma
@@ -68,12 +47,12 @@ from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
 
 print(f"filoma version: {filoma.__version__}")
 
-# Check available backends via a typed profiler
+# Check available backends
 profiler = DirectoryProfiler(DirectoryProfilerConfig())
 print(f"🦀 Rust: {'✅' if profiler.use_rust else '❌'}")
 print(f"🔍 fd: {'✅' if profiler.use_fd else '❌'}")
 
-# Quick test using the top-level helper
+# Quick test
 from filoma import probe
 result = probe('.')
 print(f"✅ Found {result['summary']['total_files']} files")
@@ -83,10 +62,10 @@ print(f"✅ Found {result['summary']['total_files']} files")
 
 ### System Directory Issues
 
-When analyzing system directories (like `/`, `/proc`, `/sys`), you might encounter permission errors. filoma handles this gracefully:
+When analyzing system directories (like `/`, `/proc`, `/sys`), you might encounter permission errors. `filoma` handles this gracefully:
 
 ```python
-from filoma.directories import DirectoryProfiler
+from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
 
 # Safe analysis with automatic fallbacks
 profiler = DirectoryProfiler(DirectoryProfilerConfig())
@@ -113,6 +92,3 @@ python -c "from filoma import probe; print(probe('/', max_depth=2)['summary'])"
 profiler = DirectoryProfiler(DirectoryProfilerConfig(fast_path_only=True, build_dataframe=False))
 result = profiler.probe("/large/directory")
 ```
-
-**Progress bar issues in Jupyter:**
-Progress bars are automatically disabled in interactive environments (IPython/Jupyter) to avoid conflicts.

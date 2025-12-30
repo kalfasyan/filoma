@@ -23,6 +23,10 @@
   <strong>Fast, multi-backend file/directory profiling and data preparation.</strong>
 </p>
 
+<p align="center">
+  <code>pip install filoma</code>
+</p>
+
 > 🚧 **Filoma is under active development** — new features are being added regularly, APIs may evolve, and I'm always looking for feedback! Think of it as your friendly neighborhood file analysis toolkit that's still learning new tricks. Contributions, bug reports, and feature requests are more than welcome! 🎉
 
 <p align="center">
@@ -42,13 +46,13 @@
 
 
 ## Key Features
-- **🖥️ Interactive CLI**: Beautiful terminal interface for filesystem exploration and DataFrame analysis [📖 **CLI Documentation →**](docs/cli.md)
 - **🚀 High-Performance Backends**: Automatic selection of Rust, `fd`, or Python for the best performance.
+- **📈 DataFrame Integration**: Convert scan results to [Polars](https://github.com/pola-rs/polars) (or [pandas](https://github.com/pandas-dev/pandas)) DataFrames for powerful analysis.
 - **📊 Rich Directory Analysis**: Get detailed statistics on file counts, extensions, sizes, and more.
 - **🔍 Smart File Search**: Use regex and glob patterns to find files with `FdFinder`.
-- **🏗️ Architectural Clarity**: High-level visual flows for discovery and processing. [📖 **Architecture Documentation →**](docs/architecture.md)
-- **📈 DataFrame Integration**: Convert scan results to [Polars](https://github.com/pola-rs/polars) (or [pandas](https://github.com/pandas-dev/pandas)) DataFrames for powerful analysis.
 - **🖼️ File/Image Profiling**: Extract metadata and statistics from various file formats.
+- **🏗️ Architectural Clarity**: High-level visual flows for discovery and processing. [📖 **Architecture Documentation →**](docs/architecture.md)
+- **🖥️ Interactive CLI**: Beautiful terminal interface for filesystem exploration and DataFrame analysis [📖 **CLI Documentation →**](docs/cli.md)
 
   
 ## Feature Highlights
@@ -121,13 +125,8 @@ df.native  # returns pandas.DataFrame
 
 ## Installation
 
-Install `filoma` using `uv` or `pip`:
 ```bash
 pip install filoma
-```
-```bash
-uv pip install filoma
-# or 'uv add filoma' to add it to your dependencies)
 ```
 
 ---

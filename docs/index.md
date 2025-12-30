@@ -30,12 +30,12 @@ filoma /path/to/analyze   # Start in specific directory
 Navigate with arrow keys, probe files and directories, and analyze DataFrames—all with beautiful terminal UI powered by Rich and questionary. [Learn more →](cli.md)
 
 ## Why filoma?
-- **Interactive CLI**: Beautiful terminal interface for exploration and analysis
 - **Automatic speed**: Rust / fd / Python backend selection
 - **DataFrame-first**: Direct Polars integration + enrichment helpers
 - **One-liners**: `probe`, `probe_to_df`, `probe_file`, `probe_image`
-- **Extensible**: Low-level profilers still accessible
 - **Architectural Clarity**: High-level visual flows for discovery and processing
+- **Extensible**: Low-level profilers still accessible
+- **Interactive CLI**: Beautiful terminal interface for exploration and analysis
 
 ## Start here
 
@@ -58,9 +58,9 @@ Best place to begin is the Demo notebook (see the [`Demo` page](demo.md) in the 
 | Filter extension | `df.filter_by_extension('.py')` |
 | Add stats | `df.add_file_stats_cols()` |
 
-## Installation (uv)
+## Installation
 ```bash
-uv add filoma
+pip install filoma
 ```
 
 Want performance? Install Rust (for fastest backend) or fd.

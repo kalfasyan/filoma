@@ -2,6 +2,12 @@
 
 `filoma` is a fast and flexible Python tool for filesystem analysis. It helps you understand the contents of your directories, profile individual files, and prepare datasets for downstream analysis.
 
+## Installation
+
+```bash
+pip install filoma
+```
+
 ## Two Ways to Get Started
 
 ### 1. Interactive CLI (Recommended for Beginners)
@@ -35,18 +41,6 @@ df.df.head()          # View first few rows
 The best way to get started with the Python API is to run the interactive demo notebook. It covers the most common workflows in a hands-on way.
 
 - **[View the Interactive Demo](./demo.md)**
-
-## Installation
-
-Install `filoma` and its dependencies using `uv` or `pip`:
-
-```bash
-# Recommended: using uv
-uv pip install filoma
-
-# Or with pip
-pip install filoma
-```
 
 ## Basic Usage: Scan a Directory
 
