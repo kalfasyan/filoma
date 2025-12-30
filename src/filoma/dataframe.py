@@ -379,14 +379,20 @@ class DataFrame:
             New DataFrame with additional path component columns
 
         """
-        df_with_components = self._df.with_columns(
-            [
-                pl.col("path").map_elements(lambda x: str(Path(x).parent), return_dtype=pl.String).alias("parent"),
-                pl.col("path").map_elements(lambda x: Path(x).name, return_dtype=pl.String).alias("name"),
-                pl.col("path").map_elements(lambda x: Path(x).stem, return_dtype=pl.String).alias("stem"),
-                pl.col("path").map_elements(lambda x: Path(x).suffix, return_dtype=pl.String).alias("suffix"),
-            ]
-        )
+        cols_to_add = []
+        if "parent" not in self._df.columns:
+            cols_to_add.append(pl.col("path").map_elements(lambda x: str(Path(x).parent), return_dtype=pl.String).alias("parent"))
+        if "name" not in self._df.columns:
+            cols_to_add.append(pl.col("path").map_elements(lambda x: Path(x).name, return_dtype=pl.String).alias("name"))
+        if "stem" not in self._df.columns:
+            cols_to_add.append(pl.col("path").map_elements(lambda x: Path(x).stem, return_dtype=pl.String).alias("stem"))
+        if "suffix" not in self._df.columns:
+            cols_to_add.append(pl.col("path").map_elements(lambda x: Path(x).suffix, return_dtype=pl.String).alias("suffix"))
+
+        if not cols_to_add:
+            return self if inplace else DataFrame(self._df)
+
+        df_with_components = self._df.with_columns(cols_to_add)
         if inplace:
             self._df = df_with_components
             self.invalidate_pandas_cache()
@@ -418,6 +424,26 @@ class DataFrame:
         """
         if path not in self._df.columns:
             raise ValueError(f"Column '{path}' not found in DataFrame")
+
+        # Define the set of columns we intend to add
+        target_cols = {
+            "size_bytes",
+            "modified_time",
+            "created_time",
+            "is_file",
+            "is_dir",
+            "owner",
+            "group",
+            "mode_str",
+            "inode",
+            "nlink",
+            "sha256",
+            "xattrs",
+        }
+        # Only proceed if at least one target column is missing.
+        # This makes the method idempotent and avoids DuplicateError during pl.concat.
+        if all(c in self._df.columns for c in target_cols):
+            return self if inplace else DataFrame(self._df)
 
         # Resolve base path if provided
         base = Path(base_path) if base_path is not None else None
@@ -525,6 +551,9 @@ class DataFrame:
             New DataFrame with depth column
 
         """
+        if "depth" in self._df.columns:
+            return self if inplace else DataFrame(self._df)
+
         if path is None:
             # Find the common root path
             paths = [Path(p) for p in self._df["path"].to_list()]
@@ -836,7 +865,8 @@ class DataFrame:
                      If False (default), return a new DataFrame with the changes.
 
         """
-        # Chain the enrichment methods; this produces a new DataFrame wrapper
+        # Chain the enrichment methods; this produces a new DataFrame wrapper.
+        # These methods are now idempotent, so calling enrich() multiple times is safe.
         enriched_wrapper = self.add_path_components().add_file_stats_cols().add_depth_col()
         enriched_wrapper.with_enrich = True
 
