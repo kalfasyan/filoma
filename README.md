@@ -3,20 +3,12 @@
 </p>
 
 <p align="center">
-    <a href="https://badge.fury.io/py/filoma">
-        <img src="https://badge.fury.io/py/filoma.svg" alt="PyPI version">
-    </a>
-    <a href="https://filoma.readthedocs.io/en/latest/">
-        <img src="https://readthedocs.org/projects/filoma/badge/?version=latest" alt="Documentation Status">
-    </a>
-    <img alt="Code style: ruff" src="https://img.shields.io/badge/code%20style-ruff-blueviolet">
-    <a href="https://github.com/PyCQA/bandit">
-        <img src="https://img.shields.io/badge/security-bandit-yellow.svg" alt="Security: bandit">
-    </a>
-    <img alt="Contributions welcome" src="https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat">
-    <a href="https://github.com/kalfasyan/filoma/actions/workflows/ci.yml">
-        <img src="https://github.com/kalfasyan/filoma/actions/workflows/ci.yml/badge.svg" alt="Tests">
-    </a>
+    <a href="https://pypi.python.org/pypi/filoma"><img src="https://img.shields.io/pypi/v/filoma.svg" alt="PyPI version"></a>
+    <a href="https://pypi.python.org/pypi/filoma"><img src="https://img.shields.io/badge/python-3.11%20%7C%203.12-blue" alt="Python versions"></a>
+    <a href="https://github.com/kalfasyan/filoma/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-CC--BY--4.0-lightgrey" alt="License"></a>
+    <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff"></a>
+    <a href="https://github.com/kalfasyan/filoma/actions/workflows/ci.yml"><img src="https://github.com/kalfasyan/filoma/actions/workflows/ci.yml/badge.svg" alt="Actions status"></a>
+    <a href="https://filoma.readthedocs.io/en/latest/"><img src="https://readthedocs.org/projects/filoma/badge/?version=latest" alt="Documentation Status"></a>
 </p>
 
 <p align="center">
