@@ -3,7 +3,7 @@ name = "filoma"
 version = "1.10.2"
 description = "Modular Python tool for profiling files, analyzing directory structures, and inspecting image data"
 readme = "README.md"
-requires-python = ">=3.11, <3.14"
+requires-python = ">=3.11, <3.15"
 dependencies = [
     "rich>=13.0.0",
     "numpy>=1.26.0",
