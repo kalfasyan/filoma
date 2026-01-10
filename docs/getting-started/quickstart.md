@@ -21,7 +21,7 @@ filoma /path/to/analyze   # Start in specific directory
 
 Use arrow keys to navigate, probe files and directories, and analyze results with a beautiful terminal interface. Perfect for exploration and ad-hoc analysis.
 
-**[Learn more about the Interactive CLI →](cli.md)**
+**[Learn more about the Interactive CLI →](../guides/cli.md)**
 
 ### 2. Python API (For Scripting and Automation)
 
@@ -34,13 +34,13 @@ df = probe_to_df('.')  # Scan current directory
 df.df.head()          # View first few rows
 ```
 
-**[Continue with the Interactive Demo →](demo.md)**
+**[Continue with the Interactive Demo →](../tutorials/demo.md)**
 
 ## Getting Started: The Interactive Demo
 
 The best way to get started with the Python API is to run the interactive demo notebook. It covers the most common workflows in a hands-on way.
 
-- **[View the Interactive Demo](./demo.md)**
+- **[View the Interactive Demo](../tutorials/demo.md)**
 
 ## Basic Usage: Scan a Directory
 

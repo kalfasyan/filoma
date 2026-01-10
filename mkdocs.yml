@@ -6,26 +6,27 @@ theme:
 nav:
   - Overview: index.md
   - Getting Started:
-    - Quickstart: quickstart.md
-    - Installation: installation.md
-  - Usage:
-    - Interactive CLI: cli.md
-    - Core Concepts: concepts.md
-    - Directory Scanning: scanning.md
-    - DataFrame Workflow: dataframe.md
-    - File & Image Profiling: profiling.md
-    - Duplicate Detection: dedup.md
-    - Architecture: architecture.md
-    - Advanced Usage: advanced-usage.md
-  - Demo:
-    - Main Demo: demo.md
-    - Roboflow Dataset: roboflow_demo.md
-  - Cookbook: cookbook.md
-  - Data Quality: data-quality.md
-  - Backends: backends.md
-  - Performance: benchmarks.md
-  - API Reference: api.md
-  - Life after filoma: life-after-filoma.md
+    - Quickstart: getting-started/quickstart.md
+    - Installation: getting-started/installation.md
+  - Guides:
+    - Interactive CLI: guides/cli.md
+    - Core Concepts: guides/concepts.md
+    - Directory Scanning: guides/scanning.md
+    - DataFrame Workflow: guides/dataframe.md
+    - File & Image Profiling: guides/profiling.md
+    - Duplicate Detection: guides/dedup.md
+    - Advanced Usage: guides/advanced-usage.md
+  - Tutorials:
+    - Main Demo: tutorials/demo.md
+    - Roboflow Dataset: tutorials/roboflow_demo.md
+    - Cookbook: tutorials/cookbook.md
+  - Reference:
+    - API Reference: reference/api.md
+    - Architecture: reference/architecture.md
+    - Backends: reference/backends.md
+    - Performance: reference/benchmarks.md
+    - Data Quality: reference/data-quality.md
+    - Life after filoma: reference/life-after-filoma.md
 
 plugins:
   - search

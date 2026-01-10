@@ -20,4 +20,4 @@ For images and text, `filoma` can help identify similar content that isn't an ex
 - **Image Hashing**: Detect visually similar images.
 - **Text Normalization**: Compare text files after removing whitespace or other noise.
 
-Refer to the [Cookbook](cookbook.md) for more examples.
+Refer to the [Cookbook](../tutorials/cookbook.md) for more examples.

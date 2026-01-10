@@ -27,7 +27,7 @@ filoma                    # Launch interactive file browser
 filoma /path/to/analyze   # Start in specific directory
 ```
 
-Navigate with arrow keys, probe files and directories, and analyze DataFrames—all with beautiful terminal UI powered by Rich and questionary. [Learn more →](cli.md)
+Navigate with arrow keys, probe files and directories, and analyze DataFrames—all with beautiful terminal UI powered by Rich and questionary. [Learn more →](guides/cli.md)
 
 ## Why filoma?
 - **Automatic speed**: Rust / fd / Python backend selection
@@ -39,15 +39,15 @@ Navigate with arrow keys, probe files and directories, and analyze DataFrames—
 
 ## Start here
 
-Best place to begin is the Demo notebook (see the [`Demo` page](demo.md) in the docs).
+Best place to begin is the Demo notebook (see the [`Demo` page](tutorials/demo.md) in the docs).
 
-1. Read the [Quickstart](quickstart.md)
-2. Learn [Core Concepts](concepts.md)
-3. Explore the [Architecture & Flow](architecture.md)
-4. Explore the [DataFrame Workflow](dataframe.md)
-5. Browse recipes in the [Cookbook](cookbook.md)
-6. Try the [Roboflow Dataset Analysis Demo](roboflow_demo.md) (real-world computer vision use case)
-7. Dive into the [API Reference](api.md)
+1. Read the [Quickstart](getting-started/quickstart.md)
+2. Learn [Core Concepts](guides/concepts.md)
+3. Explore the [Architecture & Flow](reference/architecture.md)
+4. Explore the [DataFrame Workflow](guides/dataframe.md)
+5. Browse recipes in the [Cookbook](tutorials/cookbook.md)
+6. Try the [Roboflow Dataset Analysis Demo](tutorials/roboflow_demo.md) (real-world computer vision use case)
+7. Dive into the [API Reference](reference/api.md)
 
 ## Common Tasks (TL;DR)
 | Task | Snippet |
@@ -66,4 +66,4 @@ pip install filoma
 Want performance? Install Rust (for fastest backend) or fd.
 
 ---
-Need something else? Check the [Cookbook](cookbook.md) or jump to the [API](api.md).
+Need something else? Check the [Cookbook](tutorials/cookbook.md) or jump to the [API](reference/api.md).

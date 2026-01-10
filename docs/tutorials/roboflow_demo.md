@@ -3,7 +3,7 @@
 This tutorial demonstrates how to use **Filoma** to analyze a computer vision dataset downloaded from Roboflow.
 
 You can view the interactive notebook here:
-[Roboflow Dataset Analysis Demo (HTML)](roboflow_demo.html)
+[Roboflow Dataset Analysis Demo Notebook](https://github.com/filoma/filoma/blob/main/notebooks/roboflow_demo.ipynb)
 
 ### What this demo shows:
 

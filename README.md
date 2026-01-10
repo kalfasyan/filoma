@@ -24,16 +24,16 @@
 </p>
 
 <p align="center">
-  <a href="docs/installation.md">Installation</a> •
+  <a href="docs/getting-started/installation.md">Installation</a> •
   <a href="https://filoma.readthedocs.io/en/latest/">Documentation</a> •
-  <a href="docs/cli.md">Interactive CLI</a> •
-  <a href="docs/quickstart.md">Quickstart</a> •
-  <a href="docs/cookbook.md">Cookbook</a> •
+  <a href="docs/guides/cli.md">Interactive CLI</a> •
+  <a href="docs/getting-started/quickstart.md">Quickstart</a> •
+  <a href="docs/tutorials/cookbook.md">Cookbook</a> •
   <a href="https://github.com/kalfasyan/filoma/blob/main/notebooks/roboflow_demo.ipynb">Roboflow Dataset Demo</a> •
   <a href="https://github.com/kalfasyan/filoma">Source Code</a>
 </p>
 
-> 📖 **New to Filoma?** Check out the [**Cookbook**](docs/cookbook.md) for practical, copy-paste recipes for common tasks!
+> 📖 **New to Filoma?** Check out the [**Cookbook**](docs/tutorials/cookbook.md) for practical, copy-paste recipes for common tasks!
 ---
 
 `filoma` helps you analyze file directory trees, inspect file metadata, and prepare your data for exploration. It can achieve this blazingly fast using the best available backend (Rust, [`fd`](https://github.com/sharkdp/fd), or pure Python) ⚡🍃
@@ -47,8 +47,8 @@
 - **📊 Rich Directory Analysis**: Get detailed statistics on file counts, extensions, sizes, and more.
 - **🔍 Smart File Search**: Use regex and glob patterns to find files with `FdFinder`.
 - **🖼️ File/Image Profiling**: Extract metadata and statistics from various file formats.
-- **🏗️ Architectural Clarity**: High-level visual flows for discovery and processing. [📖 **Architecture Documentation →**](docs/architecture.md)
-- **🖥️ Interactive CLI**: Beautiful terminal interface for filesystem exploration and DataFrame analysis [📖 **CLI Documentation →**](docs/cli.md)
+- **🏗️ Architectural Clarity**: High-level visual flows for discovery and processing. [📖 **Architecture Documentation →**](docs/reference/architecture.md)
+- **🖥️ Interactive CLI**: Beautiful terminal interface for filesystem exploration and DataFrame analysis [📖 **CLI Documentation →**](docs/guides/cli.md)
 
 <p align="center">
     <img src="docs/assets/images/filoma_graph.jpg" alt="Filoma Package Overview" width="800">
