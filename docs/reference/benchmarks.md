@@ -18,7 +18,7 @@ All benchmarks use controlled cache clearing to represent real-world performance
 | Dataset | Files | Storage | Hardware |
 |---------|-------|---------|----------|
 | XXLarge | 1,000,000 | Local NVMe SSD | MacBook Air M4 (16GB RAM) |
-| XLarge | 200,000 | Network NFS | Linux workstation |
+| XLarge | 200,000 | Network NFS | Linux VM: Intel Xeon Gold 6442Y (4 cores), 24GB RAM |
 
 ## Performance Results
 
