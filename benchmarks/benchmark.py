@@ -74,6 +74,7 @@ DATASET_SIZES = {
     "medium": (50, 200),  # ~10,000 files
     "large": (100, 500),  # ~50,000 files
     "xlarge": (200, 1000),  # ~200,000 files
+    "xxlarge": (10000, 100),  # ~1,000,000 files
 }
 
 

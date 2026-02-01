@@ -1,6 +1,6 @@
 # Performance Benchmarks
 
-**Latest Benchmark Data**: Updated February 2026 with accurate measurements on network storage.
+**Latest Benchmark Data**: Updated February 2026 with measurements on both local SSD and network storage.
 
 > ⚠️ **DISCLAIMER**: Benchmark results vary based on hardware, filesystem, and directory structure. Always run your own benchmarks on your target systems for accurate performance data specific to your use case.
 
@@ -12,16 +12,60 @@ All benchmarks use controlled cache clearing to represent real-world performance
 - `--clear-cache`: Clears filesystem cache before each backend (prevents warm-cache bias)
 - `--warmup`: Single warmup iteration before timed runs (eliminates cold-start artifacts)
 - `--shuffle`: Randomizes backend execution order (prevents first-run advantage)
-- **Iterations**: 3 runs per backend, results reported as median
+- **Iterations**: Multiple runs per backend, results reported as median
 
-### Test Dataset
-- **Format**: Synthetic XLarge dataset (200,000 files) for reproducibility
-- **Location**: Network storage (/XYZdata NFS mount) for realistic I/O patterns
-- **Controlled**: Consistent structure across all benchmark runs
+### Test Datasets
+| Dataset | Files | Storage | Hardware |
+|---------|-------|---------|----------|
+| XXLarge | 1,000,000 | Local NVMe SSD | MacBook Air M4 (16GB RAM) |
+| XLarge | 200,000 | Network NFS | Linux workstation |
 
 ## Performance Results
 
-### Latest Results (XLarge Dataset, Network Storage, Profiling)
+### Latest Results (XXLarge Dataset, Local SSD, M4 MacBook Air 16GB)
+*1,000,000 files - XXLarge dataset on Apple Silicon - Median of 5 trials*
+
+**Hardware:** MacBook Air M4 (16GB RAM), Local NVMe SSD
+**Test Command:**
+```bash
+uv run python benchmarks/benchmark.py \
+    --path /tmp/tmp_yk/bench-test \
+    --dataset-size xxlarge \
+    --backend profiling \
+    -n 5 --clear-cache --warmup --shuffle
+```
+
+#### Profiling Backends (Full Metadata Collection)
+```
+Backend      │ Median Time │ Files/sec  │ Relative Speed
+─────────────┼─────────────┼────────────┼───────────────
+Rust         │ 7.335s      │ 136,331    │ 1.00x (baseline)
+Async        │ 11.495s     │ 86,994     │ 0.64x
+Rust-seq     │ 22.475s     │ 44,495     │ 0.33x
+fd           │ 33.329s     │ 30,004     │ 0.22x
+Python       │ 35.512s     │ 28,160     │ 0.21x
+```
+
+#### Traversal Backends (Discovery Only)
+```
+Backend      │ Median Time │ Files/sec  │ Relative Speed
+─────────────┼─────────────┼────────────┼───────────────
+os.walk      │ 0.565s      │ 1,771,045  │ 1.00x (baseline)
+rust-fast    │ 4.385s      │ 228,035    │ 0.13x
+async-fast   │ 10.839s     │ 92,262     │ 0.05x
+pathlib      │ 19.305s     │ 51,799     │ 0.03x
+```
+
+**Key Observations (Local SSD):**
+- **Rust profiling** dominates at 1M files (7.3s vs 35.5s for Python)
+- **os.walk is fastest** for pure traversal (0.565s), validating Python's efficiency for discovery
+- **Local SSD** shows different characteristics than network storage - Rust parallelism shines
+- **Async provides alternative** with 0.64x baseline overhead vs 1.5x on network storage
+- **Fast-path overhead** significant on parallel backends but minimal on Python baseline
+
+---
+
+### Earlier Results (XLarge Dataset, Network Storage, Profiling)
 *200,000 files - Full metadata collection - Median of 3 trials*
 
 **Test Command:**
@@ -79,12 +123,10 @@ pathlib      │ 9.933s      │ 20,136     │ 0.04x
 
 ### Key Insights
 
-- **🦀 Rust excels at metadata collection** - Fastest for profiling benchmarks (2.331s baseline), but slower than os.walk for discovery-only
-- **⚡ Async is strong alternative** - 0.82x of Rust on profiling with good network I/O handling, but introduces overhead for discovery
-- **🐍 Python dominates pure discovery** - os.walk is fastest for traversal-only (0.412s), showing Python's efficiency when I/O is minimal
-- **🎯 Backend selection depends on task** - Use Rust for metadata collection, Python for discovery-only on network storage
-- **❄️ Cache clearing is critical** - Without `--clear-cache`, warm-cache bias makes results unrealistic
-- **⏱️ Warmup and shuffle matter** - `--warmup` eliminates cold-start artifacts; `--shuffle` prevents positional advantage
+- **🦀 Rust excels at metadata collection** - Fastest for profiling benchmarks across all storage types
+- **⚡ Async is a strong alternative** - Good performance on both local and network storage
+- **🐍 Python dominates pure discovery** - os.walk is fastest for traversal-only regardless of storage
+- **🎯 Backend selection depends on task** - Use Rust for metadata collection, os.walk for discovery-only
 
 ## Backend Groups for Fair Comparisons
 
