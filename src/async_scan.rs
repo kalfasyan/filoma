@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -12,6 +13,67 @@ use crate::{analysis::get_file_extension, AnalysisConfig, ParallelDirectoryStats
 
 // Async scanning implementation tuned for higher-latency filesystems (NFS/CIFS)
 
+// Backoff constants for retry logic
+const READDIR_BACKOFF_BASE_MS: u64 = 50;
+const METADATA_BACKOFF_BASE_MS: u64 = 10;
+
+/// Tracks I/O errors and timeouts during async scanning (for diagnostics)
+#[derive(Debug, Default)]
+struct ScanMetrics {
+    readdir_timeouts: AtomicU64,
+    readdir_errors: AtomicU64,
+    metadata_timeouts: AtomicU64,
+    metadata_errors: AtomicU64,
+    skipped_entries: AtomicU64,
+}
+
+impl ScanMetrics {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn record_readdir_timeout(&self) {
+        self.readdir_timeouts.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn record_readdir_error(&self) {
+        self.readdir_errors.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn record_metadata_timeout(&self) {
+        self.metadata_timeouts.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn record_metadata_error(&self) {
+        self.metadata_errors.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn record_skipped_entry(&self) {
+        self.skipped_entries.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Returns true if any errors/timeouts were recorded
+    fn has_issues(&self) -> bool {
+        self.readdir_timeouts.load(Ordering::Relaxed) > 0
+            || self.readdir_errors.load(Ordering::Relaxed) > 0
+            || self.metadata_timeouts.load(Ordering::Relaxed) > 0
+            || self.metadata_errors.load(Ordering::Relaxed) > 0
+    }
+
+    /// Log a summary if there were any issues (useful for debugging)
+    #[allow(dead_code)]
+    fn summary(&self) -> String {
+        format!(
+            "ScanMetrics {{ readdir_timeouts: {}, readdir_errors: {}, metadata_timeouts: {}, metadata_errors: {}, skipped: {} }}",
+            self.readdir_timeouts.load(Ordering::Relaxed),
+            self.readdir_errors.load(Ordering::Relaxed),
+            self.metadata_timeouts.load(Ordering::Relaxed),
+            self.metadata_errors.load(Ordering::Relaxed),
+            self.skipped_entries.load(Ordering::Relaxed),
+        )
+    }
+}
+
 pub async fn probe_directory_async_internal(
     path_root: PathBuf,
     config: AnalysisConfig,
@@ -24,6 +86,7 @@ pub async fn probe_directory_async_internal(
     // Use the ParallelDirectoryStats structure for thread-safe aggregation
     let stats = Arc::new(ParallelDirectoryStats::new());
     let sem = Arc::new(Semaphore::new(concurrency_limit));
+    let metrics = Arc::new(ScanMetrics::new());
 
     // Count the root directory only if it is non-empty. If the root is empty, the
     // recursive scanner will record it via the `is_empty` branch; adding it here
@@ -39,8 +102,9 @@ pub async fn probe_directory_async_internal(
     let root_clone = path_root.clone();
     let stats_clone = stats.clone();
     let config_clone = config.clone();
+    let metrics_clone = metrics.clone();
 
-    let res = scan_dir_recursive(root_clone, stats_clone, config_clone, sem.clone(), 0u32, timeout_ms, retries).await;
+    let res = scan_dir_recursive(root_clone, stats_clone, config_clone, sem.clone(), 0u32, timeout_ms, retries, metrics_clone).await;
     if let Err(e) = res {
         return Err(e);
     }
@@ -50,7 +114,12 @@ pub async fn probe_directory_async_internal(
     let elapsed = start.elapsed();
     result.set_timing(elapsed.as_secs_f64());
 
-    // No ad-hoc adjustments here; `stats` already records folders including the root.
+    // Log metrics summary if there were issues (could be exposed to Python in future)
+    if metrics.has_issues() {
+        // For now, metrics are tracked but not exposed. Could add to result dict later.
+        #[cfg(debug_assertions)]
+        eprintln!("[filoma async] {}", metrics.summary());
+    }
 
     Ok(result)
 }
@@ -63,6 +132,7 @@ fn scan_dir_recursive(
     current_depth: u32,
     timeout_ms: u64,
     retries: u8,
+    metrics: Arc<ScanMetrics>,
 ) -> BoxFuture<'static, Result<(), String>> {
     Box::pin(async move {
         // Respect max_depth
@@ -81,41 +151,46 @@ fn scan_dir_recursive(
             let fut = fs::read_dir(&dir);
             match timeout(Duration::from_millis(timeout_ms), fut).await {
                 Ok(Ok(rd)) => break rd,
-                Ok(Err(_)) => {
-                    // io error
+                Ok(Err(_e)) => {
+                    metrics.record_readdir_error();
                 }
                 Err(_) => {
-                    // timeout
+                    metrics.record_readdir_timeout();
                 }
             }
 
             if attempt >= retries {
-                // release permit and skip this directory
+                // Release permit and skip this directory
+                metrics.record_skipped_entry();
                 drop(permit);
                 return Ok(());
             }
             attempt += 1;
-            // simple backoff
-            sleep(Duration::from_millis(50 * attempt as u64)).await;
+            // Exponential backoff with configurable base
+            sleep(Duration::from_millis(READDIR_BACKOFF_BASE_MS * (1 << attempt.min(4)))).await;
         };
 
-        // Estimate emptiness by sampling first entry
+        // Process entries - release permit early once we have the directory listing
+        // This allows other tasks to proceed while we process entries
+        drop(permit);
+
         let mut entries = read_dir;
         let mut is_empty = true;
 
         while let Ok(Some(entry)) = entries.next_entry().await {
             is_empty = false;
             let path = entry.path();
-            // metadata with timeout & retries
+            
+            // Metadata with timeout & retries
             let mut meta_attempt = 0u8;
             let metadata = loop {
                 match timeout(Duration::from_millis(timeout_ms), entry.metadata()).await {
                     Ok(Ok(md)) => break Some(md),
-                    Ok(Err(_)) => {
-                        // io error
+                    Ok(Err(_e)) => {
+                        metrics.record_metadata_error();
                     }
                     Err(_) => {
-                        // timeout
+                        metrics.record_metadata_timeout();
                     }
                 }
 
@@ -123,7 +198,8 @@ fn scan_dir_recursive(
                     break None;
                 }
                 meta_attempt += 1;
-                sleep(Duration::from_millis(10 * meta_attempt as u64)).await;
+                // Exponential backoff with configurable base
+                sleep(Duration::from_millis(METADATA_BACKOFF_BASE_MS * (1 << meta_attempt.min(4)))).await;
             };
 
             if let Some(md) = metadata {
@@ -143,7 +219,18 @@ fn scan_dir_recursive(
                     }
 
                     // Recurse into subdirectory (await serially within this async call)
-                    let _ = scan_dir_recursive(path.clone(), stats.clone(), config.clone(), sem.clone(), current_depth + 1, timeout_ms, retries).await;
+                    // Note: This is intentionally sequential to maintain bounded memory usage
+                    // and simpler error handling for network filesystems.
+                    let _ = scan_dir_recursive(
+                        path.clone(),
+                        stats.clone(),
+                        config.clone(),
+                        sem.clone(),
+                        current_depth + 1,
+                        timeout_ms,
+                        retries,
+                        metrics.clone(),
+                    ).await;
                 } else if md.is_file() {
                     // Handle file
                     let ext = get_file_extension(&path);
@@ -152,7 +239,8 @@ fn scan_dir_recursive(
                     stats.add_file(size, ext, parent, config.fast_path_only);
                 }
             } else {
-                // Metadata failed after retries; skip
+                // Metadata failed after retries; skip this entry
+                metrics.record_skipped_entry();
                 continue;
             }
         }
@@ -164,8 +252,6 @@ fn scan_dir_recursive(
             }
         }
 
-        // Release permit
-        drop(permit);
         Ok(())
     })
 }

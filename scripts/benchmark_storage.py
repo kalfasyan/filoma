@@ -181,7 +181,7 @@ def main():
     dataset_sizes = {
         "small": (10, 20),  # 200 files
         "medium": (50, 50),  # 2,500 files
-        "large": (200, 100),  # 20,000 files
+        "large": (500, 200),  # 100,000 files
     }
     num_dirs, files_per_dir = dataset_sizes[args.dataset_size]
 
