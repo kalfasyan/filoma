@@ -56,3 +56,5 @@ site/
 *.csv
 *.txt
 *.html
+
+bench_test/

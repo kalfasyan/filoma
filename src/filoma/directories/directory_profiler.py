@@ -19,13 +19,13 @@ from rich.table import Table
 
 # Try to import the Rust implementation
 try:
-    from filoma.filoma_core import probe_directory_rust, probe_directory_rust_parallel
+    from filoma.filoma_core import probe_directory_rust, probe_directory_rust_parallel  # type: ignore[import-not-found]
 
     RUST_AVAILABLE = True
     RUST_PARALLEL_AVAILABLE = True
 except ImportError:
     try:
-        from filoma.filoma_core import probe_directory_rust
+        from filoma.filoma_core import probe_directory_rust  # type: ignore[import-not-found]
 
         RUST_AVAILABLE = True
         RUST_PARALLEL_AVAILABLE = False
@@ -91,6 +91,7 @@ class DirectoryProfilerConfig:
 
     # fd-specific tuning
     threads: Optional[int] = None
+    fd_no_ignore: bool = False
 
     def __post_init__(self):
         """Validate configuration fields after initialization.
@@ -179,7 +180,7 @@ class DirectoryAnalysis(Mapping):
 
         """
         return cls(
-            path=d.get("path"),
+            path=d.get("path") or "",
             summary=d.get("summary", {}),
             file_extensions=d.get("file_extensions", {}),
             common_folder_names=d.get("common_folder_names", {}),
@@ -239,7 +240,7 @@ class DirectoryAnalysis(Mapping):
     # Convenience printing helpers so callers can write `analysis.print_summary()`
     # or `analysis.print_report()` without importing DirectoryProfiler. These
     # delegate to the existing DirectoryProfiler rich printers for consistency.
-    def print_summary(self, profiler: "DirectoryProfiler" = None):
+    def print_summary(self, profiler: "DirectoryProfiler | None" = None):
         """Pretty-print a short summary using the rich-based DirectoryProfiler printer.
 
         If `profiler` is provided it will be used (useful to customize show_progress,
@@ -250,7 +251,7 @@ class DirectoryAnalysis(Mapping):
             profiler = DirectoryProfiler(DirectoryProfilerConfig())
         profiler.print_summary(self)
 
-    def print_report(self, profiler: "DirectoryProfiler" = None):
+    def print_report(self, profiler: "DirectoryProfiler | None" = None):
         """Pretty-print the full report (summary + extras) via DirectoryProfiler.
 
         This is an alias for `print_summary` + additional report sections; kept
@@ -426,7 +427,7 @@ class DirectoryProfiler:
         # Tests may monkeypatch FD_AVAILABLE without having the fd binary present.
         return self.use_fd and FD_AVAILABLE
 
-    def get_implementation_info(self) -> Dict[str, bool]:
+    def get_implementation_info(self) -> dict:
         """Get information about which implementations are available and being used.
 
         Returns
@@ -620,14 +621,14 @@ class DirectoryProfiler:
             file_max_depth = None if max_depth is None else max_depth + 1
             # When using fd in auto mode, prefer flags that match a raw
             # traversal (include hidden files, don't honor ignore files, follow symlinks)
-            fd_find_kwargs = {
+            fd_find_kwargs: dict = {
                 "path": path,
                 "file_types": ["f"],
                 "max_depth": file_max_depth,
                 "absolute_paths": self.return_absolute_paths,
                 "threads": threads,
             }
-            if self.search_backend == "auto":
+            if self.search_backend == "auto" or self.config.fd_no_ignore:
                 fd_find_kwargs.update({"search_hidden": True, "no_ignore": True, "follow_links": True})
 
             all_files = self.fd_integration.find(**fd_find_kwargs)
@@ -1229,7 +1230,7 @@ class DirectoryProfiler:
                                 continue
 
                         # Add to paths collection if DataFrame is enabled
-                        if self.build_dataframe:
+                        if self.build_dataframe and all_paths is not None:
                             all_paths.append(str(current_path))
 
                         try:
