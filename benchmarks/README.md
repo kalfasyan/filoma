@@ -5,35 +5,43 @@ Benchmark filoma performance across different backends and storage types.
 ## Quick Start
 
 ```bash
-# Benchmark current directory
-python benchmarks/benchmark.py .
+# Simplest - auto temp dir, medium dataset, auto cleanup
+python benchmarks/benchmark.py
 
-# Benchmark with generated test data
-python benchmarks/benchmark.py --path /tmp/bench --setup-dataset
+# Larger dataset
+python benchmarks/benchmark.py --dataset-size large
 
-# Full benchmark with multiple iterations
-python benchmarks/benchmark.py --path /tmp/bench --setup-dataset --iterations 5
+# Specific path (auto-creates test data)
+python benchmarks/benchmark.py --path /tmp/bench
+
+# Network storage benchmark
+python benchmarks/benchmark.py --path /mnt/nas/bench --warmup
 ```
 
 ## Usage
 
 ```bash
-python benchmarks/benchmark.py [PATH] [OPTIONS]
+python benchmarks/benchmark.py [OPTIONS]
 ```
+
+By default, the benchmark:
+- Creates a test dataset in a temp directory
+- Runs profiling backends (rust, rust-seq, async, fd, python)
+- Cleans up after completion
 
 ### Options
 
 | Option | Description |
 |--------|-------------|
-| `PATH` | Directory to benchmark (positional) |
-| `--path [LABEL=]PATH` | Labeled path (can repeat for comparisons) |
-| `--backend BACKEND` | Backend to test: `os.walk`, `pathlib`, `rust`, `rust-seq`, `async`, `fd`, `python`, `all` |
+| `--path [LABEL=]PATH` | Directory to benchmark (auto-creates test data if doesn't exist) |
+| `--backend BACKEND` | Backend group or specific backend (default: profiling) |
 | `-n, --iterations N` | Number of iterations per test (default: 3) |
-| `--setup-dataset` | Create test dataset in target directories |
-| `--dataset-size SIZE` | Dataset size: `small`, `medium`, `large`, `xlarge` |
+| `--dataset-size SIZE` | Dataset size: `small`, `medium`, `large`, `xlarge` (default: medium) |
+| `--use-existing` | Use existing directory as-is (don't create test data) |
+| `--no-cleanup` | Keep generated test data after benchmarking |
 | `--clear-cache` | Clear filesystem cache between runs (requires sudo) |
-| `--no-ignore` | Ignore .gitignore files for fair comparison |
-| `--cleanup` | Delete test directories after benchmarking |
+| `--warmup` | Prime NFS cache before benchmarking |
+| `--shuffle` | Randomize backend order |
 | `-o, --output FILE` | Save results to JSON file |
 
 ### Dataset Sizes
@@ -50,11 +58,14 @@ python benchmarks/benchmark.py [PATH] [OPTIONS]
 ### Basic Benchmark
 
 ```bash
-# Benchmark an existing directory
-python benchmarks/benchmark.py /usr
+# Quick benchmark with defaults
+python benchmarks/benchmark.py
 
-# Benchmark with generated test data
-python benchmarks/benchmark.py --path /tmp/bench --setup-dataset --dataset-size large
+# Larger dataset
+python benchmarks/benchmark.py --dataset-size large
+
+# Benchmark existing directory (no test data generation)
+python benchmarks/benchmark.py --path /usr --use-existing
 ```
 
 ### Compare Storage Types
@@ -64,7 +75,6 @@ python benchmarks/benchmark.py --path /tmp/bench --setup-dataset --dataset-size 
 python benchmarks/benchmark.py \
     --path local=/tmp/bench \
     --path nas=/mnt/nas/bench \
-    --setup-dataset \
     --dataset-size medium
 ```
 
@@ -73,22 +83,20 @@ python benchmarks/benchmark.py \
 For accurate benchmarks, clear the filesystem cache between runs (requires sudo):
 
 ```bash
-python benchmarks/benchmark.py --path /data --iterations 5 --clear-cache
+python benchmarks/benchmark.py --dataset-size large --clear-cache -n 5
 ```
 
-### Network Storage - All Backends
+### Network Storage Benchmark
 
-Test all backends on network storage with cache clearing for accurate results:
+Test on network storage with warmup and cache clearing:
 
 ```bash
-uv run python benchmarks/benchmark.py \
-    --path /mnt/nas/bench-test \
-    --setup-dataset \
+python benchmarks/benchmark.py \
+    --path /mnt/nas/bench \
     --dataset-size large \
-    --backend all \
+    --warmup \
     --clear-cache \
-    -n 3 \
-    --cleanup
+    -n 3
 ```
 
 ### Specific Backends
@@ -101,17 +109,71 @@ python benchmarks/benchmark.py . --backend rust --backend async
 python benchmarks/benchmark.py . --backend fd --backend rust
 ```
 
-## Backends
+## Backend Groups
+
+Backends are organized into groups based on what they measure:
+
+### Profiling Backends (default)
+
+Full directory profiling with metadata collection, extension counting, and statistics.
 
 | Backend | Description |
 |---------|-------------|
-| `os.walk` | Python standard library (baseline) |
-| `pathlib` | Python pathlib.Path.rglob |
-| `rust` | Rust parallel scanner (rayon) |
+| `rust` | Rust parallel scanner (rayon) - fastest for local storage |
 | `rust-seq` | Rust sequential scanner |
-| `async` | Rust async scanner (tokio) - optimized for network storage |
-| `fd` | External fd tool |
+| `async` | Rust async scanner (tokio) - optimized for high-latency network storage |
+| `fd` | External fd tool with metadata enrichment |
 | `python` | Pure Python implementation |
+
+```bash
+# Profiling backends (default)
+python benchmarks/benchmark.py --backend profiling
+python benchmarks/benchmark.py  # same as above
+
+# Network storage with all options
+python benchmarks/benchmark.py \
+    --path /mnt/nas/bench \
+    --dataset-size xlarge \
+    --backend profiling \
+    --warmup --shuffle --clear-cache -n 3
+```
+
+### Traversal Backends
+
+Fast file/directory traversal only - no metadata collection. Useful for measuring raw filesystem traversal speed.
+
+| Backend | Description |
+|---------|-------------|
+| `os.walk` | Python standard library |
+| `pathlib` | Python pathlib.Path.rglob |
+| `rust-fast` | Rust parallel scanner with `fast_path_only` (no metadata) |
+| `async-fast` | Rust async scanner with `fast_path_only` (no metadata) |
+
+```bash
+# Traversal backends only
+python benchmarks/benchmark.py --backend traversal
+
+# Network storage traversal benchmark
+python benchmarks/benchmark.py \
+    --path /mnt/nas/bench \
+    --dataset-size xlarge \
+    --backend traversal \
+    --warmup --shuffle --clear-cache -n 3
+```
+
+### All Backends
+
+```bash
+# Run both groups
+python benchmarks/benchmark.py --backend all
+```
+
+### Mix Individual Backends
+
+```bash
+# Compare specific backends
+python benchmarks/benchmark.py --backend rust --backend async --backend rust-fast
+```
 
 ## Sample Output
 
@@ -120,7 +182,7 @@ python benchmarks/benchmark.py . --backend fd --backend rust
 ======================================================================
 Iterations:    3
 Cache clear:   No
-Backends:      os.walk, pathlib, rust, rust-seq, async, fd, python
+Backends:      rust, rust-seq, async, fd, python
 Targets:       default (/tmp/bench)
 
 📂 Benchmarking: default (/tmp/bench)
@@ -131,12 +193,10 @@ Targets:       default (/tmp/bench)
 
 Method              Avg Time    Files/sec    Speedup      Files
 ----------------------------------------------------------------------
-rust                   0.031s      564,516      5.23x     17,500
-async                  0.032s      546,875      5.06x     17,500
-fd                     0.045s      388,889      3.60x     17,500
-rust-seq               0.089s      196,629      1.82x     17,500
-pathlib                0.142s      123,239      1.14x     17,500
-os.walk                0.162s      108,025      (base)    17,500
-python                 0.198s       88,384      0.82x     17,500
+rust                   0.031s      564,516     (base)     17,500
+async                  0.032s      546,875      0.97x     17,500
+fd                     0.045s      388,889      0.69x     17,500
+rust-seq               0.089s      196,629      0.35x     17,500
+python                 0.198s       88,384      0.16x     17,500
 ```
 

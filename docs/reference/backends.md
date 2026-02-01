@@ -1,6 +1,6 @@
 # Backend Architecture
 
-`filoma` provides three high-performance backends that automatically select the best option for your system.
+`filoma` provides multiple high-performance backends that automatically select the best option for your system.
 
 ## Backend Overview
 
@@ -9,17 +9,23 @@
 - **Full compatibility** - complete feature set
 - **Reliable fallback** - when other backends aren't available
 
-### 🦀 Rust Backend (Fastest)
-- **Best performance** - 2.5x faster than alternatives
-- **Parallel processing** - automatic multi-threading
-- **Auto-selected** - chosen by default when available
+### 🦀 Rust Backend (Fastest for Local Storage)
+- **Best performance** - 2.5x+ faster than alternatives on local storage
+- **Parallel processing** - automatic multi-threading with rayon
+- **Auto-selected** - chosen by default when available for local filesystems
 - **Same API** - drop-in replacement with identical output
 
-### 🔍 fd Backend (Competitive)
+### ⚡ Async Backend (Network-optimized)
+- **Network optimized** - tokio-based with bounded concurrency
+- **85% of Rust speed** - excellent for network filesystems (NFS, SMB, CIFS)
+- **Auto-selected** - automatically chosen for network mounts when available
+- **Tunable concurrency** - `network_concurrency`, `network_timeout_ms`, `network_retries` parameters
+
+### 🔍 fd Backend (Competitive Alternative)
 - **Fast file discovery** - leverages the `fd` command-line tool
 - **Advanced patterns** - supports regex and glob patterns
 - **Hybrid approach** - fd for discovery + Python for analysis
-- **Network optimized** - often best for NFS filesystems
+- **Network alternative** - viable option for network filesystems
 
 ## Automatic Selection
 
@@ -89,12 +95,13 @@ for backend in backends:
 
 | Use Case | Recommended Backend | Why |
 |----------|-------------------|-----|
-| **Large directories** | Auto (Rust preferred) | Best overall performance |
-| **Network filesystems** | `fd` | Optimized for network I/O |
+| **Large local directories** | Auto (Rust preferred) | Best overall performance for local storage |
+| **Network filesystems (NFS)** | Auto or explicit `async` | Async backend handles high latency efficiently |
 | **CI/CD environments** | Auto | Reliable with graceful fallbacks |
 | **Maximum compatibility** | `python` | Always works, no dependencies |
-| **DataFrame analysis** | Auto (Rust preferred) | Fastest DataFrame building |
+| **DataFrame analysis** | Auto (Rust on local, Async on network) | Fastest metadata collection |
 | **Pattern matching** | `fd` | Advanced regex/glob support |
+| **Tuning network performance** | Explicit `async` with config | Use `network_concurrency`, `network_timeout_ms`, `network_retries` |
 
 ## Technical Details
 

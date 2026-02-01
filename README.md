@@ -253,6 +253,27 @@ shape: (3, 2)
 ```
 </details>
 
+## Performance & Benchmarks
+
+Need to compare backend performance? Check out the comprehensive [**Benchmarks Guide**](docs/reference/benchmarks.md)!
+
+**Key Results** (200k files, cold cache, network storage):
+- **🦀 Rust** (parallel): 2.51s - fastest for full metadata collection
+- **⚡ Async** (tokio): 2.95s - excellent for network filesystems (85% of Rust)
+- **🔍 fd**: 11.94s - solid alternative, good for pattern matching
+- **🐍 Python**: 14.93s - always available, reliable baseline
+
+The [Benchmarks Guide](docs/reference/benchmarks.md) includes:
+- 📊 Detailed performance results across different backends
+- 🔧 Testing methodology and best practices  
+- 📈 Network storage optimization patterns
+- 💡 Backend selection recommendations for your use case
+
+Run your own benchmarks:
+```bash
+python benchmarks/benchmark.py --path /your/directory -n 3 --backend profiling
+```
+
 ## License
 
 Shield: [![CC BY 4.0][cc-by-shield]][cc-by]
