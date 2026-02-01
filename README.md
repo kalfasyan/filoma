@@ -257,16 +257,21 @@ shape: (3, 2)
 
 Need to compare backend performance? Check out the comprehensive [**Benchmarks Guide**](docs/reference/benchmarks.md)!
 
-**Key Results** (200k files, cold cache, network storage):
-- **🦀 Rust** (parallel): 2.51s - fastest for full metadata collection
-- **⚡ Async** (tokio): 2.95s - excellent for network filesystems (85% of Rust)
-- **🔍 fd**: 11.94s - solid alternative, good for pattern matching
-- **🐍 Python**: 14.93s - always available, reliable baseline
+**Latest Results:**
+- **Local SSD** (1M files, MacBook Air M4):
+  - 🦀 **Rust**: 7.3s (136K files/sec) - fastest for metadata collection
+  - ⚡ **Async**: 11.5s (87K files/sec) - strong alternative
+  - 🐍 **Python**: 35.5s (28K files/sec) - reliable baseline
+  - **os.walk** (discovery-only): 0.565s (1.77M files/sec)
+
+- **Network Storage** (200k files, cold cache):
+  - 🦀 **Rust**: 2.3s (86K files/sec)
+  - ⚡ **Async**: 2.8s (70K files/sec)
+  - 🐍 **Python**: 15.1s (13K files/sec)
 
 The [Benchmarks Guide](docs/reference/benchmarks.md) includes:
-- 📊 Detailed performance results across different backends
+- 📊 Detailed results across backends and storage types
 - 🔧 Testing methodology and best practices  
-- 📈 Network storage optimization patterns
 - 💡 Backend selection recommendations for your use case
 
 Run your own benchmarks:
