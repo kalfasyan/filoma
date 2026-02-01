@@ -1,21 +1,24 @@
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
-use futures::future::BoxFuture;
 use pyo3::prelude::*;
 use tokio::fs;
-use tokio::sync::Semaphore;
+use tokio::sync::{mpsc, Semaphore};
 use tokio::time::{timeout, sleep, Duration};
 
 use crate::{analysis::get_file_extension, AnalysisConfig, ParallelDirectoryStats};
 
 // Async scanning implementation tuned for higher-latency filesystems (NFS/CIFS)
+// Uses a work-queue pattern with multiple workers for true parallel directory scanning.
 
 // Backoff constants for retry logic
 const READDIR_BACKOFF_BASE_MS: u64 = 50;
 const METADATA_BACKOFF_BASE_MS: u64 = 10;
+
+// Work queue channel capacity
+const WORK_QUEUE_CAPACITY: usize = 10000;
 
 /// Tracks I/O errors and timeouts during async scanning (for diagnostics)
 #[derive(Debug, Default)]
@@ -74,6 +77,12 @@ impl ScanMetrics {
     }
 }
 
+/// Work item representing a directory to scan
+struct WorkItem {
+    path: PathBuf,
+    depth: u32,
+}
+
 pub async fn probe_directory_async_internal(
     path_root: PathBuf,
     config: AnalysisConfig,
@@ -85,12 +94,11 @@ pub async fn probe_directory_async_internal(
 
     // Use the ParallelDirectoryStats structure for thread-safe aggregation
     let stats = Arc::new(ParallelDirectoryStats::new());
+    // Semaphore limits concurrent I/O operations (read_dir calls)
     let sem = Arc::new(Semaphore::new(concurrency_limit));
     let metrics = Arc::new(ScanMetrics::new());
 
-    // Count the root directory only if it is non-empty. If the root is empty, the
-    // recursive scanner will record it via the `is_empty` branch; adding it here
-    // unconditionally would double-count the root for empty directories.
+    // Count the root directory only if it is non-empty
     if let Some(name) = path_root.file_name().and_then(|n| n.to_str()) {
         let is_empty = crate::analysis::estimate_directory_size(&path_root, 1) == 0;
         if !is_empty {
@@ -98,15 +106,89 @@ pub async fn probe_directory_async_internal(
         }
     }
 
-    // Kick off scanning from root
-    let root_clone = path_root.clone();
-    let stats_clone = stats.clone();
-    let config_clone = config.clone();
-    let metrics_clone = metrics.clone();
+    // Create work queue channel for distributing directory scanning work
+    let (tx, rx) = mpsc::channel::<WorkItem>(WORK_QUEUE_CAPACITY);
+    let rx = Arc::new(tokio::sync::Mutex::new(rx));
 
-    let res = scan_dir_recursive(root_clone, stats_clone, config_clone, sem.clone(), 0u32, timeout_ms, retries, metrics_clone).await;
-    if let Err(e) = res {
-        return Err(e);
+    // Track pending work to know when we're done
+    let pending_work = Arc::new(AtomicUsize::new(1)); // Start with 1 for root
+
+    // Send root directory to work queue
+    tx.send(WorkItem { path: path_root.clone(), depth: 0 })
+        .await
+        .map_err(|e| format!("Failed to send root to work queue: {}", e))?;
+
+    // Spawn worker tasks - these will pull work from the queue
+    // Use concurrency_limit as the number of workers since that's user-configurable
+    let num_workers = concurrency_limit.max(4);
+    let mut worker_handles = Vec::with_capacity(num_workers);
+
+    for _ in 0..num_workers {
+        let worker_rx = rx.clone();
+        let worker_tx = tx.clone();
+        let worker_stats = stats.clone();
+        let worker_config = config.clone();
+        let worker_sem = sem.clone();
+        let worker_metrics = metrics.clone();
+        let worker_pending = pending_work.clone();
+
+        let handle = tokio::spawn(async move {
+            loop {
+                // Try to get work from the queue
+                let work_item = {
+                    let mut rx_guard = worker_rx.lock().await;
+                    // Use try_recv to avoid blocking indefinitely
+                    match tokio::time::timeout(Duration::from_millis(10), rx_guard.recv()).await {
+                        Ok(Some(item)) => item,
+                        Ok(None) => break, // Channel closed
+                        Err(_) => {
+                            // Timeout - check if we should exit
+                            if worker_pending.load(Ordering::SeqCst) == 0 {
+                                break;
+                            }
+                            continue;
+                        }
+                    }
+                };
+
+                // Process this directory
+                let subdirs = process_directory(
+                    &work_item.path,
+                    work_item.depth,
+                    &worker_stats,
+                    &worker_config,
+                    &worker_sem,
+                    &worker_metrics,
+                    timeout_ms,
+                    retries,
+                ).await;
+
+                // Add subdirectories to work queue
+                let subdir_count = subdirs.len();
+                if subdir_count > 0 {
+                    worker_pending.fetch_add(subdir_count, Ordering::SeqCst);
+                    for subdir in subdirs {
+                        let _ = worker_tx.send(WorkItem {
+                            path: subdir,
+                            depth: work_item.depth + 1,
+                        }).await;
+                    }
+                }
+
+                // Mark this work item as complete
+                worker_pending.fetch_sub(1, Ordering::SeqCst);
+            }
+        });
+
+        worker_handles.push(handle);
+    }
+
+    // Drop the sender in the main task so workers can detect completion
+    drop(tx);
+
+    // Wait for all workers to finish
+    for handle in worker_handles {
+        let _ = handle.await;
     }
 
     // Convert to DirectoryStats and set timing
@@ -114,9 +196,8 @@ pub async fn probe_directory_async_internal(
     let elapsed = start.elapsed();
     result.set_timing(elapsed.as_secs_f64());
 
-    // Log metrics summary if there were issues (could be exposed to Python in future)
+    // Log metrics summary if there were issues
     if metrics.has_issues() {
-        // For now, metrics are tracked but not exposed. Could add to result dict later.
         #[cfg(debug_assertions)]
         eprintln!("[filoma async] {}", metrics.summary());
     }
@@ -124,136 +205,117 @@ pub async fn probe_directory_async_internal(
     Ok(result)
 }
 
-fn scan_dir_recursive(
-    dir: PathBuf,
-    stats: Arc<ParallelDirectoryStats>,
-    config: AnalysisConfig,
-    sem: Arc<Semaphore>,
+/// Process a single directory and return list of subdirectories to scan
+async fn process_directory(
+    dir: &PathBuf,
     current_depth: u32,
+    stats: &Arc<ParallelDirectoryStats>,
+    config: &AnalysisConfig,
+    sem: &Arc<Semaphore>,
+    metrics: &Arc<ScanMetrics>,
     timeout_ms: u64,
     retries: u8,
-    metrics: Arc<ScanMetrics>,
-) -> BoxFuture<'static, Result<(), String>> {
-    Box::pin(async move {
-        // Respect max_depth
-        if let Some(max_d) = config.max_depth {
-            if current_depth > max_d {
-                return Ok(());
+) -> Vec<PathBuf> {
+    // Respect max_depth
+    if let Some(max_d) = config.max_depth {
+        if current_depth > max_d {
+            return Vec::new();
+        }
+    }
+
+    // Acquire a permit to limit concurrent I/O operations
+    let permit = match sem.acquire().await {
+        Ok(p) => p,
+        Err(_) => return Vec::new(),
+    };
+
+    // Read directory entries with timeout & retries
+    let mut attempt = 0u8;
+    let read_dir = loop {
+        let fut = fs::read_dir(dir);
+        match timeout(Duration::from_millis(timeout_ms), fut).await {
+            Ok(Ok(rd)) => break rd,
+            Ok(Err(_e)) => {
+                metrics.record_readdir_error();
+            }
+            Err(_) => {
+                metrics.record_readdir_timeout();
             }
         }
 
-        // Acquire a permit to limit concurrency
-        let permit = sem.acquire().await.map_err(|e| format!("Semaphore closed: {}", e))?;
+        if attempt >= retries {
+            metrics.record_skipped_entry();
+            drop(permit);
+            return Vec::new();
+        }
+        attempt += 1;
+        sleep(Duration::from_millis(READDIR_BACKOFF_BASE_MS * (1 << attempt.min(4)))).await;
+    };
 
-        // Read directory entries with timeout & retries
-        let mut attempt = 0u8;
-        let read_dir = loop {
-            let fut = fs::read_dir(&dir);
-            match timeout(Duration::from_millis(timeout_ms), fut).await {
-                Ok(Ok(rd)) => break rd,
+    // Release permit after read_dir succeeds
+    drop(permit);
+
+    // Collect entries and subdirectories
+    let mut entries = read_dir;
+    let mut is_empty = true;
+    let mut subdirs: Vec<PathBuf> = Vec::new();
+
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        is_empty = false;
+        let path = entry.path();
+
+        // Metadata with timeout & retries
+        let mut meta_attempt = 0u8;
+        let metadata = loop {
+            match timeout(Duration::from_millis(timeout_ms), entry.metadata()).await {
+                Ok(Ok(md)) => break Some(md),
                 Ok(Err(_e)) => {
-                    metrics.record_readdir_error();
+                    metrics.record_metadata_error();
                 }
                 Err(_) => {
-                    metrics.record_readdir_timeout();
+                    metrics.record_metadata_timeout();
                 }
             }
 
-            if attempt >= retries {
-                // Release permit and skip this directory
-                metrics.record_skipped_entry();
-                drop(permit);
-                return Ok(());
+            if meta_attempt >= retries {
+                break None;
             }
-            attempt += 1;
-            // Exponential backoff with configurable base
-            sleep(Duration::from_millis(READDIR_BACKOFF_BASE_MS * (1 << attempt.min(4)))).await;
+            meta_attempt += 1;
+            sleep(Duration::from_millis(METADATA_BACKOFF_BASE_MS * (1 << meta_attempt.min(4)))).await;
         };
 
-        // Process entries - release permit early once we have the directory listing
-        // This allows other tasks to proceed while we process entries
-        drop(permit);
-
-        let mut entries = read_dir;
-        let mut is_empty = true;
-
-        while let Ok(Some(entry)) = entries.next_entry().await {
-            is_empty = false;
-            let path = entry.path();
-            
-            // Metadata with timeout & retries
-            let mut meta_attempt = 0u8;
-            let metadata = loop {
-                match timeout(Duration::from_millis(timeout_ms), entry.metadata()).await {
-                    Ok(Ok(md)) => break Some(md),
-                    Ok(Err(_e)) => {
-                        metrics.record_metadata_error();
-                    }
-                    Err(_) => {
-                        metrics.record_metadata_timeout();
-                    }
+        if let Some(md) = metadata {
+            if md.is_dir() {
+                // Record the folder
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    stats.add_folder(
+                        name.to_string(),
+                        false,
+                        path.to_string_lossy().to_string(),
+                        current_depth,
+                    );
                 }
-
-                if meta_attempt >= retries {
-                    break None;
-                }
-                meta_attempt += 1;
-                // Exponential backoff with configurable base
-                sleep(Duration::from_millis(METADATA_BACKOFF_BASE_MS * (1 << meta_attempt.min(4)))).await;
-            };
-
-            if let Some(md) = metadata {
-                if md.is_dir() {
-                    // Add folder
-                    // Use adjusted depth semantics to match the sequential prober
-                    // (sequential uses adjusted_depth = if depth == 0 { 0 } else { depth - 1 })
-                    // Here, current_depth represents the adjusted depth of `dir`, so child folders
-                    // should be recorded with the same adjusted depth value before recursing.
-                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        stats.add_folder(
-                            name.to_string(),
-                            false,
-                            path.to_string_lossy().to_string(),
-                            current_depth,
-                        );
-                    }
-
-                    // Recurse into subdirectory (await serially within this async call)
-                    // Note: This is intentionally sequential to maintain bounded memory usage
-                    // and simpler error handling for network filesystems.
-                    let _ = scan_dir_recursive(
-                        path.clone(),
-                        stats.clone(),
-                        config.clone(),
-                        sem.clone(),
-                        current_depth + 1,
-                        timeout_ms,
-                        retries,
-                        metrics.clone(),
-                    ).await;
-                } else if md.is_file() {
-                    // Handle file
-                    let ext = get_file_extension(&path);
-                    let size = if config.fast_path_only { 0 } else { md.len() };
-                    let parent = path.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
-                    stats.add_file(size, ext, parent, config.fast_path_only);
-                }
-            } else {
-                // Metadata failed after retries; skip this entry
-                metrics.record_skipped_entry();
-                continue;
+                // Queue for parallel processing
+                subdirs.push(path);
+            } else if md.is_file() {
+                let ext = get_file_extension(&path);
+                let size = if config.fast_path_only { 0 } else { md.len() };
+                let parent = path.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
+                stats.add_file(size, ext, parent, config.fast_path_only);
             }
+        } else {
+            metrics.record_skipped_entry();
         }
+    }
 
-        // If directory turned out to be empty, record it
-        if is_empty {
-            if let Some(name) = dir.file_name().and_then(|n| n.to_str()) {
-                stats.add_folder(name.to_string(), true, dir.to_string_lossy().to_string(), current_depth);
-            }
+    // Record empty directory
+    if is_empty {
+        if let Some(name) = dir.file_name().and_then(|n| n.to_str()) {
+            stats.add_folder(name.to_string(), true, dir.to_string_lossy().to_string(), current_depth);
         }
+    }
 
-        Ok(())
-    })
+    subdirs
 }
 
 #[pyfunction]

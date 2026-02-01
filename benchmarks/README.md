@@ -1,147 +1,127 @@
-# Benchmark Scripts
+# Benchmarks
 
-This directory contains benchmark scripts to compare `filoma` performance against standard Python alternatives.
+Benchmark filoma performance across different backends and storage types.
 
 ## Quick Start
 
 ```bash
-# Run benchmark with default settings (creates temp test directory)
-python benchmarks/benchmark_comparison.py
+# Benchmark current directory
+python benchmarks/benchmark.py .
 
+# Benchmark with generated test data
+python benchmarks/benchmark.py --path /tmp/bench --setup-dataset
+
+# Full benchmark with multiple iterations
+python benchmarks/benchmark.py --path /tmp/bench --setup-dataset --iterations 5
+```
+
+## Usage
+
+```bash
+python benchmarks/benchmark.py [PATH] [OPTIONS]
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `PATH` | Directory to benchmark (positional) |
+| `--path [LABEL=]PATH` | Labeled path (can repeat for comparisons) |
+| `--backend BACKEND` | Backend to test: `os.walk`, `pathlib`, `rust`, `rust-seq`, `async`, `fd`, `python`, `all` |
+| `-n, --iterations N` | Number of iterations per test (default: 3) |
+| `--setup-dataset` | Create test dataset in target directories |
+| `--dataset-size SIZE` | Dataset size: `small`, `medium`, `large`, `xlarge` |
+| `--clear-cache` | Clear filesystem cache between runs (requires sudo) |
+| `--no-ignore` | Ignore .gitignore files for fair comparison |
+| `--cleanup` | Delete test directories after benchmarking |
+| `-o, --output FILE` | Save results to JSON file |
+
+### Dataset Sizes
+
+| Size | Directories | Files/Dir | Total Files |
+|------|-------------|-----------|-------------|
+| small | 10 | 20 | ~200 |
+| medium | 50 | 50 | ~2,500 |
+| large | 200 | 100 | ~20,000 |
+| xlarge | 500 | 200 | ~100,000 |
+
+## Examples
+
+### Basic Benchmark
+
+```bash
 # Benchmark an existing directory
-python benchmarks/benchmark_comparison.py --path /path/to/directory
+python benchmarks/benchmark.py /usr
 
-# More iterations for better accuracy
-python benchmarks/benchmark_comparison.py --iterations 5
+# Benchmark with generated test data
+python benchmarks/benchmark.py --path /tmp/bench --setup-dataset --dataset-size large
 ```
 
-## Benchmark Scripts
-
-### `benchmark_comparison.py`
-
-Comprehensive benchmark comparing:
-- `os.walk()` - Standard library directory walking
-- `pathlib.Path.rglob()` - Modern Python pathlib approach
-- `filoma` with different backends:
-  - Auto (selects best available)
-  - Rust backend
-  - `fd` backend
-  - Python backend
-
-**Features:**
-- ✅ Cold cache testing (clears filesystem cache between runs)
-- ✅ Multiple iterations for statistical accuracy
-- ✅ Configurable test directory structure
-- ✅ Detailed performance statistics
-
-**Usage:**
+### Compare Storage Types
 
 ```bash
-# Basic usage
-python benchmarks/benchmark_comparison.py
-
-# Benchmark existing directory
-python benchmarks/benchmark_comparison.py --path /usr
-
-# Custom test structure
-python benchmarks/benchmark_comparison.py \
-    --num-dirs 200 \
-    --files-per-dir 100 \
-    --max-depth 4 \
-    --iterations 5
-
-# Skip cache clearing (faster, but less realistic)
-python benchmarks/benchmark_comparison.py --no-clear-cache
-
-# Keep temporary test directory for inspection
-python benchmarks/benchmark_comparison.py --keep-temp
+# Local vs Network storage comparison
+python benchmarks/benchmark.py \
+    --path local=/tmp/bench \
+    --path nas=/mnt/nas/bench \
+    --setup-dataset \
+    --dataset-size medium
 ```
 
-## Cold Cache Testing
+### Cold-Cache Benchmark
 
-For accurate, realistic benchmarks, the script clears the OS filesystem cache between runs. This requires `sudo` privileges:
+For accurate benchmarks, clear the filesystem cache between runs (requires sudo):
 
 ```bash
-# Run with sudo for accurate cold-cache benchmarks
-sudo python benchmarks/benchmark_comparison.py
+python benchmarks/benchmark.py --path /data --iterations 5 --clear-cache
 ```
 
-Without sudo, the script will still run but will warn that results may be affected by OS caching.
+### Specific Backends
 
-### Why Cold Cache Matters
+```bash
+# Only test Rust backends
+python benchmarks/benchmark.py . --backend rust --backend async
 
-Filesystem caching can make benchmarks **2-8x faster** than real-world performance:
-- **Warm cache**: Filesystem metadata is cached in memory → very fast
-- **Cold cache**: First-time access, realistic for real-world usage → slower but accurate
-
-The benchmark script uses cold cache methodology to represent realistic performance.
-
-## Understanding Results
-
-The benchmark reports:
-- **Average time**: Mean execution time across iterations
-- **Min/Max**: Best and worst case times
-- **Standard deviation**: Consistency of results
-- **Speedup**: Relative performance vs baseline (`os.walk`)
-
-### Example Output
-
-```
-📈 BENCHMARK RESULTS SUMMARY
-================================================================================
-Test directory: /tmp/filoma_benchmark_xyz
-
-Method                    Avg Time     Files/sec   Speedup
---------------------------------------------------------------------------------
-filoma (rust)               0.234s                   8.50x
-filoma (auto)               0.245s                   8.12x
-filoma (fd)                 0.312s                   6.38x
-pathlib.rglob               0.856s                   2.33x
-os.walk                     1.992s                   1.00x
-filoma (python)             2.145s                   0.93x
+# Compare fd vs Rust
+python benchmarks/benchmark.py . --backend fd --backend rust
 ```
 
-## Benchmark Methodology
+## Backends
 
-1. **Test Structure Creation**: Generates a realistic directory tree with configurable depth and file counts
-2. **Cache Clearing**: Clears OS filesystem cache between iterations (requires sudo)
-3. **Multiple Iterations**: Runs each method multiple times and averages results
-4. **Statistical Analysis**: Calculates mean, min, max, and standard deviation
+| Backend | Description |
+|---------|-------------|
+| `os.walk` | Python standard library (baseline) |
+| `pathlib` | Python pathlib.Path.rglob |
+| `rust` | Rust parallel scanner (rayon) |
+| `rust-seq` | Rust sequential scanner |
+| `async` | Rust async scanner (tokio) - optimized for network storage |
+| `fd` | External fd tool |
+| `python` | Pure Python implementation |
 
-## Tips for Accurate Benchmarks
+## Sample Output
 
-1. **Use sudo**: For accurate cold-cache results
-2. **Multiple iterations**: Use `--iterations 5` or more for statistical significance
-3. **Test on target storage**: Results vary by filesystem type (SSD vs HDD vs NFS)
-4. **Avoid system load**: Run when system is idle for consistent results
-5. **Large test sets**: Use `--num-dirs` and `--files-per-dir` to create realistic workloads
+```
+🚀 Filoma Benchmark
+======================================================================
+Iterations:    3
+Cache clear:   No
+Backends:      os.walk, pathlib, rust, rust-seq, async, fd, python
+Targets:       default (/tmp/bench)
 
-## Interpreting Results
+📂 Benchmarking: default (/tmp/bench)
 
-- **filoma (rust)**: Fastest option when Rust backend is available
-- **filoma (fd)**: Excellent performance, especially on network filesystems
-- **filoma (python)**: Fallback option, similar to `os.walk` performance
-- **pathlib.rglob**: Modern Python approach, typically faster than `os.walk`
-- **os.walk**: Baseline for comparison
+======================================================================
+📊 Results: default
+======================================================================
 
-Performance characteristics:
-- **Local SSD**: Rust > fd > pathlib > os.walk
-- **Network filesystem (NFS)**: fd > Rust > pathlib > os.walk
-- **HDD**: Rust > fd > pathlib > os.walk
-
-## Troubleshooting
-
-**"Could not clear filesystem cache"**
-- Run with `sudo` for accurate cold-cache benchmarks
-- Or use `--no-clear-cache` flag (results will be faster due to caching)
-
-**"Backend not available"**
-- Rust backend requires compiled extension module
-- `fd` backend requires `fd` command installed
-- Python backend always available as fallback
-
-**Slow benchmark execution**
-- Cache clearing adds overhead; use `--no-clear-cache` for faster runs
-- Reduce `--iterations` for quicker results
-- Use smaller test structures (`--num-dirs`, `--files-per-dir`)
+Method              Avg Time    Files/sec    Speedup      Files
+----------------------------------------------------------------------
+rust                   0.031s      564,516      5.23x     17,500
+async                  0.032s      546,875      5.06x     17,500
+fd                     0.045s      388,889      3.60x     17,500
+rust-seq               0.089s      196,629      1.82x     17,500
+pathlib                0.142s      123,239      1.14x     17,500
+os.walk                0.162s      108,025      (base)    17,500
+python                 0.198s       88,384      0.82x     17,500
+```
 
