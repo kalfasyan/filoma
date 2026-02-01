@@ -38,12 +38,12 @@ python benchmarks/benchmark.py [PATH] [OPTIONS]
 
 ### Dataset Sizes
 
-| Size | Directories | Files/Dir | Total Files |
-|------|-------------|-----------|-------------|
-| small | 10 | 20 | ~200 |
-| medium | 50 | 50 | ~2,500 |
-| large | 200 | 100 | ~20,000 |
-| xlarge | 500 | 200 | ~100,000 |
+| Size | Directories | Files/Dir | Approx Total |
+|------|-------------|-----------|--------------|
+| small | 10 | 100 | ~1,000 |
+| medium | 50 | 200 | ~10,000 |
+| large | 100 | 500 | ~50,000 |
+| xlarge | 200 | 1000 | ~200,000 |
 
 ## Examples
 
@@ -74,6 +74,21 @@ For accurate benchmarks, clear the filesystem cache between runs (requires sudo)
 
 ```bash
 python benchmarks/benchmark.py --path /data --iterations 5 --clear-cache
+```
+
+### Network Storage - All Backends
+
+Test all backends on network storage with cache clearing for accurate results:
+
+```bash
+uv run python benchmarks/benchmark.py \
+    --path /mnt/nas/bench-test \
+    --setup-dataset \
+    --dataset-size large \
+    --backend all \
+    --clear-cache \
+    -n 3 \
+    --cleanup
 ```
 
 ### Specific Backends

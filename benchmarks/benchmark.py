@@ -16,6 +16,7 @@ Examples:
 
     # Full benchmark with cache clearing (requires sudo)
     python benchmarks/benchmark.py --path /data --iterations 5 --clear-cache
+
 """
 
 import argparse
@@ -49,10 +50,10 @@ except ImportError:
 # =============================================================================
 
 DATASET_SIZES = {
-    "small": (10, 20),  # 200 files
-    "medium": (50, 50),  # 2,500 files
-    "large": (200, 100),  # 20,000 files
-    "xlarge": (500, 200),  # 100,000 files
+    "small": (10, 100),  # ~1,000 files
+    "medium": (50, 200),  # ~10,000 files
+    "large": (100, 500),  # ~50,000 files
+    "xlarge": (200, 1000),  # ~200,000 files
 }
 
 
@@ -60,7 +61,7 @@ def create_test_structure(
     path: Path,
     num_dirs: int = 50,
     num_files_per_dir: int = 50,
-    depth: int = 2,
+    depth: int = 1,
 ) -> Tuple[int, int]:
     """Create a test directory structure for benchmarking.
 
@@ -68,18 +69,23 @@ def create_test_structure(
         path: Base directory to create structure in
         num_dirs: Number of directories at each level
         num_files_per_dir: Number of files per directory
-        depth: Number of nested subdirectory levels
+        depth: Number of nested subdirectory levels (default 1 for flat structure)
 
     Returns:
         Tuple of (total_files, total_dirs) created
+
     """
     extensions = ["txt", "py", "rs", "md", "json", "yaml", "csv", "log"]
     total_files = 0
     total_dirs = 0
 
     path.mkdir(parents=True, exist_ok=True)
+    print(f"   Creating {num_dirs} directories with {num_files_per_dir} files each...", flush=True)
 
     for i in range(num_dirs):
+        if i > 0 and i % 50 == 0:
+            print(f"   ... created {i}/{num_dirs} directories ({total_files:,} files)", flush=True)
+
         dir_path = path / f"dir_{i:04d}"
         dir_path.mkdir(parents=True, exist_ok=True)
         total_dirs += 1
@@ -92,12 +98,12 @@ def create_test_structure(
                 file_path.write_text(f"Test content for file {j} in directory {i}\n" * 5)
             total_files += 1
 
-        # Create nested subdirectories
-        if depth > 0:
-            for k in range(min(5, num_dirs // 10 or 1)):
+        # Create nested subdirectories (only if depth > 1)
+        if depth > 1:
+            for k in range(min(3, num_dirs // 20 or 1)):
                 sub_files, sub_dirs = create_test_structure(
                     dir_path / f"sub_{k:02d}",
-                    num_dirs=max(2, num_dirs // 10),
+                    num_dirs=max(2, num_dirs // 20),
                     num_files_per_dir=max(5, num_files_per_dir // 5),
                     depth=depth - 1,
                 )
@@ -119,6 +125,7 @@ def clear_filesystem_cache() -> bool:
 
     Returns:
         True if cache was cleared successfully
+
     """
     system = platform.system()
 
@@ -204,6 +211,7 @@ def benchmark_filoma(
 
     Returns:
         Dict with timing and counts, or None if backend unavailable
+
     """
     # Special case: async backend - call Rust function directly to bypass network FS check
     if backend == "async":
@@ -289,13 +297,16 @@ def run_benchmark_suite(
 
     Returns:
         Dict mapping method names to results
+
     """
     if backends is None:
         backends = ["os.walk", "pathlib", "rust", "rust-seq", "async", "fd", "python"]
 
     results = {}
+    total_methods = len(backends)
 
-    for method in backends:
+    for method_idx, method in enumerate(backends, 1):
+        print(f"  [{method_idx}/{total_methods}] Testing {method}...", end=" ", flush=True)
         times = []
         last_result = None
 
@@ -316,13 +327,16 @@ def run_benchmark_suite(
                     last_result = {"files": result["files"], "dirs": result["dirs"]}
                 else:
                     # Backend not available
+                    print(f"✗ {result.get('error', 'Unknown error') if result else 'Failed'}")
                     results[method] = {"error": result.get("error", "Unknown error") if result else "Failed"}
                     break
 
             times.append(elapsed)
+            print(f"iter{i + 1}={elapsed:.2f}s", end=" ", flush=True)
 
         if times and last_result:
             avg_time = sum(times) / len(times)
+            print(f"✓ avg={avg_time:.2f}s")
             results[method] = {
                 "avg_time": avg_time,
                 "min_time": min(times),
@@ -372,7 +386,7 @@ def print_results(results: Dict[str, Dict], title: str = "Benchmark Results"):
 
     # Show errors
     if error_results:
-        print(f"\n⚠️  Unavailable backends:")
+        print("\n⚠️  Unavailable backends:")
         for method, data in error_results.items():
             print(f"   {method}: {data['error']}")
 
@@ -510,12 +524,12 @@ Examples:
             sys.exit(1)
 
     # Print configuration
-    print(f"\n🚀 Filoma Benchmark")
+    print("\n🚀 Filoma Benchmark")
     print("=" * 70)
     print(f"Iterations:    {args.iterations}")
     print(f"Cache clear:   {'Yes (requires sudo)' if args.clear_cache else 'No'}")
     print(f"Backends:      {', '.join(backends)}")
-    print(f"Targets:       {', '.join(f'{l} ({p})' for l, p in paths)}")
+    print(f"Targets:       {', '.join(f'{q} ({p})' for q, p in paths)}")
 
     # Run benchmarks
     all_results = {}
