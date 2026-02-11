@@ -10,6 +10,7 @@ from rich.panel import Panel
 from rich.prompt import Prompt
 
 from filoma.brain import get_agent
+from filoma.brain.agent import FilomaDeps
 
 console = Console()
 
@@ -31,6 +32,7 @@ async def run_chat_loop(model: Optional[str] = None):
         return
 
     message_history = []
+    deps = FilomaDeps()
 
     while True:
         try:
@@ -44,7 +46,7 @@ async def run_chat_loop(model: Optional[str] = None):
                 continue
 
             with console.status("[bold green]Brain is thinking...[/bold green]"):
-                result = await agent.run(user_input, message_history=message_history)
+                result = await agent.run(user_input, deps=deps, message_history=message_history)
                 message_history = result.new_messages()
 
                 # Robust extraction for pydantic-ai v1.58.0 RunResult

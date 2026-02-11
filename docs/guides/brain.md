@@ -32,11 +32,11 @@ Open `.env` and choose **ONE** of the following scenarios. Comment out all other
 
 #### Scenario B: Ollama (Recommended Local/Private)
 1. Install [Ollama](https://ollama.com/).
-2. Pull a model: `ollama pull llama3`.
+2. Pull a model: `ollama pull llama3.1:8b`.
 3. Ensure the Ollama app is running.
 4. Uncomment the Ollama lines in `.env`:
    ```env
-   FILOMA_BRAIN_MODEL='ollama:llama3'
+   FILOMA_BRAIN_MODEL='llama3.1:8b'
    FILOMA_BRAIN_BASE_URL='http://localhost:11434/v1'
    ```
 5. **Benefit**: 100% private, zero cost, works offline.
@@ -60,7 +60,7 @@ uv run filoma brain chat
 
 ## Comparison Table
 
-| Feature | Cloud (Mistral/OpenAI) | Local (Ollama) |
+| Feature | Cloud (Mistral) | Local (Ollama) |
 | :--- | :--- | :--- |
 | **Privacy** | Data sent to provider | 100% Local / Offline |
 | **Cost** | Pay-per-token (or free tier) | Zero Cost |
@@ -119,5 +119,5 @@ Ensure your `.env` file is in the root of the project where you are running the 
 To ensure the Filoma Brain remains accurate and reliable, we are exploring the following advanced [PydanticAI](https://ai.pydantic.dev/) features:
 
 - **Model Evaluation (Evals)**: Implementing automated tests to verify that the agent correctly identifies file distributions and technical metadata without hallucinations.
-- **Model Gateway**: Providing a unified interface for switching between multiple models (Ollama, Mistral, OpenAI) dynamically.
+- **Model Gateway**: Providing a unified interface for switching between multiple models dynamically.
 - **Structured Data Extraction**: Moving beyond chat to allow the agent to return complex, validated Pydantic models of your directory structures.

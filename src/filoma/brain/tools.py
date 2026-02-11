@@ -35,7 +35,11 @@ def count_files(ctx: RunContext[Any], path: str) -> str:
 
     """
     try:
-        p = Path(path).resolve()
+        p = Path(path).expanduser().resolve()
+
+        if not p.exists():
+            return f"Error: The path '{path}' (resolved to '{p}') does not exist. Please provide a valid directory path."
+
         logger.info(f"Starting FULL file count for '{path}' (no depth limit).")
 
         # Use DirectoryProfiler directly to get the accurate count from Rust backend
@@ -73,7 +77,11 @@ def probe_directory(ctx: RunContext[Any], path: str, max_depth: Optional[int] = 
 
     """
     try:
-        p = Path(path).resolve()
+        p = Path(path).expanduser().resolve()
+
+        if not p.exists():
+            return f"Error: The path '{path}' (resolved to '{p}') does not exist. Please provide a valid directory path."
+
         effective_max_depth = max_depth
 
         # Apply safety limit if not explicitly ignored
@@ -142,7 +150,10 @@ def find_duplicates(ctx: RunContext[Any], path: str, ignore_safety_limits: bool 
 
     """
     try:
-        p = Path(path).resolve()
+        p = Path(path).expanduser().resolve()
+
+        if not p.exists():
+            return f"Error: The path '{path}' (resolved to '{p}') does not exist. Please provide a valid directory path."
 
         max_depth = None
         if not ignore_safety_limits and p == Path.cwd() or p == Path.cwd().parent:
@@ -170,7 +181,169 @@ def find_duplicates(ctx: RunContext[Any], path: str, ignore_safety_limits: bool 
 def get_file_info(ctx: RunContext[Any], path: str) -> str:
     """Get detailed information about a specific file."""
     try:
-        info = filoma.probe_file(path)
+        p = Path(path).expanduser().resolve()
+
+        if not p.exists():
+            return f"Error: The file/path '{path}' (resolved to '{p}') does not exist."
+
+        info = filoma.probe_file(str(p))
         return f"FILE METADATA:\n{json.dumps(info.as_dict(), indent=2)}"
     except Exception as e:
         return f"Error getting file info: {str(e)}"
+
+
+def search_files(
+    ctx: RunContext[Any],
+    path: str,
+    pattern: Optional[str] = None,
+    extension: Optional[str] = None,
+    min_size: Optional[str] = None,
+    max_depth: Optional[int] = None,
+    include_hidden: bool = False,
+    ignore_git_files: bool = True,
+) -> str:
+    r"""Search for files in a directory based on regex pattern, extension, or size.
+
+    Args:
+        ctx: The run context.
+        path: The path to search in.
+        pattern: Regex pattern to match filenames (e.g., 'README.md', 'test_.*\.py'). Use this for searching specific filenames.
+        extension: File extension to filter by (e.g., 'py', 'jpg'). Do NOT include the dot. Do NOT use this for full filenames.
+        min_size: Minimum file size (e.g., '1M', '500K').
+        max_depth: Maximum depth to search (default is None for unlimited).
+        include_hidden: Whether to include hidden files (default False).
+        ignore_git_files: Whether to respect .gitignore (default True). Set to False to find ignored files.
+
+    """
+    try:
+        from filoma.directories import FdFinder
+
+        p = Path(path).expanduser().resolve()
+        if not p.exists():
+            return f"Error: Path '{path}' does not exist."
+
+        finder = FdFinder()
+
+        # Common options
+        common_opts = {
+            "path": str(p),
+            "max_depth": max_depth,
+            "hidden": include_hidden,
+            "no_ignore": not ignore_git_files,
+            "case_sensitive": False,  # Default to case-insensitive for better UX
+        }
+
+        results = []
+        if extension:
+            # Handle list or single string
+            exts = [extension] if isinstance(extension, str) else extension
+            results = finder.find_by_extension(exts, **common_opts)
+        elif min_size:
+            results = finder.find_large_files(min_size=min_size, **common_opts)
+        elif pattern:
+            results = finder.find_files(pattern=pattern, **common_opts)
+        else:
+            return "Error: Please provide at least one search criteria (pattern, extension, or min_size)."
+
+        if not results:
+            return f"No files found matching the criteria in '{p}'."
+
+        # If few results, use absolute paths for clarity
+        use_absolute = len(results) < 20
+        if use_absolute:
+            results = [str(Path(r).resolve()) for r in results]
+
+        # Limit results for the agent's context
+        limited_results = results[:50]
+        report = f"SEARCH RESULTS ({len(results)} found, showing top {len(limited_results)}):\n"
+        for r in limited_results:
+            report += f"- {r}\n"
+
+        if len(results) > 50:
+            report += f"\n... and {len(results) - 50} more."
+
+        if use_absolute:
+            report += "\nNote: Showing absolute paths because result count is small."
+
+        return report
+
+    except Exception as e:
+        return f"Error searching files: {str(e)}"
+
+
+def get_directory_tree(ctx: RunContext[Any], path: str) -> str:
+    """Get a list of files and folders in the immediate directory (non-recursive).
+
+    Args:
+        ctx: The run context.
+        path: The path to list.
+
+    """
+    try:
+        p = Path(path).expanduser().resolve()
+        if not p.exists():
+            return f"Error: Path '{path}' does not exist."
+        if not p.is_dir():
+            return f"Error: '{path}' is not a directory."
+
+        items = list(p.iterdir())
+        # Sort: directories first, then files
+        items.sort(key=lambda x: (not x.is_dir(), x.name.lower()))
+
+        report = f"CONTENTS OF: {p}\n"
+        report += f"{'-' * 50}\n"
+
+        for item in items:
+            prefix = "📁" if item.is_dir() else "📄"
+            # Special icons for known types (inspired by CLI)
+            if not item.is_dir():
+                suffix = item.suffix.lower()
+                if suffix in [".png", ".jpg", ".jpeg", ".tif"]:
+                    prefix = "🖼️"
+                elif suffix in [".py", ".rs", ".js"]:
+                    prefix = "💻"
+                elif suffix in [".csv", ".json"]:
+                    prefix = "📊"
+
+            report += f"{prefix} {item.name}{'/' if item.is_dir() else ''}\n"
+
+        return report
+
+    except Exception as e:
+        return f"Error listing directory: {str(e)}"
+
+
+def analyze_image(ctx: RunContext[Any], path: str) -> str:
+    """Perform specialized analysis on an image file.
+
+    Returns dimensions, dtype, and basic statistics if available.
+
+    Args:
+        ctx: The run context.
+        path: Path to the image file.
+
+    """
+    try:
+        p = Path(path).expanduser().resolve()
+        if not p.exists():
+            return f"Error: Image '{path}' does not exist."
+
+        report = filoma.probe_image(str(p))
+
+        # Build a nice string report
+        data = {
+            "path": str(p),
+            "type": getattr(report, "file_type", "unknown"),
+            "shape": getattr(report, "shape", "unknown"),
+            "dtype": getattr(report, "dtype", "unknown"),
+            "stats": {
+                "min": getattr(report, "min", None),
+                "max": getattr(report, "max", None),
+                "mean": getattr(report, "mean", None),
+            },
+        }
+
+        return f"IMAGE ANALYSIS REPORT:\n{json.dumps(data, indent=2)}"
+
+    except Exception as e:
+        return f"Error analyzing image: {str(e)}"

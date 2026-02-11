@@ -28,18 +28,15 @@ async def main():
 
     # Check for configuration
     has_mistral = bool(os.getenv("MISTRAL_API_KEY"))
-    has_openai = bool(os.getenv("OPENAI_API_KEY"))
     has_custom = bool(os.getenv("FILOMA_BRAIN_MODEL"))
 
-    if not (has_mistral or has_openai or has_custom):
+    if not (has_mistral or has_custom):
         logger.warning("--- Filoma Brain POC: Setup Required ---")
         logger.info("To run this POC, please create a .env file (see .env_example) or set one of the following environment variables:")
         logger.info("\n1. Cloud (Mistral - Recommended Default):")
         logger.info("   export MISTRAL_API_KEY='your-key'")
-        logger.info("\n2. Cloud (OpenAI):")
-        logger.info("   export OPENAI_API_KEY='your-key'")
-        logger.info("\n3. Local (Ollama):")
-        logger.info("   export FILOMA_BRAIN_MODEL='ollama:llama3'")
+        logger.info("\n2. Local (Ollama):")
+        logger.info("   export FILOMA_BRAIN_MODEL='llama3.1:8b'")
         logger.info("   export FILOMA_BRAIN_BASE_URL='http://localhost:11434/v1'")
         logger.info("\nSee docs/guides/brain.md for more details.")
         return

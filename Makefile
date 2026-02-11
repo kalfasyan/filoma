@@ -49,7 +49,8 @@ brain-poc: brain-install  ## Run the Brain POC
 	PYTHONPATH=src uv run python examples/brain_poc.py
 
 brain-chat: brain-install  ## Start an interactive chat with the Filoma Brain
-	PYTHONPATH=src uv run filoma brain chat
+	@echo "Using Llama 3.1 (recommended for Ollama). Set FILOMA_BRAIN_MODEL to use a different model."
+	PYTHONPATH=src FILOMA_BRAIN_BASE_URL=http://localhost:11434/v1 FILOMA_BRAIN_MODEL=llama3.1:8b uv run filoma brain chat
 
 brain-test: brain-install  ## Run the Brain tests
 	PYTHONPATH=src uv run pytest tests/test_brain_poc_init.py
