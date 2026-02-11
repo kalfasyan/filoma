@@ -38,18 +38,13 @@ def test_sample_paths_fd_flags(monkeypatch, tmp_path):
     assert len(SpyFd.calls) >= 2
 
     # Find at least one call where the auto-mode flags were applied
+    # Note: follow_links is now False by default for safety
     found = False
     for call in SpyFd.calls:
-        if (
-            call.get("search_hidden") is True
-            and call.get("no_ignore") is True
-            and call.get("follow_links") is True
-        ):
+        if call.get("search_hidden") is True and call.get("no_ignore") is True and call.get("follow_links") is False:
             found = True
             break
-    assert (
-        found
-    ), f"Expected fd.find to be called with search_hidden/no_ignore/follow_links; calls={SpyFd.calls}"
+    assert found, f"Expected fd.find to be called with search_hidden/no_ignore/follow_links=False; calls={SpyFd.calls}"
 
 
 def test_sample_paths_python_sample_size(monkeypatch, tmp_path):

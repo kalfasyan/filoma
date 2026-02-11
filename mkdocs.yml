@@ -15,6 +15,7 @@ nav:
     - DataFrame Workflow: guides/dataframe.md
     - File & Image Profiling: guides/profiling.md
     - Duplicate Detection: guides/dedup.md
+    - Intelligent Analysis (Brain): guides/brain.md
     - Advanced Usage: guides/advanced-usage.md
   - Tutorials:
     - Main Demo: tutorials/demo.md

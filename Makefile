@@ -41,6 +41,19 @@ build:  ## Build package
 clean:  ## Clean build artifacts
 	rm -rf dist/ build/ *.egg-info/
 
+# Brain / AI tasks
+brain-install:  ## Install brain dependencies
+	uv sync --extra brain
+
+brain-poc: brain-install  ## Run the Brain POC
+	PYTHONPATH=src uv run python examples/brain_poc.py
+
+brain-chat: brain-install  ## Start an interactive chat with the Filoma Brain
+	PYTHONPATH=src uv run filoma brain chat
+
+brain-test: brain-install  ## Run the Brain tests
+	PYTHONPATH=src uv run pytest tests/test_brain_poc_init.py
+
 # Quick development tasks
 dev-install:  ## Install package in development mode with dev dependencies
 	uv sync --extra dev

@@ -575,7 +575,7 @@ fn probe_directory_rust_with_config(
     // Configure analysis
     let config = AnalysisConfig {
         max_depth,
-        follow_links: follow_links.unwrap_or(true),
+        follow_links: follow_links.unwrap_or(false),  // Don't follow symlinks by default
         search_hidden: search_hidden.unwrap_or(true),
         no_ignore: no_ignore.unwrap_or(true),
         parallel: parallel_threshold.is_some(),

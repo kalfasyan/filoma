@@ -17,7 +17,52 @@ app = typer.Typer(
     help="Interactive filesystem profiling and analysis tool",
     rich_markup_mode="rich",
 )
+brain_app = typer.Typer(
+    name="brain",
+    help="Intelligent filesystem analysis using AI",
+    rich_markup_mode="rich",
+)
+app.add_typer(brain_app)
 console = Console()
+
+
+@brain_app.command("chat")
+def brain_chat(
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="AI model to use"),
+) -> None:
+    """Start an interactive chat session with the Filoma Brain."""
+    from filoma.brain.cli import chat as start_chat
+
+    start_chat(model=model)
+
+
+@app.command()
+def main(path: Optional[str] = typer.Argument(None, help="Starting directory (defaults to current directory)")) -> None:
+    """Interactive filesystem profiling and analysis tool.
+
+    Navigate directories with arrow keys and probe files/folders using filoma's analysis functions.
+    """
+    try:
+        # Determine starting directory
+        if path is not None:
+            start_dir = Path(path).resolve()
+            if not start_dir.exists():
+                console.print(f"[red]Error: Directory '{path}' does not exist[/red]")
+                raise typer.Exit(1)
+            if not start_dir.is_dir():
+                console.print(f"[red]Error: '{path}' is not a directory[/red]")
+                raise typer.Exit(1)
+        else:
+            start_dir = Path.cwd()
+
+        # Start the interactive browser
+        browse_and_probe(start_dir)
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Goodbye! 👋[/yellow]")
+    except Exception as e:
+        console.print(f"\n[red]Unexpected error: {e}[/red]")
+        raise typer.Exit(1)
 
 
 def show_welcome(current_dir: Path) -> None:
@@ -708,39 +753,10 @@ def execute_probe_action(action: str, path: Path) -> None:
         input()
 
 
-@app.command()
-def main(path: Optional[str] = typer.Argument(None, help="Starting directory (defaults to current directory)")) -> None:
-    """Interactive filesystem profiling and analysis tool.
-
-    Navigate directories with arrow keys and probe files/folders using filoma's analysis functions.
-    """
-    try:
-        # Determine starting directory
-        if path is not None:
-            start_dir = Path(path).resolve()
-            if not start_dir.exists():
-                console.print(f"[red]Error: Directory '{path}' does not exist[/red]")
-                raise typer.Exit(1)
-            if not start_dir.is_dir():
-                console.print(f"[red]Error: '{path}' is not a directory[/red]")
-                raise typer.Exit(1)
-        else:
-            start_dir = Path.cwd()
-
-        # Start the interactive browser
-        browse_and_probe(start_dir)
-
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Goodbye! 👋[/yellow]")
-    except Exception as e:
-        console.print(f"\n[red]Unexpected error: {e}[/red]")
-        raise typer.Exit(1)
-
-
-if __name__ == "__main__":
+def cli() -> None:
+    """Entry point for the filoma CLI."""
     app()
 
 
-def cli() -> None:
-    """Entry point for the filoma CLI."""
+if __name__ == "__main__":
     app()

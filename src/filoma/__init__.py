@@ -43,6 +43,7 @@ def __getattr__(name: str):
         "directories": "filoma.directories",
         "files": "filoma.files",
         "images": "filoma.images",
+        "brain": "filoma.brain",
         # common classes placed in submodules (module:attr)
         "DataFrame": "filoma.dataframe:DataFrame",
         "DirectoryProfiler": "filoma.directories.directory_profiler:DirectoryProfiler",

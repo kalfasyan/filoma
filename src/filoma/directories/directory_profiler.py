@@ -620,7 +620,7 @@ class DirectoryProfiler:
             # increase the file search depth by 1.
             file_max_depth = None if max_depth is None else max_depth + 1
             # When using fd in auto mode, prefer flags that match a raw
-            # traversal (include hidden files, don't honor ignore files, follow symlinks)
+            # traversal (include hidden files, don't honor ignore files, but don't follow symlinks)
             fd_find_kwargs: dict = {
                 "path": path,
                 "file_types": ["f"],
@@ -629,7 +629,7 @@ class DirectoryProfiler:
                 "threads": threads,
             }
             if self.search_backend == "auto" or self.config.fd_no_ignore:
-                fd_find_kwargs.update({"search_hidden": True, "no_ignore": True, "follow_links": True})
+                fd_find_kwargs.update({"search_hidden": True, "no_ignore": True, "follow_links": False})
 
             all_files = self.fd_integration.find(**fd_find_kwargs)
 
@@ -644,7 +644,7 @@ class DirectoryProfiler:
                 threads=threads,
                 search_hidden=True if self.search_backend == "auto" else False,
                 no_ignore=True if self.search_backend == "auto" else False,
-                follow_links=True if self.search_backend == "auto" else False,
+                follow_links=False,  # Don't follow symlinks by default
             )
 
             # Convert to Path objects for analysis
@@ -716,7 +716,7 @@ class DirectoryProfiler:
                     max_results=sample_size,
                     search_hidden=True,
                     no_ignore=True,
-                    follow_links=True,
+                    follow_links=False,
                     absolute_paths=self.return_absolute_paths,
                 )
                 samples["fd_dirs"] = fd.find(
@@ -725,7 +725,7 @@ class DirectoryProfiler:
                     max_results=sample_size,
                     search_hidden=True,
                     no_ignore=True,
-                    follow_links=True,
+                    follow_links=False,
                     absolute_paths=self.return_absolute_paths,
                 )
         except Exception:
@@ -977,9 +977,9 @@ class DirectoryProfiler:
             if is_network_fs and self.use_async:
                 # Default concurrency limit can be tuned; use configured values
                 if RUST_ASYNC_AVAILABLE:
-                    # Decide Rust flag defaults: when search_backend is 'auto', prefer fd-like semantics
+                    # Decide Rust flag defaults: when search_backend is 'auto', scan hidden/ignored but don't follow symlinks
                     if self.search_backend == "auto":
-                        follow = True
+                        follow = False
                         hidden = True
                         no_ignore = True
                     else:
@@ -1002,7 +1002,7 @@ class DirectoryProfiler:
                     # Async variant not available; fall back to parallel or sequential Rust
                     if self.use_parallel and RUST_PARALLEL_AVAILABLE:
                         if self.search_backend == "auto":
-                            follow = True
+                            follow = False
                             hidden = True
                             no_ignore = True
                         else:
@@ -1025,7 +1025,7 @@ class DirectoryProfiler:
                 # User explicitly disabled async; prefer parallel or sequential Rust
                 if self.use_parallel and RUST_PARALLEL_AVAILABLE:
                     if self.search_backend == "auto":
-                        follow = True
+                        follow = False
                         hidden = True
                         no_ignore = True
                     else:
@@ -1044,7 +1044,7 @@ class DirectoryProfiler:
                     )
                 else:
                     if self.search_backend == "auto":
-                        follow = True
+                        follow = False
                         hidden = True
                         no_ignore = True
                     else:
@@ -1062,7 +1062,7 @@ class DirectoryProfiler:
                     )
             else:
                 if self.search_backend == "auto":
-                    follow = True
+                    follow = False
                     hidden = True
                     no_ignore = True
                 else:
