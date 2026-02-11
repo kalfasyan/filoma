@@ -84,18 +84,32 @@ def probe_directory(ctx: RunContext[Any], path: str, max_depth: Optional[int] = 
                 effective_max_depth = 2
                 depth_was_limited = True
 
-        df = filoma.probe_to_df(str(p), max_depth=effective_max_depth, enrich=True)
-        row_count = len(df)
-        cols = list(df.columns)
+        # Use DirectoryProfiler to get accurate summary data
+        from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
 
-        # Create a bold, unmistakable technical summary
-        ext_counts_raw = df.extension_counts().head(10).to_dict()
+        config = DirectoryProfilerConfig(build_dataframe=True)
+        profiler = DirectoryProfiler(config)
+        analysis = profiler.probe(str(p), max_depth=effective_max_depth)
+
+        # Get accurate counts from summary (not DataFrame which may be incomplete)
+        file_count = analysis.summary.get("total_files", 0)
+        folder_count = analysis.summary.get("total_folders", 0)
+
+        # Get DataFrame for extension analysis
+        df = analysis.to_df()
+        if df is not None:
+            cols = list(df.columns)
+            ext_counts_raw = df.extension_counts().head(10).to_dict()
+        else:
+            cols = []
+            ext_counts_raw = {}
 
         # Build the report
         report = (
             f"REPORT FOR: {p}\n"
             f"--------------------------------------------------\n"
-            f"TOTAL FILES FOUND: {row_count}\n"
+            f"TOTAL FILES FOUND: {file_count}\n"
+            f"TOTAL FOLDERS: {folder_count}\n"
             f"--------------------------------------------------\n"
             f"NOTE: The list below shows ONLY the top 10 extensions.\n"
             f"DO NOT SUM THESE NUMBERS. USE THE TOTAL ABOVE.\n\n"
