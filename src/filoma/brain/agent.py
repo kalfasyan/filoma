@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any, List, Optional, Union
 
 from loguru import logger
-from pydantic_ai import Agent, RunContext
+from pydantic_ai import Agent, RunContext, ModelSettings
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models import Model
 
@@ -24,10 +24,76 @@ class FilomaDeps:
     """Dependencies for the FilomaAgent."""
 
     working_dir: str = os.getcwd()
+    current_df: Optional[Any] = None
 
 
 class FilomaAgent:
     """An intelligent agent for interacting with filoma."""
+
+    API_REFERENCE = """
+COMPLETE TOOL LIST (exhaustive - no other operations exist):
+
+1. count_files(path: str = ".") -> str
+   Returns a report of total files and folders in path (full recursive scan).
+
+2. probe_directory(path: str = ".", max_depth: int = None, ignore_safety_limits: bool = False) -> str
+   Summarizes a directory (top extensions, file/folder counts). Use ignore_safety_limits=True for deep scans of known large dirs.
+   
+3. find_duplicates(path: str = ".", ignore_safety_limits: bool = False) -> str
+   Finds duplicate files in a directory.
+   
+4. get_file_info(path: str) -> str
+   Retrieves detailed technical metadata (JSON) for a specific file.
+
+5. search_files(path: str = ".", pattern: str = None, extension: str = None, min_size: str = None) -> str
+   Searches for files matching a regex pattern, extension (no dot), or minimum size (e.g., '1M').
+   automatically loads results into a DataFrame for further analysis.
+
+6. get_directory_tree(path: str) -> str
+   Lists immediate contents (files/folders) of a directory (non-recursive). Good for initial exploration.
+
+7. analyze_image(path: str) -> str
+   Performs specialized analysis on an image (shape, dtype, stats).
+
+8. analyze_dataframe(operation: str, **kwargs) -> str
+   Perform operations on the currently loaded search results (DataFrame).
+   The DataFrame is automatically loaded after running search_files.
+   Available operations:
+   
+   a) 'filter_by_extension' - Keep only files with specific extension
+      Example: analyze_dataframe(operation='filter_by_extension', extension='py')
+      Returns: Count of filtered files
+      
+   b) 'filter_by_pattern' - Keep only files matching a regex pattern
+      Example: analyze_dataframe(operation='filter_by_pattern', pattern='test.*')
+      Returns: Count of filtered files
+      
+   c) 'sort_by_size' - Sort files by size (small to large or vice versa)
+      Example: analyze_dataframe(operation='sort_by_size', ascending=False)
+      Returns: Top 10 files with their sizes in human-readable format
+      
+   d) 'head' - Show first N rows of the DataFrame
+      Example: analyze_dataframe(operation='head', n=10)
+      Returns: JSON with paths, sizes, and other metadata for first N files
+      
+   e) 'summary' - Get statistics about the DataFrame
+      Example: analyze_dataframe(operation='summary')
+      Returns: Total count, top extensions, top directories
+   
+   Note: Each filter operation updates the DataFrame, so multiple filters can be chained.
+
+9. export_dataframe(path: str, format: str = "csv") -> str
+   Exports the current DataFrame to a file (csv, json, or parquet format).
+   Example: export_dataframe(path='results.csv', format='csv')
+   Supported formats: 'csv', 'json', 'parquet'
+
+10. list_available_tools() -> str
+    Returns this API reference. Use this if you are unsure of your capabilities.
+
+IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-ONLY analysis tool (except for export_dataframe).
+"""
+
+    FEW_SHOT_EXAMPLES = ""
 
     def __init__(
         self,
@@ -56,7 +122,10 @@ class FilomaAgent:
                 tools.get_file_info,
                 tools.search_files,
                 tools.get_directory_tree,
+                tools.list_available_tools,
                 tools.analyze_image,
+                tools.analyze_dataframe,
+                tools.export_dataframe,
             ],
         )
 
@@ -77,13 +146,28 @@ class FilomaAgent:
                 "\n\n"
                 f"{knowledge_base}\n"
                 "\n\n"
+                f"{self.API_REFERENCE}\n"
+                "\n\n"
+                f"{self.FEW_SHOT_EXAMPLES}\n"
+                "\n\n"
                 f"CONTEXT: Your current working directory is: {ctx.deps.working_dir}\n"
                 "\n\n"
+                "CRITICAL INSTRUCTIONS FOR HELP REQUESTS:\n"
+                "- When the user asks 'help', 'list tools', 'show tools', 'what can you do', or similar, "
+                "ALWAYS call the list_available_tools() tool.\n"
+                "- Do NOT respond with generic text. Call the tool to show the complete API reference.\n"
+                "\n\n"
                 "CRITICAL INSTRUCTIONS FOR FILE COUNTING:\n"
-                "- When the user asks 'how many files' or wants a file count, ALWAYS use the count_files tool.\n"
-                "- The count_files tool performs a complete scan of the entire directory tree.\n"
-                "- Never use probe_directory for simple file counting - use count_files instead.\n"
-                "- Report the exact number from count_files. Do not estimate or modify it.\n"
+                "- count_files tool: Counts ALL files in a directory (complete recursive scan).\n"
+                "  Use ONLY when user asks for total file count without filters.\n"
+                "  Examples: 'how many files', 'count all files', 'total files in this directory'\n"
+                "- search_files tool: Finds files matching specific criteria (extension, pattern, size).\n"
+                "  Use when user wants to count files of a SPECIFIC TYPE.\n"
+                "  Examples: 'count .py files', 'how many markdown files', 'list all .txt files'\n"
+                "- IMPORTANT: If user asks 'count .py files', use search_files(extension='py') and report the count.\n"
+                "  Do NOT use count_files for specific file types - it counts everything.\n"
+                "- After search_files runs, the result message tells you how many files were found.\n"
+                "  Report that exact number to the user.\n"
                 "\n\n"
                 "CRITICAL INSTRUCTIONS FOR PATH HANDLING:\n"
                 "- If the user doesn't specify a directory, DEFAULT to path='.' (the current working directory).\n"
@@ -99,19 +183,49 @@ class FilomaAgent:
                 "1. When reporting file counts, use the EXACT number from the tool output.\n"
                 "2. DO NOT calculate or estimate.\n"
                 "3. Be precise and technical.\n"
-                "4. Include the comma separator for large numbers (e.g., '77,917' not '77917')."
+                "4. Include the comma separator for large numbers (e.g., '77,917' not '77917').\n"
+                "5. For count_files output: Look for 'TOTAL FILES:' line and report that number.\n"
+                "6. For search_files output: Look for 'X found' or 'X results' and report that number.\n"
+                "7. Always include the actual number in your response, not just a vague reference.\n"
                 "\n\n"
                 "CRITICAL INSTRUCTIONS FOR TOOLS:\n"
-                "- You ONLY have access to these tools: count_files, probe_directory, find_duplicates, "
-                "get_file_info, search_files, get_directory_tree, analyze_image.\n"
-                "- search_files: Use 'pattern' for filenames (e.g. 'README.md'), 'extension' for suffixes "
-                "without dots (e.g. 'py').\n"
-                "- get_directory_tree: Use this to see what's in a folder before deep-diving.\n"
-                "- NEVER mention or suggest other tools not in this list. They do not exist.\n"
+                "- You ONLY have access to the tools listed in the COMPLETE TOOL LIST above.\n"
                 "- ALWAYS use a tool call when you need information. Do NOT output raw JSON text in your response; "
                 "use the proper tool calling mechanism.\n"
+                "- IMPORTANT: When you want to call a tool, use the tool calling feature provided by your interface.\n"
+                "- DO NOT write tool calls as JSON text strings in your response. This will not execute the tool.\n"
+                '- Example of WRONG behavior: Outputting \'{"name": "search_files", ...}\' as text.\n'
+                "- Example of CORRECT behavior: Actually calling the search_files tool through the tool calling mechanism.\n"
                 "- If you cannot do something with the available tools, honestly tell the user it is "
                 "outside your current capabilities."
+                "\n\n"
+                "CRITICAL INSTRUCTIONS FOR OUTPUT VISIBILITY:\n"
+                "- The user CANNOT see the direct output of the tools. They only see your final response.\n"
+                "- You MUST explicitly list the results found by the tools in your response.\n"
+                "- Do NOT say 'as listed above' or 'see the output' unless you have repeated the information in your message.\n"
+                "- When listing files, provide the actual filenames from the search results."
+                "\n\n"
+                "CRITICAL INSTRUCTIONS FOR DATAFRAME WORKFLOWS:\n"
+                "- WHEN DATAFRAME IS LOADED: After running search_files, a DataFrame is automatically loaded with file metadata.\n"
+                "- WHAT THE DATAFRAME CONTAINS: Paths, sizes, extensions, modification dates, and other file properties.\n"
+                "- HOW TO USE IT:\n"
+                "  1. VIEWING DATA: Use analyze_dataframe(operation='head', n=10) to see file details\n"
+                "  2. SORTING: Use analyze_dataframe(operation='sort_by_size', ascending=False) for largest files first\n"
+                "  3. FILTERING: Use analyze_dataframe(operation='filter_by_extension', extension='py') to narrow results\n"
+                "  4. STATISTICS: Use analyze_dataframe(operation='summary') for counts and breakdowns\n"
+                "  5. EXPORTING: Use export_dataframe(path='results.csv') to save results\n"
+                "- CHAINING OPERATIONS: Each filter operation updates the DataFrame, so you can:\n"
+                "  Step 1: search_files(extension='md')\n"
+                "  Step 2: analyze_dataframe(operation='sort_by_size', ascending=False)\n"
+                "  Step 3: analyze_dataframe(operation='head', n=5) to see top 5 largest .md files\n"
+                "- FOLLOW-UP REQUESTS: When a user makes a follow-up request about results from a previous search:\n"
+                "  * For 'show paths' or 'list them': Use analyze_dataframe(operation='head', n=20)\n"
+                "  * For 'show sizes': Use analyze_dataframe(operation='sort_by_size')\n"
+                "  * For 'largest files': Use analyze_dataframe(operation='sort_by_size', ascending=False)\n"
+                "  * NEVER output tool call JSON as plain text. Always use the actual tool calling mechanism.\n"
+                "  * If the dataframe is already loaded from a previous search, use it instead of searching again.\n"
+                "- EXECUTE ONE TOOL AT A TIME. Do not output multiple tool calls in one message.\n"
+                "- Wait for the result of one operation before calling the next."
             )
 
     def _resolve_model(
@@ -162,7 +276,11 @@ class FilomaAgent:
             # If it doesn't have the prefix, add it for pydantic-ai resolution
             if ":" not in m_name:
                 m_name = f"mistral:{m_name}"
-            return m_name
+
+            # Mistral via OpenAI-compatible API in pydantic-ai
+            from pydantic_ai.models.openai import OpenAIChatModel
+
+            return OpenAIChatModel(model_name=m_name, api_key=mistral_key)
 
         # Default Fallback
         logger.warning("No AI configuration found. Defaulting to 'llama3.1:8b'.")
@@ -181,8 +299,16 @@ class FilomaAgent:
         if deps is None:
             deps = FilomaDeps()
 
+        # Deterministic settings for tool usage
+        settings = ModelSettings(temperature=0.1)
+
         # Simple run - pydantic-ai returns an AgentRunResult
-        result = await self.agent.run(prompt, deps=deps, message_history=message_history)
+        result = await self.agent.run(
+            prompt,
+            deps=deps,
+            message_history=message_history,
+            model_settings=settings,
+        )
 
         # Latest pydantic-ai (v1.58+) stores the final response in .data
         # We ensure it's easily accessible for the caller.

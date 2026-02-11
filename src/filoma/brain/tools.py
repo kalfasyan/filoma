@@ -248,6 +248,19 @@ def search_files(
         if not results:
             return f"No files found matching the criteria in '{p}'."
 
+        # LOAD INTO DATAFRAME
+        from filoma.dataframe import DataFrame
+
+        # Create DataFrame from results
+        df = DataFrame({"path": results})
+        # Enrich with metadata (size, dates, etc.)
+        # Only enrich if result set is reasonable size to avoid long waits
+        if len(results) < 10000:
+            logger.info(f"Enriching DataFrame with {len(results)} files...")
+            df.enrich(inplace=True)
+
+        ctx.deps.current_df = df
+
         # If few results, use absolute paths for clarity
         use_absolute = len(results) < 20
         if use_absolute:
@@ -264,6 +277,8 @@ def search_files(
 
         if use_absolute:
             report += "\nNote: Showing absolute paths because result count is small."
+
+        report += "\n\n✅ Results loaded into DataFrame. You can now use 'analyze_dataframe' to filter, sort, or summarize."
 
         return report
 
@@ -313,6 +328,21 @@ def get_directory_tree(ctx: RunContext[Any], path: str) -> str:
         return f"Error listing directory: {str(e)}"
 
 
+def list_available_tools(ctx: RunContext[Any]) -> str:
+    """List all available tools and their capabilities.
+
+    Use this if you are unsure of what operations are possible.
+    """
+    # Note: We import FilomaAgent here to avoid circular imports if necessary,
+    # but since this is inside tools.py and FilomaAgent is in agent.py
+    # which imports tools, we should be careful.
+    # However, we can just hardcode or pass it.
+    # For now, let's provide a clear manual list to be safe.
+    from .agent import FilomaAgent
+
+    return FilomaAgent.API_REFERENCE
+
+
 def analyze_image(ctx: RunContext[Any], path: str) -> str:
     """Perform specialized analysis on an image file.
 
@@ -347,3 +377,118 @@ def analyze_image(ctx: RunContext[Any], path: str) -> str:
 
     except Exception as e:
         return f"Error analyzing image: {str(e)}"
+
+
+def analyze_dataframe(ctx: RunContext[Any], operation: str, **kwargs) -> str:
+    """Perform operations on the currently loaded search results (DataFrame).
+
+    Operations:
+    - 'filter_by_extension' (arg: extension)
+    - 'filter_by_pattern' (arg: pattern)
+    - 'sort_by_size' (arg: ascending=True/False)
+    - 'head' (arg: n)
+    - 'summary' (no args) - returns counts by extension and directory
+
+    Args:
+        ctx: The run context.
+        operation: The name of the operation to perform.
+        **kwargs: Arguments for the operation.
+    """
+    if ctx.deps.current_df is None:
+        return "Error: No DataFrame loaded. Please run 'search_files' first to populate the DataFrame."
+
+    df = ctx.deps.current_df
+    try:
+        if operation == "filter_by_extension":
+            ext = kwargs.get("extension")
+            if not ext:
+                return "Error: 'extension' argument required for filter_by_extension"
+            df = df.filter_by_extension(ext)
+            ctx.deps.current_df = df
+            return f"Filtered DataFrame to {len(df)} files with extension '{ext}'."
+
+        elif operation == "filter_by_pattern":
+            pattern = kwargs.get("pattern")
+            if not pattern:
+                return "Error: 'pattern' argument required for filter_by_pattern"
+            df = df.filter_by_pattern(pattern)
+            ctx.deps.current_df = df
+            return f"Filtered DataFrame to {len(df)} files matching pattern '{pattern}'."
+
+        elif operation == "sort_by_size":
+            ascending = kwargs.get("ascending", False)
+            # Check if size_bytes exists (it should if enriched)
+            if "size_bytes" not in df.columns:
+                df.enrich(inplace=True)
+
+            df = df.sort("size_bytes", descending=not ascending)
+            ctx.deps.current_df = df
+
+            # Show top results after sort
+            top_n = df.head(10).to_dict()
+            paths = top_n.get("path", [])
+            sizes = top_n.get("size_bytes", [])
+
+            report = f"Sorted DataFrame by size ({'ascending' if ascending else 'descending'}). Top 10 files:\n"
+            for p, s in zip(paths, sizes):
+                size_str = f"{s / 1024 / 1024:.2f} MB" if s > 1024 * 1024 else f"{s / 1024:.2f} KB"
+                report += f"- {p} ({size_str})\n"
+            return report
+
+        elif operation == "head":
+            n = int(kwargs.get("n", 5))
+            head_df = df.head(n)
+            # Convert to dictionary for readable JSON output
+            data = head_df.to_dict()
+            return f"First {n} rows:\n{json.dumps(data, indent=2, default=str)}"
+
+        elif operation == "summary":
+            count = len(df)
+            ext_counts = df.extension_counts().head(5).to_dict()
+
+            # Directory counts if possible
+            try:
+                dir_counts = df.directory_counts().head(5).to_dict()
+            except Exception:
+                dir_counts = "N/A"
+
+            summary = {"total_files": count, "top_extensions": ext_counts, "top_directories": dir_counts}
+            return f"DataFrame Summary:\n{json.dumps(summary, indent=2)}"
+
+        else:
+            return f"Error: Unknown operation '{operation}'. Supported: filter_by_extension, filter_by_pattern, sort_by_size, head, summary."
+
+    except Exception as e:
+        return f"Error performing dataframe operation: {str(e)}"
+
+
+def export_dataframe(ctx: RunContext[Any], path: str, format: str = "csv") -> str:
+    """Export the current DataFrame to a file.
+
+    Args:
+        ctx: The run context.
+        path: Path to save the file.
+        format: 'csv', 'json', or 'parquet'.
+    """
+    if ctx.deps.current_df is None:
+        return "Error: No DataFrame loaded. Please run 'search_files' first."
+
+    df = ctx.deps.current_df
+    try:
+        p = Path(path).expanduser().resolve()
+
+        if format.lower() == "csv":
+            df.save_csv(p)
+        elif format.lower() == "parquet":
+            df.save_parquet(p)
+        elif format.lower() == "json":
+            # Polars doesn't have direct save_json in wrapper, use to_pandas or internal write_json
+            # Filoma DataFrame wrapper doesn't expose save_json, so use internal polars
+            df._df.write_json(str(p))
+        else:
+            return f"Error: Unsupported format '{format}'. Use csv, json, or parquet."
+
+        return f"Successfully exported DataFrame to {p}"
+
+    except Exception as e:
+        return f"Error exporting DataFrame: {str(e)}"

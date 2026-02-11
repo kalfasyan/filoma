@@ -1,9 +1,11 @@
 """Brain CLI module for filoma."""
 
 import asyncio
+import json
 from typing import Optional
 
 from loguru import logger
+from pydantic_ai.messages import ModelResponse, TextPart
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
@@ -49,22 +51,55 @@ async def run_chat_loop(model: Optional[str] = None):
                 result = await agent.run(user_input, deps=deps, message_history=message_history)
                 message_history = result.new_messages()
 
-                # Robust extraction for pydantic-ai v1.58.0 RunResult
-                # Try every known attribute for result text
-                if hasattr(result, "data"):
-                    response_text = str(result.data)
-                elif hasattr(result, "output"):
-                    # Some versions use .output
-                    response_text = str(result.output)
-                elif hasattr(result, "return_value"):
-                    # Some use .return_value
-                    response_text = str(result.return_value)
-                else:
-                    # Last resort: inspect the object attributes
-                    # This helps debug what attributes ACTUALLY exist if we crash again
-                    logger.debug(f"Available attributes on result object: {dir(result)}")
-                    # Try to stringify the whole object if nothing else works, but clean it up
-                    response_text = str(result)
+                # Extract the final text response from pydantic-ai v1.58.0 AgentRunResult
+                # Use result.output as the primary source (pydantic-ai handles extraction)
+                response_text = str(result.output) if result.output else None
+
+                # If result.output is empty or None, manually extract from messages
+                if not response_text or response_text == "None":
+                    for msg in reversed(result.all_messages()):
+                        if isinstance(msg, ModelResponse):
+                            for part in msg.parts:
+                                if isinstance(part, TextPart):
+                                    response_text = part.content
+                                    break
+                        if response_text:
+                            break
+
+                # Final fallback
+                if not response_text:
+                    response_text = "No response"
+
+                # Check if response is JSON-as-text (a known issue with some model generations)
+                # This happens when the model outputs tool call parameters as text instead of making actual tool calls
+                response_stripped = response_text.strip()
+
+                # Handle cases where model adds prefixes like <|python_tag|> before JSON
+                json_start = response_stripped.find("{")
+                json_end = response_stripped.rfind("}")
+
+                if json_start >= 0 and json_end > json_start:
+                    potential_json = response_stripped[json_start : json_end + 1]
+
+                    # Try to fix Python syntax (None, True, False) to JSON (null, true, false)
+                    json_fixed = potential_json.replace(": None", ": null")
+                    json_fixed = json_fixed.replace(": True", ": true")
+                    json_fixed = json_fixed.replace(": False", ": false")
+
+                    try:
+                        parsed = json.loads(json_fixed)
+                        if isinstance(parsed, dict) and "name" in parsed and "parameters" in parsed:
+                            tool_name = parsed["name"]
+                            logger.warning(f"Agent generated tool call as text instead of executing: {tool_name}")
+                            console.print("\n[bold magenta]Brain[/bold magenta]")
+                            console.print(
+                                f"[yellow]⚠️  The model tried to call '{tool_name}' but generated text instead of executing the tool.[/yellow]"
+                            )
+                            console.print("[dim]This is a known issue with some models. Try rephrasing your question or being more specific.[/dim]")
+                            continue
+                    except (json.JSONDecodeError, ValueError, KeyError):
+                        # Not a tool call JSON, treat as normal response
+                        pass
 
             console.print("\n[bold magenta]Brain[/bold magenta]")
             console.print(Markdown(response_text))
