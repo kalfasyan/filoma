@@ -95,9 +95,16 @@ if __name__ == "__main__":
 
 The agent is equipped with the following "eyes and hands":
 
+- **`count_files`**: Returns a report of total files and folders in path (full recursive scan).
 - **`probe_directory`**: Scans a directory and returns a summary of extensions, file counts, and depth.
 - **`find_duplicates`**: Runs Filoma's deduplication engine (Exact, Text, and Image) and reports findings.
-- **`get_file_info`**: Retrieves detailed technical metadata for a specific file path.
+- **`get_file_info`**: Retrieves detailed technical metadata (JSON) for a specific file path.
+- **`search_files`**: Searches for files matching a regex pattern, extension, or minimum size. Automatically loads results into a DataFrame.
+- **`get_directory_tree`**: Lists immediate contents (files/folders) of a directory (non-recursive).
+- **`analyze_image`**: Performs specialized analysis on an image (shape, dtype, stats).
+- **`analyze_dataframe`**: Performs operations on the currently loaded search results (filter, sort, summarize, etc.).
+- **`export_dataframe`**: Exports the current DataFrame to a file (csv, json, or parquet).
+- **`list_available_tools`**: Returns the complete API reference for the agent.
 
 ---
 
