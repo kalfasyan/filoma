@@ -27,13 +27,16 @@ release-major:  ## Bump major version and create release
 
 # Development
 test:  ## Run tests (parallel by default using pytest-xdist)
-	uv run --extra dev pytest -n auto tests/
+	uv run poe test
 
 lint:  ## Run linting
-	uv run --extra dev ruff check .
+	uv run poe lint
 
 lint-fix:  ## Run linting and auto-fix issues
-	uv run --extra dev ruff check . --fix
+	uv run poe lint-fix
+
+precommit: ## Run pre-commit hooks on all files
+	uv run poe precommit
 
 build:  ## Build package
 	uv build
@@ -46,20 +49,20 @@ brain-install:  ## Install brain dependencies
 	uv sync --extra brain
 
 brain-poc: brain-install  ## Run the Brain POC
-	PYTHONPATH=src uv run python examples/brain_poc.py
+	uv run poe brain-poc
 
 brain-chat: brain-install  ## Start an interactive chat with the Filoma Brain
-	PYTHONPATH=src uv run filoma brain chat
+	uv run poe brain-chat
 
 brain-test: brain-install  ## Run the Brain tests
-	PYTHONPATH=src uv run pytest tests/test_brain_poc_init.py
+	uv run poe brain-test
 
 # Quick development tasks
 dev-install:  ## Install package in development mode with dev dependencies
 	uv sync --extra dev
 
 benchmark:  ## Run performance benchmark (Python vs Rust)
-	python scripts/benchmark.py
+	uv run poe benchmark
 
 # Documentation targets
 .PHONY: docs-deps docs-build docs-serve docs-clean

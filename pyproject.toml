@@ -24,6 +24,7 @@ brain = [
     "python-dotenv>=1.0.0",
 ]
 dev = [
+    "poethepoet>=0.24.0",
     "pytest-asyncio>=0.23.0",
     "pytest>=8.3.5",
     "pytest-xdist>=3.2.0",
@@ -110,8 +111,19 @@ filterwarnings = [
 ]
 asyncio_mode = "auto"
 
+[tool.poe.tasks]
+test = "pytest -n auto tests/"
+lint = "ruff check ."
+lint-fix = "ruff check . --fix"
+precommit = "pre-commit run --all-files"
+brain-poc = { cmd = "python examples/brain_poc.py", env = { PYTHONPATH = "src" } }
+brain-chat = { cmd = "filoma brain chat", env = { PYTHONPATH = "src" } }
+brain-test = { cmd = "pytest tests/test_brain_poc_init.py", env = { PYTHONPATH = "src" } }
+benchmark = "python scripts/benchmark.py"
+
 [dependency-groups]
 dev = [
+    "poethepoet>=0.24.0",
     "ipykernel>=6.30.1",
     "maturin>=1.10.2",
     "mkdocs>=1.6.1",
