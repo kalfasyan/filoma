@@ -393,6 +393,7 @@ def analyze_dataframe(ctx: RunContext[Any], operation: str, **kwargs) -> str:
         ctx: The run context.
         operation: The name of the operation to perform.
         **kwargs: Arguments for the operation.
+
     """
     if ctx.deps.current_df is None:
         return "Error: No DataFrame loaded. Please run 'search_files' first to populate the DataFrame."
@@ -469,6 +470,7 @@ def export_dataframe(ctx: RunContext[Any], path: str, format: str = "csv") -> st
         ctx: The run context.
         path: Path to save the file.
         format: 'csv', 'json', or 'parquet'.
+
     """
     if ctx.deps.current_df is None:
         return "Error: No DataFrame loaded. Please run 'search_files' first."

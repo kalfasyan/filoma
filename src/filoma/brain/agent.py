@@ -38,10 +38,10 @@ COMPLETE TOOL LIST (exhaustive - no other operations exist):
 
 2. probe_directory(path: str = ".", max_depth: int = None, ignore_safety_limits: bool = False) -> str
    Summarizes a directory (top extensions, file/folder counts). Use ignore_safety_limits=True for deep scans of known large dirs.
-   
+
 3. find_duplicates(path: str = ".", ignore_safety_limits: bool = False) -> str
    Finds duplicate files in a directory.
-   
+
 4. get_file_info(path: str) -> str
    Retrieves detailed technical metadata (JSON) for a specific file.
 
@@ -59,27 +59,27 @@ COMPLETE TOOL LIST (exhaustive - no other operations exist):
    Perform operations on the currently loaded search results (DataFrame).
    The DataFrame is automatically loaded after running search_files.
    Available operations:
-   
+
    a) 'filter_by_extension' - Keep only files with specific extension
       Example: analyze_dataframe(operation='filter_by_extension', extension='py')
       Returns: Count of filtered files
-      
+
    b) 'filter_by_pattern' - Keep only files matching a regex pattern
       Example: analyze_dataframe(operation='filter_by_pattern', pattern='test.*')
       Returns: Count of filtered files
-      
+
    c) 'sort_by_size' - Sort files by size (small to large or vice versa)
       Example: analyze_dataframe(operation='sort_by_size', ascending=False)
       Returns: Top 10 files with their sizes in human-readable format
-      
+
    d) 'head' - Show first N rows of the DataFrame
       Example: analyze_dataframe(operation='head', n=10)
       Returns: JSON with paths, sizes, and other metadata for first N files
-      
+
    e) 'summary' - Get statistics about the DataFrame
       Example: analyze_dataframe(operation='summary')
       Returns: Total count, top extensions, top directories
-   
+
    Note: Each filter operation updates the DataFrame, so multiple filters can be chained.
 
 9. export_dataframe(path: str, format: str = "csv") -> str

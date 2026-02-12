@@ -26,6 +26,7 @@
 <p align="center">
   <a href="docs/getting-started/installation.md">Installation</a> •
   <a href="https://filoma.readthedocs.io/en/latest/">Documentation</a> •
+  <a href="docs/guides/brain.md">Agentic Analysis</a> •
   <a href="docs/guides/cli.md">Interactive CLI</a> •
   <a href="docs/getting-started/quickstart.md">Quickstart</a> •
   <a href="docs/tutorials/cookbook.md">Cookbook</a> •
@@ -47,6 +48,7 @@
 - **📊 Rich Directory Analysis**: Get detailed statistics on file counts, extensions, sizes, and more.
 - **🔍 Smart File Search**: Use regex and glob patterns to find files with `FdFinder`.
 - **🖼️ File/Image Profiling**: Extract metadata and statistics from various file formats.
+- **🧠 Agentic Analysis**: Natural language interface for file discovery, deduplication, and metadata inspection. [📖 **Brain Guide →**](docs/guides/brain.md)
 - **🏗️ Architectural Clarity**: High-level visual flows for discovery and processing. [📖 **Architecture Documentation →**](docs/reference/architecture.md)
 - **🖥️ Interactive CLI**: Beautiful terminal interface for filesystem exploration and DataFrame analysis [📖 **CLI Documentation →**](docs/guides/cli.md)
 
@@ -252,6 +254,23 @@ shape: (3, 2)
 └────────────┴─────┘
 ```
 </details>
+
+### 5. 🧠 Filoma Brain (Agentic Analysis)
+Connect a "brain" to your filesystem. Filoma integrates with [PydanticAI](https://ai.pydantic.dev/) to allow you to interact with your files using natural language. The agent has tools to scan directories, find duplicates, and inspect metadata.
+
+```python
+from filoma.brain import get_agent
+
+# "Find duplicate images in ./data and tell me how many groups you found"
+agent = get_agent()
+await agent.run("Find duplicate images...")
+```
+
+Or chat directly from the terminal:
+```bash
+filoma brain chat
+```
+[📖 **Read the Agentic Analysis Guide →**](docs/guides/brain.md)
 
 ## Performance & Benchmarks
 

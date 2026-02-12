@@ -36,6 +36,7 @@ Navigate with arrow keys, probe files and directories, and analyze DataFrames—
 - **Architectural Clarity**: High-level visual flows for discovery and processing
 - **Extensible**: Low-level profilers still accessible
 - **Interactive CLI**: Beautiful terminal interface for exploration and analysis
+- **Agentic Analysis**: Natural language interface for filesystem tasks
 
 ## Start here
 
@@ -45,15 +46,17 @@ Best place to begin is the Demo notebook (see the [`Demo` page](tutorials/demo.m
 2. Learn [Core Concepts](guides/concepts.md)
 3. Explore the [Architecture & Flow](reference/architecture.md)
 4. Explore the [DataFrame Workflow](guides/dataframe.md)
-5. Browse recipes in the [Cookbook](tutorials/cookbook.md)
-6. Try the [Roboflow Dataset Analysis Demo](tutorials/roboflow_demo.md) (real-world computer vision use case)
-7. Dive into the [API Reference](reference/api.md)
+5. Learn about [Filoma Brain](guides/brain.md)
+6. Browse recipes in the [Cookbook](tutorials/cookbook.md)
+7. Try the [Roboflow Dataset Analysis Demo](tutorials/roboflow_demo.md) (real-world computer vision use case)
+8. Dive into the [API Reference](reference/api.md)
 
 ## Common Tasks (TL;DR)
 | Task | Snippet |
 |------|---------|
 | Scan dir | `probe('.')` |
 | DataFrame | `probe_to_df('.')` |
+| Chat with Brain | `filoma brain chat` |
 | Largest N files | see Cookbook |
 | Filter extension | `df.filter_by_extension('.py')` |
 | Add stats | `df.add_file_stats_cols()` |
