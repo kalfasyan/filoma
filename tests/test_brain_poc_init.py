@@ -8,6 +8,8 @@ import filoma
 @pytest.mark.asyncio
 async def test_brain_imports():
     """Test that filoma.brain can be lazily loaded and initialized."""
+    pytest.importorskip("pydantic_ai")
+
     print("Testing filoma.brain lazy loading...")
     try:
         # This should trigger the lazy load
