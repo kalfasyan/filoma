@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any, List, Optional, Union
 
 from loguru import logger
-from pydantic_ai import Agent, RunContext, ModelSettings
+from pydantic_ai import Agent, ModelSettings, RunContext
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models import Model
 
