@@ -95,9 +95,7 @@ def minhash_signature(text: str, num_perm: int = 128, k: int = 3):
             m.update(sh.encode("utf8"))
         return m
     # fallback: return sorted list of small hashes (not true MinHash, but useful for cheap grouping)
-    sig = sorted(
-        int(hashlib.sha1(s.encode("utf8"), usedforsecurity=False).hexdigest()[:8], 16) for s in shingles
-    )
+    sig = sorted(int(hashlib.sha1(s.encode("utf8"), usedforsecurity=False).hexdigest()[:8], 16) for s in shingles)
     return sig
 
 
@@ -113,11 +111,7 @@ def ahash_image(path: str, hash_size: int = 8) -> str:
     """Compute average-hash (aHash) for an image file at `path`."""
     if Image is None:
         raise RuntimeError("Pillow is required for image hashing (install pillow)")
-    img = (
-        Image.open(path)
-        .convert("L")
-        .resize((hash_size, hash_size), Image.Resampling.LANCZOS)
-    )
+    img = Image.open(path).convert("L").resize((hash_size, hash_size), Image.Resampling.LANCZOS)
     pixels = list(img.getdata())
     avg = sum(pixels) / len(pixels)
     bits = 0
@@ -130,11 +124,7 @@ def dhash_image(path: str, hash_size: int = 8) -> str:
     """Compute difference-hash (dHash) for an image file at `path`."""
     if Image is None:
         raise RuntimeError("Pillow is required for image hashing (install pillow)")
-    img = (
-        Image.open(path)
-        .convert("L")
-        .resize((hash_size + 1, hash_size), Image.Resampling.LANCZOS)
-    )
+    img = Image.open(path).convert("L").resize((hash_size + 1, hash_size), Image.Resampling.LANCZOS)
     pixels = list(img.getdata())
     bits = 0
     for row in range(hash_size):

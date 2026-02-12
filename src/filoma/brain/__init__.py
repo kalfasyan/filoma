@@ -10,6 +10,7 @@ def get_agent(model: Optional[Any] = None) -> Any:
     """Get a FilomaAgent instance.
 
     Args:
+    ----
         model: The model to use for the agent. If None, defaults to 'mistral:mistral-small-latest' (requires MISTRAL_API_KEY).
 
     """

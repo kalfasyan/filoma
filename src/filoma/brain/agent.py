@@ -104,6 +104,7 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
         """Initialize the FilomaAgent.
 
         Args:
+        ----
             model: The model string (e.g. 'mistral:mistral-small-latest', 'llama3.1:8b')
                    or a Model instance.
             base_url: Optional base URL for Ollama.

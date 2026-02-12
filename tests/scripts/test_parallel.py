@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Test script for parallel directory/file profiling (originally in scripts/).
-"""
+"""Test script for parallel directory/file profiling (originally in scripts/)."""
 
 import time
 from pathlib import Path

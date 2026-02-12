@@ -16,19 +16,12 @@ except Exception:
 
 @pytest.mark.skipif(not ASYNC_AVAILABLE, reason="Async Rust prober not available")
 def run_parity(root):
-    profiler = DirectoryProfiler(
-        DirectoryProfilerConfig(use_rust=True, use_parallel=False, show_progress=False)
-    )
+    profiler = DirectoryProfiler(DirectoryProfilerConfig(use_rust=True, use_parallel=False, show_progress=False))
     sync_result = profiler.probe(root)
     # Use smaller concurrency/timeout for faster tests
     async_result = probe_directory_rust_async(root, None, 4, 200, 0, False)
-    assert (
-        sync_result["summary"]["total_files"] == async_result["summary"]["total_files"]
-    )
-    assert (
-        sync_result["summary"]["total_folders"]
-        == async_result["summary"]["total_folders"]
-    )
+    assert sync_result["summary"]["total_files"] == async_result["summary"]["total_files"]
+    assert sync_result["summary"]["total_folders"] == async_result["summary"]["total_folders"]
 
 
 @pytest.mark.skipif(not ASYNC_AVAILABLE, reason="Async Rust prober not available")

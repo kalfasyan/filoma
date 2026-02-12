@@ -90,9 +90,7 @@ def test_custom_progress_callback():
         else:
             print(f"📊 {message} - {current:,} items processed")
 
-    profiler_cfg = DirectoryProfilerConfig(
-        use_rust=False, show_progress=False, progress_callback=custom_callback
-    )
+    profiler_cfg = DirectoryProfilerConfig(use_rust=False, show_progress=False, progress_callback=custom_callback)
     profiler = DirectoryProfiler(profiler_cfg)
     # Use a tiny tempdir for callback test
     tmp = Path(tempfile.mkdtemp())

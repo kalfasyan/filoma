@@ -4,7 +4,8 @@
 Compares filoma backends (Rust, fd, Python, async) against standard library alternatives.
 Supports both local and network storage benchmarking with configurable test datasets.
 
-Examples:
+Examples
+--------
     # Quick benchmark on current directory
     python benchmarks/benchmark.py .
 
@@ -87,12 +88,14 @@ def create_test_structure(
     """Create a test directory structure for benchmarking.
 
     Args:
+    ----
         path: Base directory to create structure in
         num_dirs: Number of directories at each level
         num_files_per_dir: Number of files per directory
         depth: Number of nested subdirectory levels (default 1 for flat structure)
 
     Returns:
+    -------
         Tuple of (total_files, total_dirs) created
 
     """
@@ -101,11 +104,17 @@ def create_test_structure(
     total_dirs = 0
 
     path.mkdir(parents=True, exist_ok=True)
-    print(f"   Creating {num_dirs} directories with {num_files_per_dir} files each...", flush=True)
+    print(
+        f"   Creating {num_dirs} directories with {num_files_per_dir} files each...",
+        flush=True,
+    )
 
     for i in range(num_dirs):
         if i > 0 and i % 50 == 0:
-            print(f"   ... created {i}/{num_dirs} directories ({total_files:,} files)", flush=True)
+            print(
+                f"   ... created {i}/{num_dirs} directories ({total_files:,} files)",
+                flush=True,
+            )
 
         dir_path = path / f"dir_{i:04d}"
         dir_path.mkdir(parents=True, exist_ok=True)
@@ -144,7 +153,8 @@ def clear_filesystem_cache() -> bool:
 
     Requires sudo privileges on Linux/macOS.
 
-    Returns:
+    Returns
+    -------
         True if cache was cleared successfully
 
     """
@@ -226,11 +236,13 @@ def benchmark_filoma(
     """Benchmark filoma with specified backend.
 
     Args:
+    ----
         path: Directory path to scan
         backend: Backend to use ('rust', 'rust-seq', 'async', 'fd', 'python')
         no_ignore: Ignore .gitignore files for fair comparison
 
     Returns:
+    -------
         Dict with timing and counts, or None if backend unavailable
 
     """
@@ -334,6 +346,7 @@ def run_benchmark_suite(
     """Run complete benchmark suite on a path.
 
     Args:
+    ----
         path: Directory to benchmark
         iterations: Number of iterations per method
         clear_cache: Clear filesystem cache between runs
@@ -341,6 +354,7 @@ def run_benchmark_suite(
         backends: List of backends to test (default: profiling backends)
 
     Returns:
+    -------
         Dict mapping method names to results
 
     """
@@ -384,7 +398,7 @@ def run_benchmark_suite(
                 else:
                     # Backend not available
                     print(f"✗ {result.get('error', 'Unknown error') if result else 'Failed'}")
-                    results[method] = {"error": result.get("error", "Unknown error") if result else "Failed"}
+                    results[method] = {"error": (result.get("error", "Unknown error") if result else "Failed")}
                     break
 
             times.append(elapsed)
@@ -401,7 +415,7 @@ def run_benchmark_suite(
                 "max_time": max(times),
                 "files": last_result["files"],
                 "dirs": last_result["dirs"],
-                "files_per_sec": last_result["files"] / median_time if median_time > 0 else 0,
+                "files_per_sec": (last_result["files"] / median_time if median_time > 0 else 0),
             }
 
     return results
@@ -502,7 +516,20 @@ Examples:
     parser.add_argument(
         "--backend",
         action="append",
-        choices=["os.walk", "pathlib", "rust", "rust-seq", "rust-fast", "async", "async-fast", "fd", "python", "all", "profiling", "traversal"],
+        choices=[
+            "os.walk",
+            "pathlib",
+            "rust",
+            "rust-seq",
+            "rust-fast",
+            "async",
+            "async-fast",
+            "fd",
+            "python",
+            "all",
+            "profiling",
+            "traversal",
+        ],
         help="Backends to test. Groups: 'profiling' (full metadata), 'traversal' (fast path only). Default: profiling",
     )
     parser.add_argument(

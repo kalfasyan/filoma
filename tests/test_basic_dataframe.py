@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Simple test to verify DataFrame functionality works.
-"""
+"""Simple test to verify DataFrame functionality works."""
 
 import sys
 from pathlib import Path
@@ -18,9 +17,7 @@ def test_basic_functionality():
         print("✅ Imports successful")
 
         # Test DirectoryProfiler with DataFrame
-        profiler = DirectoryProfiler(
-            DirectoryProfilerConfig(use_rust=False, build_dataframe=True)
-        )
+        profiler = DirectoryProfiler(DirectoryProfilerConfig(use_rust=False, build_dataframe=True))
 
         print(f"✅ DataFrame enabled: {profiler.is_dataframe_enabled()}")
 

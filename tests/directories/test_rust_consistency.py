@@ -62,16 +62,8 @@ def test_empty_directory_consistency():
         result_py = python_profiler.probe(str(tmp_path))
         result_rust = rust_profiler.probe(str(tmp_path))
 
-        assert (
-            result_py["summary"]["total_files"]
-            == result_rust["summary"]["total_files"]
-            == 1
-        )
-        assert (
-            result_py["summary"]["total_folders"]
-            == result_rust["summary"]["total_folders"]
-            == 4
-        )
+        assert result_py["summary"]["total_files"] == result_rust["summary"]["total_files"] == 1
+        assert result_py["summary"]["total_folders"] == result_rust["summary"]["total_folders"] == 4
 
 
 def test_single_file_consistency():
@@ -86,13 +78,5 @@ def test_single_file_consistency():
         result_py = python_profiler.probe(str(tmp_path))
         result_rust = rust_profiler.probe(str(tmp_path))
 
-        assert (
-            result_py["summary"]["total_files"]
-            == result_rust["summary"]["total_files"]
-            == 1
-        )
-        assert (
-            result_py["summary"]["total_folders"]
-            == result_rust["summary"]["total_folders"]
-            == 1
-        )
+        assert result_py["summary"]["total_files"] == result_rust["summary"]["total_files"] == 1
+        assert result_py["summary"]["total_folders"] == result_rust["summary"]["total_folders"] == 1

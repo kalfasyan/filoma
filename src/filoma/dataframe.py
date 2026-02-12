@@ -409,16 +409,19 @@ class DataFrame:
         """Add file statistics columns (size, modified time, etc.) based on a column containing filesystem paths.
 
         Args:
+        ----
             path: Name of the column containing file system paths.
             base_path: Optional base path. If provided, any non-absolute paths in the
                 path column are resolved relative to this base.
             inplace: If True, modify this DataFrame in-place and return ``self``.
 
         Returns:
+        -------
             New DataFrame with file statistics columns added, or ``self`` when
             ``inplace=True``.
 
         Raises:
+        ------
             ValueError: If the specified path column does not exist.
 
         """

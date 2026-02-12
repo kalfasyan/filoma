@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Comprehensive test comparing DataFrame functionality between Python and Rust implementations.
-"""
+"""Comprehensive test comparing DataFrame functionality between Python and Rust implementations."""
 
 import sys
 import time
@@ -20,9 +19,7 @@ def compare_implementations():
 
     # Test Python implementation
     print("🐍 Testing Python implementation...")
-    profiler_python = DirectoryProfiler(
-        DirectoryProfilerConfig(use_rust=False, build_dataframe=True)
-    )
+    profiler_python = DirectoryProfiler(DirectoryProfilerConfig(use_rust=False, build_dataframe=True))
 
     start_time = time.time()
     analysis_python = profiler_python.probe(current_dir, max_depth=2)
@@ -33,9 +30,7 @@ def compare_implementations():
 
     # Test Rust implementation
     print("🦀 Testing Rust implementation...")
-    profiler_rust = DirectoryProfiler(
-        DirectoryProfilerConfig(use_rust=True, build_dataframe=True)
-    )
+    profiler_rust = DirectoryProfiler(DirectoryProfilerConfig(use_rust=True, build_dataframe=True))
 
     start_time = time.time()
     analysis_rust = profiler_rust.probe(current_dir, max_depth=2)
@@ -73,9 +68,7 @@ def compare_implementations():
     py_files_rust = df_rust.filter_by_extension(".py")
     print(f"   Python files (Python impl): {len(py_files_python)}")
     print(f"   Python files (Rust impl):   {len(py_files_rust)}")
-    print(
-        f"   Same Python file count: {'✅' if len(py_files_python) == len(py_files_rust) else '❌'}"
-    )
+    print(f"   Same Python file count: {'✅' if len(py_files_python) == len(py_files_rust) else '❌'}")
 
     print("\n🎯 Both implementations now support DataFrame functionality!")
     print("   The Rust implementation gets the speed benefits for statistics,")

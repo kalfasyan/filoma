@@ -10,7 +10,6 @@ import pytest
 
 def _rust_core_available():
     try:
-
         return True
     except Exception:
         return False
@@ -68,9 +67,9 @@ def test_rust_returns_absolute_paths_and_canonicalizes_with_follow_links():
 
         # The canonical external path should appear in the follow-results
         canonical_external = os.path.realpath(str(external_path))
-        assert any(
-            os.path.realpath(p) == canonical_external for p in folder_paths_follow
-        ), "Canonical external path not present when follow_links=True"
+        assert any(os.path.realpath(p) == canonical_external for p in folder_paths_follow), (
+            "Canonical external path not present when follow_links=True"
+        )
 
         # Cleanup external tempdir
         shutil.rmtree(external)

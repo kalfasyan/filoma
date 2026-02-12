@@ -31,22 +31,14 @@ def test_async_matches_sync():
     try:
         make_sample_tree(tmp)
         # Use DirectoryProfiler to get Rust sync analysis
-        cfg = DirectoryProfilerConfig(
-            use_rust=True, use_parallel=False, show_progress=False
-        )
+        cfg = DirectoryProfilerConfig(use_rust=True, use_parallel=False, show_progress=False)
         profiler = DirectoryProfiler(cfg)
         sync_result = profiler.probe(tmp)
 
         # Call async Rust prober directly
         async_result = probe_directory_rust_async(tmp, None, 8, 1000, 0, False)
 
-        assert (
-            sync_result["summary"]["total_files"]
-            == async_result["summary"]["total_files"]
-        )
-        assert (
-            sync_result["summary"]["total_folders"]
-            == async_result["summary"]["total_folders"]
-        )
+        assert sync_result["summary"]["total_files"] == async_result["summary"]["total_files"]
+        assert sync_result["summary"]["total_folders"] == async_result["summary"]["total_folders"]
     finally:
         shutil.rmtree(tmp)

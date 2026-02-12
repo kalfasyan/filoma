@@ -83,9 +83,7 @@ class CommandRunner:
 
         except subprocess.CalledProcessError as e:
             elapsed = time.time() - start_time
-            logger.error(
-                f"Command failed after {elapsed:.3f}s: {' '.join(cmd)} (exit code {e.returncode})"
-            )
+            logger.error(f"Command failed after {elapsed:.3f}s: {' '.join(cmd)} (exit code {e.returncode})")
             raise
         except subprocess.TimeoutExpired:
             logger.error(f"Command timed out after {timeout}s: {' '.join(cmd)}")

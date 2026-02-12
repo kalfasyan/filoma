@@ -581,7 +581,12 @@ def analyze_column_interactively(df: Any) -> None:
 
                 # For numeric columns, add more stats
                 try:
-                    if df[selected_col].dtype in ["Int64", "Float64", "Int32", "Float32"]:
+                    if df[selected_col].dtype in [
+                        "Int64",
+                        "Float64",
+                        "Int32",
+                        "Float32",
+                    ]:
                         table.add_row("Mean", f"{df[selected_col].mean():.4f}")
                         table.add_row("Std", f"{df[selected_col].std():.4f}")
                         table.add_row("Min", str(df[selected_col].min()))

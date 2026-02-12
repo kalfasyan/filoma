@@ -46,9 +46,7 @@ def test_fd_integration():
     try:
         # Use glob mode for the *.py pattern
         files = fd.find(pattern="*.py", path=".", max_results=5, use_glob=True)
-        print(
-            f"   ✅ Found {len(files)} Python files: {files[:3]}{'...' if len(files) > 3 else ''}"
-        )
+        print(f"   ✅ Found {len(files)} Python files: {files[:3]}{'...' if len(files) > 3 else ''}")
         assert isinstance(files, list)
         assert len(files) > 0
     except Exception as e:
@@ -78,9 +76,7 @@ def test_fd_integration():
 
         # Quick test on current directory
         result = profiler.probe(".", max_depth=2)
-        print(
-            f"   \u2705 Analysis completed: {result['summary']['total_files']} files found"
-        )
+        print(f"   \u2705 Analysis completed: {result['summary']['total_files']} files found")
         print(f"   \u2705 Backend used: {result['timing']['implementation']}")
         assert "summary" in result and "total_files" in result["summary"]
         assert result["summary"]["total_files"] >= 0
@@ -137,9 +133,7 @@ def test_backend_comparison():
             try:
                 # Use glob mode for the *.py pattern
                 files = fd.find(pattern="*.py", path=".", max_results=5, use_glob=True)
-                print(
-                    f"   ✅ Found {len(files)} Python files: {files[:3]}{'...' if len(files) > 3 else ''}"
-                )
+                print(f"   ✅ Found {len(files)} Python files: {files[:3]}{'...' if len(files) > 3 else ''}")
                 assert isinstance(files, list)
                 assert len(files) > 0
             except Exception as e:
@@ -161,9 +155,7 @@ def test_backend_comparison():
             # Test 4: DirectoryProfiler with fd backend
             print("\n4. Testing DirectoryProfiler with fd backend...")
             try:
-                profiler = DirectoryProfiler(
-                    DirectoryProfilerConfig(search_backend="fd")
-                )
+                profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend="fd"))
                 if not profiler.is_fd_available():
                     pytest.skip("DirectoryProfiler fd backend not available")
 
@@ -171,9 +163,7 @@ def test_backend_comparison():
 
                 # Quick test on current directory
                 result = profiler.probe(".", max_depth=2)
-                print(
-                    f"   ✅ Analysis completed: {result['summary']['total_files']} files found"
-                )
+                print(f"   ✅ Analysis completed: {result['summary']['total_files']} files found")
                 print(f"   ✅ Backend used: {result['timing']['implementation']}")
                 assert "summary" in result and "total_files" in result["summary"]
                 assert result["summary"]["total_files"] >= 0
@@ -195,9 +185,7 @@ def test_backend_comparison():
         # Test available backends
         for backend in ["python", "rust", "fd"]:
             try:
-                profiler = DirectoryProfiler(
-                    DirectoryProfilerConfig(search_backend=backend)
-                )
+                profiler = DirectoryProfiler(DirectoryProfilerConfig(search_backend=backend))
 
                 # Check if backend is actually available
                 if backend == "fd" and not profiler.is_fd_available():
@@ -225,9 +213,7 @@ def test_backend_comparison():
                     }
                 )
 
-                print(
-                    f"   {backend}: {elapsed:.3f}s, {result['summary']['total_files']} files"
-                )
+                print(f"   {backend}: {elapsed:.3f}s, {result['summary']['total_files']} files")
 
             except Exception as e:
                 print(f"   {backend}: Failed - {e}")
@@ -241,9 +227,7 @@ def test_backend_comparison():
                 if backend == fastest:
                     print(f"   🏆 {backend['name']}: {backend['time']:.3f}s (fastest)")
                 else:
-                    print(
-                        f"   📈 {backend['name']}: {backend['time']:.3f}s ({speedup:.1f}x slower)"
-                    )
+                    print(f"   📈 {backend['name']}: {backend['time']:.3f}s ({speedup:.1f}x slower)")
 
     def test_fd_finder_features():
         """Test FdFinder advanced features."""

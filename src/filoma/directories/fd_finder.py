@@ -52,6 +52,7 @@ class FdFinder:
         r"""Find files matching pattern.
 
         Args:
+        ----
             pattern: Search pattern (regex by default, glob if use_glob=True).
             path: Directory to search in.
             max_depth: Maximum depth to search.
@@ -61,9 +62,11 @@ class FdFinder:
             **fd_options: Additional fd options (e.g., use_glob=True for glob patterns).
 
         Returns:
+        -------
             List of file paths.
 
         Example:
+        -------
             >>> searcher = FdFinder()
             >>> python_files = searcher.find_files(r"\.py$", "/src")
             >>> config_files = searcher.find_files("*.{json,yaml}", use_glob=True)
@@ -246,15 +249,18 @@ class FdFinder:
         """Find large files.
 
         Args:
+        ----
             path: Directory to search in.
             min_size: Minimum file size (e.g., '1M', '100k', '1G').
             max_depth: Maximum depth to search.
             **fd_options: Additional fd options.
 
         Returns:
+        -------
             List of file paths.
 
         Example:
+        -------
             >>> searcher = FdFinder()
             >>> large_files = searcher.find_large_files(min_size="10M")
 
@@ -275,10 +281,12 @@ class FdFinder:
         """Find empty directories.
 
         Args:
+        ----
             path: Directory to search in.
             **fd_options: Additional fd options.
 
         Returns:
+        -------
             List of empty directory paths.
 
         """
@@ -292,11 +300,13 @@ class FdFinder:
         """Count files matching criteria without returning the full list.
 
         Args:
+        ----
             pattern: Search pattern.
             path: Directory to search in.
             **fd_options: Additional fd options.
 
         Returns:
+        -------
             Number of matching files.
 
         """
@@ -317,6 +327,7 @@ class FdFinder:
         r"""Execute command on search results using fd's built-in execution.
 
         Args:
+        ----
             pattern: Search pattern.
             command: Command and arguments to execute.
             path: Directory to search in.
@@ -324,9 +335,11 @@ class FdFinder:
             **fd_options: Additional fd options.
 
         Returns:
+        -------
             CompletedProcess object.
 
         Example:
+        -------
             >>> searcher = FdFinder()
             >>> # Delete all .tmp files
             >>> searcher.execute_on_results(

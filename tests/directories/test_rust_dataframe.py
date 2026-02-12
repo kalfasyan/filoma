@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Test script to see how DataFrame works with Rust acceleration.
-"""
+"""Test script to see how DataFrame works with Rust acceleration."""
 
 import sys
 from pathlib import Path

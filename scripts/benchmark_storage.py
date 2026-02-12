@@ -63,10 +63,20 @@ def clear_system_cache(dry_run: bool = False) -> bool:
             # Flush file system buffers
             subprocess.run(["sync"], check=True)
             # Clear pagecache, dentries, and inodes
-            subprocess.run(["sudo", "sh", "-c", "echo 3 > /proc/sys/vm/drop_caches"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+            subprocess.run(
+                ["sudo", "sh", "-c", "echo 3 > /proc/sys/vm/drop_caches"],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+            )
         elif system == "Darwin":  # macOS
             subprocess.run(["sync"], check=True)
-            subprocess.run(["sudo", "purge"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+            subprocess.run(
+                ["sudo", "purge"],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+            )
         else:
             print(f"⚠️  Cache clearing not implemented for {system}")
             return False
@@ -80,7 +90,14 @@ def clear_system_cache(dry_run: bool = False) -> bool:
         return False
 
 
-def run_benchmark(path: str, backend: str, iterations: int, do_clear_cache: bool, fast_path: bool = False, no_ignore: bool = False) -> Dict:
+def run_benchmark(
+    path: str,
+    backend: str,
+    iterations: int,
+    do_clear_cache: bool,
+    fast_path: bool = False,
+    no_ignore: bool = False,
+) -> Dict:
     """Run benchmark for a specific configuration."""
     # Configure profiler
     use_rust = backend in ["rust", "rust-seq"]
@@ -93,7 +110,12 @@ def run_benchmark(path: str, backend: str, iterations: int, do_clear_cache: bool
         fd_threads = cpu_count()
 
     config = DirectoryProfilerConfig(
-        use_rust=use_rust, use_parallel=use_parallel, search_backend=search_backend, show_progress=False, fd_no_ignore=no_ignore, threads=fd_threads
+        use_rust=use_rust,
+        use_parallel=use_parallel,
+        search_backend=search_backend,
+        show_progress=False,
+        fd_no_ignore=no_ignore,
+        threads=fd_threads,
     )
 
     profiler = DirectoryProfiler(config)
@@ -165,11 +187,33 @@ def main():
         choices=["python", "rust", "rust-seq", "fd", "all"],
         help="Backends to test. Default: all",
     )
-    parser.add_argument("--iterations", "-n", type=int, default=3, help="Number of iterations per test. Default: 3")
-    parser.add_argument("--clear-cache", action="store_true", help="Attempt to clear OS filesystem cache between runs (requires sudo).")
-    parser.add_argument("--setup-dataset", action="store_true", help="Create a standard test dataset in the target directories before benchmarking.")
-    parser.add_argument("--cleanup", action="store_true", help="Delete the target directories after benchmarking is complete.")
-    parser.add_argument("--no-ignore", action="store_true", help="Force fd and other backends to ignore .gitignore files for fair raw comparison.")
+    parser.add_argument(
+        "--iterations",
+        "-n",
+        type=int,
+        default=3,
+        help="Number of iterations per test. Default: 3",
+    )
+    parser.add_argument(
+        "--clear-cache",
+        action="store_true",
+        help="Attempt to clear OS filesystem cache between runs (requires sudo).",
+    )
+    parser.add_argument(
+        "--setup-dataset",
+        action="store_true",
+        help="Create a standard test dataset in the target directories before benchmarking.",
+    )
+    parser.add_argument(
+        "--cleanup",
+        action="store_true",
+        help="Delete the target directories after benchmarking is complete.",
+    )
+    parser.add_argument(
+        "--no-ignore",
+        action="store_true",
+        help="Force fd and other backends to ignore .gitignore files for fair raw comparison.",
+    )
     parser.add_argument("--output", "-o", type=str, help="Save the benchmark results to a file.")
     parser.add_argument(
         "--dataset-size",
@@ -254,7 +298,13 @@ def main():
         target_results = {}
 
         for backend in backends:
-            res = run_benchmark(path, backend, args.iterations, args.clear_cache, no_ignore=args.no_ignore)
+            res = run_benchmark(
+                path,
+                backend,
+                args.iterations,
+                args.clear_cache,
+                no_ignore=args.no_ignore,
+            )
 
             if "error" in res:
                 line = f"{backend:<15} | {'N/A (' + res['error'] + ')':<30}"

@@ -30,6 +30,7 @@ def count_files(ctx: RunContext[Any], path: str) -> str:
     Uses the Rust backend for complete accuracy.
 
     Args:
+    ----
         ctx: The run context.
         path: The path to the directory to count files in.
 
@@ -65,10 +66,16 @@ def count_files(ctx: RunContext[Any], path: str) -> str:
         return f"Error counting files: {str(e)}"
 
 
-def probe_directory(ctx: RunContext[Any], path: str, max_depth: Optional[int] = None, ignore_safety_limits: bool = False) -> str:
+def probe_directory(
+    ctx: RunContext[Any],
+    path: str,
+    max_depth: Optional[int] = None,
+    ignore_safety_limits: bool = False,
+) -> str:
     """Probe a directory and return a summary of the findings.
 
     Args:
+    ----
         ctx: The run context.
         path: The path to the directory to probe.
         max_depth: Maximum depth to recurse.
@@ -144,6 +151,7 @@ def find_duplicates(ctx: RunContext[Any], path: str, ignore_safety_limits: bool 
     """Find duplicate files in a directory.
 
     Args:
+    ----
         ctx: The run context.
         path: The path to the directory to check for duplicates.
         ignore_safety_limits: If True, allows deep scanning for duplicates.
@@ -205,6 +213,7 @@ def search_files(
     r"""Search for files in a directory based on regex pattern, extension, or size.
 
     Args:
+    ----
         ctx: The run context.
         path: The path to search in.
         pattern: Regex pattern to match filenames (e.g., 'README.md', 'test_.*\.py'). Use this for searching specific filenames.
@@ -290,6 +299,7 @@ def get_directory_tree(ctx: RunContext[Any], path: str) -> str:
     """Get a list of files and folders in the immediate directory (non-recursive).
 
     Args:
+    ----
         ctx: The run context.
         path: The path to list.
 
@@ -349,6 +359,7 @@ def analyze_image(ctx: RunContext[Any], path: str) -> str:
     Returns dimensions, dtype, and basic statistics if available.
 
     Args:
+    ----
         ctx: The run context.
         path: Path to the image file.
 
@@ -390,6 +401,7 @@ def analyze_dataframe(ctx: RunContext[Any], operation: str, **kwargs) -> str:
     - 'summary' (no args) - returns counts by extension and directory
 
     Args:
+    ----
         ctx: The run context.
         operation: The name of the operation to perform.
         **kwargs: Arguments for the operation.
@@ -453,7 +465,11 @@ def analyze_dataframe(ctx: RunContext[Any], operation: str, **kwargs) -> str:
             except Exception:
                 dir_counts = "N/A"
 
-            summary = {"total_files": count, "top_extensions": ext_counts, "top_directories": dir_counts}
+            summary = {
+                "total_files": count,
+                "top_extensions": ext_counts,
+                "top_directories": dir_counts,
+            }
             return f"DataFrame Summary:\n{json.dumps(summary, indent=2)}"
 
         else:
@@ -467,6 +483,7 @@ def export_dataframe(ctx: RunContext[Any], path: str, format: str = "csv") -> st
     """Export the current DataFrame to a file.
 
     Args:
+    ----
         ctx: The run context.
         path: Path to save the file.
         format: 'csv', 'json', or 'parquet'.
