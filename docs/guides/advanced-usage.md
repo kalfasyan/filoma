@@ -67,7 +67,6 @@ Key arguments & notes:
 
 Assumptions & compatibility
 - The doc lists commonly available options; exact flag names and behavior are implemented in the specific profiler classes. When unspecified, `DirectoryProfiler` attempts to forward preferences to the chosen backend (`rust`/`fd`/`python`).
-- If you'd like, I can add a small matrix table (argument vs backend) documenting the precise per-backend support for each flag.
 
 ## Smart File Discovery
 

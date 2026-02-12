@@ -38,5 +38,3 @@ dot -Tsvg docs/diagrams/profiling-flow.dot -o docs/assets/images/profiling-flow.
 # render data processing flow
 dot -Tsvg docs/diagrams/data-processing.dot -o docs/assets/images/data-processing.svg
 ```
-
-If you want, I can run these commands here and replace the placeholder SVGs with the generated diagrams.
