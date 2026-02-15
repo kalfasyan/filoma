@@ -511,3 +511,219 @@ def export_dataframe(ctx: RunContext[Any], path: str, format: str = "csv") -> st
 
     except Exception as e:
         return f"Error exporting DataFrame: {str(e)}"
+
+
+def _get_file_icon(path: Path) -> str:
+    """Get an appropriate icon for the file type, consistent with the CLI."""
+    suffix = path.suffix.lower()
+    if suffix in [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".tif", ".zarr"]:
+        return "🖼️"
+    elif suffix == ".npy":
+        return "🔢"
+    elif suffix in [".csv", ".json", ".xml", ".yaml", ".yml"]:
+        return "📊"
+    elif suffix in [".py", ".rs", ".js", ".ts", ".html", ".css"]:
+        return "💻"
+    elif suffix in [".txt", ".md", ".pdf", ".doc", ".docx"]:
+        return "📄"
+    elif suffix in [".zip", ".tar", ".gz", ".rar"]:
+        return "📦"
+    else:
+        return "📄"
+
+
+def open_file(ctx: RunContext[Any], path: str) -> str:
+    """Open a file for viewing by the user using 'bat' or 'cat' in a subprocess.
+
+    This displays the content directly to the user's terminal without loading it into the agent's context.
+    Use this when the user asks to "view", "show", "open", or "read" a file just for themselves.
+
+    Args:
+    ----
+        ctx: The run context.
+        path: Path to the file.
+
+    """
+    import shutil
+    import subprocess
+
+    try:
+        p = Path(path).expanduser().resolve()
+        if not p.exists():
+            return f"Error: File '{path}' does not exist."
+        if not p.is_file():
+            return f"Error: '{path}' is a directory, not a file."
+
+        # Check for 'bat' (syntax highlighting) or fallback to 'cat'
+        cmd = "bat" if shutil.which("bat") else "cat"
+
+        # Execute subprocess and let it print directly to terminal (inherit stdout/stderr)
+        logger.info(f"Opening file with {cmd}: {p}")
+        subprocess.run([cmd, str(p)], check=True)
+
+        return f"✅ Content of '{p.name}' displayed to your terminal using '{cmd}'."
+
+    except subprocess.CalledProcessError as e:
+        return f"Error opening file with subprocess: {str(e)}"
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+def read_file(
+    ctx: RunContext[Any],
+    path: str,
+    start_line: int = 1,
+    end_line: Optional[int] = None,
+    max_chars: int = 100000,
+) -> str:
+    """Read the content of a file.
+
+    Returns the file content wrapped in a markdown code block with line numbers.
+    Automatically handles large files by limiting characters and providing line range options.
+
+    Args:
+    ----
+        ctx: The run context.
+        path: Path to the file.
+        start_line: Line number to start reading from (1-indexed).
+        end_line: Line number to stop reading at (inclusive).
+        max_chars: Maximum number of characters to read to avoid context overflow.
+
+    """
+    try:
+        p = Path(path).expanduser().resolve()
+        if not p.exists():
+            return f"Error: File '{path}' does not exist."
+        if not p.is_file():
+            return f"Error: '{path}' is a directory, not a file."
+
+        # Check file size before reading
+        file_size = p.stat().st_size
+        if file_size > 10 * 1024 * 1024:  # 10MB safety limit for direct read
+            return f"Error: File is too large ({file_size / 1024 / 1024:.2f} MB). Please use a more specific tool or read a smaller range."
+
+        try:
+            with p.open("r", encoding="utf-8") as f:
+                lines = f.readlines()
+        except UnicodeDecodeError:
+            return f"Error: File '{path}' appears to be a binary file or uses an unsupported encoding. Cannot display text content."
+
+        total_lines = len(lines)
+        start = max(0, start_line - 1)
+        end = min(total_lines, end_line if end_line is not None else total_lines)
+
+        if start >= total_lines:
+            return f"Error: start_line ({start_line}) exceeds total lines in file ({total_lines})."
+
+        selected_lines = lines[start:end]
+        content = "".join(selected_lines)
+
+        # Apply character limit
+        truncated = False
+        if len(content) > max_chars:
+            content = content[:max_chars]
+            truncated = True
+
+        # Determine file extension for markdown syntax highlighting
+        ext = p.suffix.lstrip(".") or ""
+        icon = _get_file_icon(p)
+
+        # Build output with line numbers
+        output = f"### {icon} {p.name}\n"
+        output += f"*Location: `{p}` (Lines {start + 1}-{end} of {total_lines})*\n\n"
+        output += f"```{ext}\n"
+        for i, line in enumerate(selected_lines):
+            # If we truncated by max_chars, we might not show all selected lines
+            current_content_so_far = "".join(selected_lines[: i + 1])
+            if len(current_content_so_far) > max_chars:
+                output += f"{' ' * (len(str(end)) + 2)}... [TRUNCATED DUE TO SIZE] ...\n"
+                truncated = True
+                break
+            line_num = start + i + 1
+            output += f"{line_num:>{len(str(end))}} | {line}"
+        output += "```\n"
+
+        if truncated:
+            output += "\n> 💡 **Note:** Content was truncated due to size limits. Use `start_line`/`end_line` to see other parts of the file."
+
+        return output
+
+    except Exception as e:
+        return f"Error reading file: {str(e)}"
+
+
+def preview_image(ctx: RunContext[Any], path: str, width: int = 60, mode: str = "ansi") -> str:
+    """Generate a preview of an image (ASCII or ANSI color blocks).
+
+    Args:
+    ----
+        ctx: The run context.
+        path: Path to the image file.
+        width: Width of the preview in characters (default 60).
+        mode: 'ansi' for colored block characters (best), or 'ascii' for text-only.
+
+    """
+    try:
+        from PIL import Image
+        from rich.console import Console
+
+        # Instantiate a console for direct output
+        console = Console()
+
+        p = Path(path).expanduser().resolve()
+        if not p.exists():
+            return f"Error: Image '{path}' does not exist."
+
+        img = Image.open(p)
+        original_width, original_height = img.size
+
+        if mode.lower() == "ascii":
+            # ASCII characters used to represent different brightness levels
+            ASCII_CHARS = "@%#*+=-:. "
+            aspect_ratio = original_height / original_width
+            height = int(width * aspect_ratio * 0.5)
+            img_small = img.resize((width, height)).convert("L")
+            pixels = img_small.getdata()
+            preview_str = ""
+            for i, pixel in enumerate(pixels):
+                preview_str += ASCII_CHARS[pixel * (len(ASCII_CHARS) - 1) // 255]
+                if (i + 1) % width == 0:
+                    preview_str += "\n"
+            final_preview = f"```text\n{preview_str}```"
+        else:
+            # ANSI Block Mode (RGB)
+            height = int(width * (original_height / original_width))
+            img_small = img.resize((width, height)).convert("RGB")
+            preview_str = ""
+
+            for y in range(0, height, 2):
+                for x in range(width):
+                    pixel1 = img_small.getpixel((x, y))
+                    r1, g1, b1 = pixel1[:3] if isinstance(pixel1, (tuple, list)) else (pixel1, pixel1, pixel1)
+
+                    if y + 1 < height:
+                        pixel2 = img_small.getpixel((x, y + 1))
+                        r2, g2, b2 = pixel2[:3] if isinstance(pixel2, (tuple, list)) else (pixel2, pixel2, pixel2)
+                    else:
+                        r2, g2, b2 = 0, 0, 0
+
+                    # Use Rich's [rgb(r,g,b) on rgb(r,g,b)] markup for robust rendering
+                    preview_str += f"[rgb({r1},{g1},{b1}) on rgb({r2},{g2},{b2})]▀[/]"
+                preview_str += "\n"
+            final_preview = preview_str
+
+        icon = _get_file_icon(p)
+        header = f"\n[bold blue]{icon} IMAGE PREVIEW: {p.name}[/bold blue] ({original_width}x{original_height})\n"
+
+        # PRINT DIRECTLY TO TERMINAL
+        # highlight=False prevents Rich from trying to apply regex highlighting to our pixels
+        console.print(header)
+        console.print(final_preview, highlight=False)
+        console.print("\n")
+
+        return f"✅ Displayed preview of '{p.name}' directly to user terminal."
+
+    except ImportError:
+        return "Error: Pillow and Rich are required for image previews."
+    except Exception as e:
+        return f"Error generating image preview: {str(e)}"

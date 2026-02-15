@@ -87,7 +87,22 @@ COMPLETE TOOL LIST (exhaustive - no other operations exist):
    Example: export_dataframe(path='results.csv', format='csv')
    Supported formats: 'csv', 'json', 'parquet'
 
-10. list_available_tools() -> str
+10. open_file(path: str) -> str
+    Displays the content of a file directly to the user's terminal using 'bat' or 'cat'.
+    This is the most efficient way to VIEW a file. The agent DOES NOT see the content.
+    Use this when the user asks to "view", "show", "open", or "read" a file for themselves.
+
+11. read_file(path: str, start_line: int = 1, end_line: int = None) -> str
+    Reads the content of a file into the agent's context.
+    Use this ONLY when you need to ANALYZE the content (e.g., summarize, find bugs, explain code).
+    Returns text wrapped in markdown code blocks with line numbers.
+
+12. preview_image(path: str, width: int = 60, mode: str = "ansi") -> str
+    Generates a preview of an image. Useful for visual confirmation of image contents.
+    Modes: 'ansi' (default) for colored RGB blocks, 'ascii' for grayscale text.
+    Works with PNG, JPG, BMP, etc.
+
+13. list_available_tools() -> str
     Returns this API reference. Use this if you are unsure of your capabilities.
 
 IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-ONLY analysis tool (except for export_dataframe).
@@ -127,6 +142,9 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
                 tools.analyze_image,
                 tools.analyze_dataframe,
                 tools.export_dataframe,
+                tools.open_file,
+                tools.read_file,
+                tools.preview_image,
             ],
         )
 
@@ -207,6 +225,14 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
                 "- When listing files, provide the actual filenames from the search results."
                 "\n\n"
                 "CRITICAL INSTRUCTIONS FOR DATAFRAME WORKFLOWS:\n"
+                "- VIEWING VS ANALYZING FILES:\n"
+                "  1. VIEWING: If the user wants to see/view/open a file, ALWAYS use open_file(path). "
+                "It uses a local subprocess (bat/cat) to show it to the user directly. This is fast and saves energy.\n"
+                "  2. ANALYZING: If the user asks for a summary, explanation, or specific information FROM a file, "
+                "use read_file(path) so you can actually see the content.\n"
+                "- IMAGE PREVIEWS: Use preview_image(path) to show a colored RGB preview of an image directly to the user.\n"
+                "  The preview is displayed in the user's terminal, not in your text response.\n"
+                "  After calling preview_image, simply confirm that the preview has been displayed.\n"
                 "- WHEN DATAFRAME IS LOADED: After running search_files, a DataFrame is automatically loaded with file metadata.\n"
                 "- WHAT THE DATAFRAME CONTAINS: Paths, sizes, extensions, modification dates, and other file properties.\n"
                 "- HOW TO USE IT:\n"
@@ -269,7 +295,18 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
             logger.error(f"Unsupported provider URL: {env_base_url}. Filoma Brain only supports Mistral Cloud and local Ollama.")
             raise ValueError(f"Unsupported AI provider: {env_base_url}")
 
-        # Logic: Scenario A (Mistral)
+        # Logic: Scenario A (Google Gemini)
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        if gemini_key:
+            m_name = env_model or "gemini-1.5-flash"
+            logger.info(f"Using Google Gemini with model '{m_name}' (GEMINI_API_KEY found).")
+
+            from pydantic_ai.models.google import GoogleModel
+
+            # GoogleModel automatically uses GEMINI_API_KEY from environment
+            return GoogleModel(model_name=m_name)
+
+        # Logic: Scenario B (Mistral)
         mistral_key = os.getenv("MISTRAL_API_KEY")
         if mistral_key:
             m_name = env_model or "mistral:mistral-small-latest"
