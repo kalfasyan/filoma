@@ -30,7 +30,13 @@ Open `.env` and choose **ONE** of the following scenarios. Comment out all other
 2. Add it to `.env`: `MISTRAL_API_KEY='your-key'`.
 3. **Benefit**: European-hosted, high performance, offers a free/experimental tier.
 
-#### Scenario B: Ollama (Recommended Local/Private)
+#### Scenario B: Google Gemini (Cloud)
+1. Get a key at [aistudio.google.com](https://aistudio.google.com/).
+2. Add it to `.env`: `GEMINI_API_KEY='your-key'`.
+3. (Optional) Set `FILOMA_BRAIN_MODEL='gemini-2.0-flash'`.
+4. **Benefit**: Huge context window, very fast, excellent tool calling reliability.
+
+#### Scenario C: Ollama (Recommended Local/Private)
 1. Install [Ollama](https://ollama.com/).
 2. Pull a model: `ollama pull llama3.1:8b`.
 3. Ensure the Ollama app is running.
@@ -60,7 +66,7 @@ uv run filoma brain chat
 
 ## Comparison Table
 
-| Feature | Cloud (Mistral) | Local (Ollama) |
+| Feature | Cloud (Mistral/Gemini) | Local (Ollama) |
 | :--- | :--- | :--- |
 | **Privacy** | Data sent to provider | 100% Local / Offline |
 | **Cost** | Pay-per-token (or free tier) | Zero Cost |
@@ -104,6 +110,9 @@ The agent is equipped with the following "eyes and hands":
 - **`analyze_image`**: Performs specialized analysis on an image (shape, dtype, stats).
 - **`analyze_dataframe`**: Performs operations on the currently loaded search results (filter, sort, summarize, etc.).
 - **`export_dataframe`**: Exports the current DataFrame to a file (csv, json, or parquet).
+- **`open_file`**: **(Recommended for Viewing)** Displays file content directly in your terminal using `bat` or `cat`. Fast, energy-efficient, and syntax-highlighted.
+- **`read_file`**: Reads file content into the agent's context for analysis (summarization, bug finding, etc.). Supports reading specific line ranges.
+- **`preview_image`**: Generates a colored RGB preview of an image directly in your terminal.
 - **`list_available_tools`**: Returns the complete API reference for the agent.
 
 ---
