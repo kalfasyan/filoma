@@ -58,3 +58,5 @@ site/
 *.html
 
 bench_test/
+snapshot.json
+manifest.json

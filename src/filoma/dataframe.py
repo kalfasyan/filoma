@@ -35,6 +35,7 @@ Callers who perform complex or external mutations should still call
 cached view is refreshed.
 """
 
+import datetime
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Union
@@ -117,6 +118,7 @@ class DataFrame:
     def __init__(
         self,
         data: Optional[Union[pl.DataFrame, List[str], List[Path], Dict[str, Any]]] = None,
+        lineage: Optional[List[Dict[str, Any]]] = None,
     ):
         """Initialize a DataFrame.
 
@@ -128,6 +130,7 @@ class DataFrame:
                 - A list of string paths
                 - A list of Path objects
                 - None for an empty DataFrame
+            lineage: Optional list of lineage entries.
 
         """
         if data is None:
@@ -151,13 +154,18 @@ class DataFrame:
                     processed[col] = seq
                 self._df = pl.DataFrame(processed)
         elif isinstance(data, list):
-            paths = [str(path) for path in data]
-            self._df = pl.DataFrame({"path": paths})
+            if data and isinstance(data[0], dict):
+                # Handle list of dictionaries (from manifest or to_dicts())
+                self._df = pl.from_dicts(data)
+            else:
+                paths = [str(path) for path in data]
+                self._df = pl.DataFrame({"path": paths})
         else:
             raise ValueError("data must be a Polars DataFrame, dict of columns, list of paths, or None")
         self._pd_cache = None
         self.with_enrich = False
         self.with_filename_features = False
+        self._lineage = lineage or []
 
     def _ensure_polars(self) -> pl.DataFrame:
         """Ensure the internal `_df` is a Polars DataFrame.
@@ -229,8 +237,9 @@ class DataFrame:
 
                 # If wrapping is enabled and result is a Polars DataFrame,
                 # wrap it back into filoma.DataFrame for compatibility.
+                # Propagate lineage to the new wrapper.
                 if get_default_wrap_polars() and isinstance(result, pl.DataFrame):
-                    return DataFrame(result)
+                    return DataFrame(result, lineage=list(self._lineage))
 
                 return result
 
@@ -239,7 +248,7 @@ class DataFrame:
         # Non-callable attributes (properties) — if it's a Polars DataFrame and
         # wrapping is requested, wrap it; otherwise return as-is.
         if get_default_wrap_polars() and isinstance(attr, pl.DataFrame):
-            return DataFrame(attr)
+            return DataFrame(attr, lineage=list(self._lineage))
 
         return attr
 
@@ -309,6 +318,28 @@ class DataFrame:
         """
         self._pd_cache = None
 
+    def add_lineage_entry(self, operation: str, **kwargs: Any) -> None:
+        """Add a lineage entry to track the history of this DataFrame.
+
+        Args:
+        ----
+            operation: Name of the operation performed.
+            **kwargs: Parameters used for the operation.
+
+        """
+        self._lineage.append(
+            {
+                "operation": operation,
+                "parameters": {k: str(v) if isinstance(v, Path) else v for k, v in kwargs.items()},
+                "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            }
+        )
+
+    @property
+    def lineage(self) -> List[Dict[str, Any]]:
+        """Return the lineage history of this DataFrame."""
+        return self._lineage
+
     @property
     def df(self) -> pl.DataFrame:
         """Get the underlying Polars DataFrame."""
@@ -363,13 +394,17 @@ class DataFrame:
         """Return the string representation of the DataFrame."""
         return self.__repr__()
 
-    def head(self, n: int = 5) -> pl.DataFrame:
+    def head(self, n: int = 5) -> "DataFrame":
         """Get the first n rows."""
-        return DataFrame(self._df.head(n))
+        res = DataFrame(self._df.head(n), lineage=list(self._lineage))
+        res.add_lineage_entry("head", n=n)
+        return res
 
-    def tail(self, n: int = 5) -> pl.DataFrame:
+    def tail(self, n: int = 5) -> "DataFrame":
         """Get the last n rows."""
-        return DataFrame(self._df.tail(n))
+        res = DataFrame(self._df.tail(n), lineage=list(self._lineage))
+        res.add_lineage_entry("tail", n=n)
+        return res
 
     def add_path_components(self, inplace: bool = False) -> "DataFrame":
         """Add columns for path components (parent, name, stem, suffix).
@@ -396,14 +431,18 @@ class DataFrame:
         if inplace:
             self._df = df_with_components
             self.invalidate_pandas_cache()
+            self.add_lineage_entry("add_path_components")
             return self
 
-        return DataFrame(df_with_components)
+        res = DataFrame(df_with_components, lineage=list(self._lineage))
+        res.add_lineage_entry("add_path_components")
+        return res
 
     def add_file_stats_cols(
         self,
         path: str = "path",
         base_path: Optional[Union[str, Path]] = None,
+        compute_hash: bool = False,
         inplace: bool = False,
     ) -> "DataFrame":
         """Add file statistics columns (size, modified time, etc.) based on a column containing filesystem paths.
@@ -413,6 +452,7 @@ class DataFrame:
             path: Name of the column containing file system paths.
             base_path: Optional base path. If provided, any non-absolute paths in the
                 path column are resolved relative to this base.
+            compute_hash: Whether to compute SHA256 hashes (slow for large files).
             inplace: If True, modify this DataFrame in-place and return ``self``.
 
         Returns:
@@ -443,10 +483,13 @@ class DataFrame:
             "sha256",
             "xattrs",
         }
-        # Only proceed if at least one target column is missing.
-        # This makes the method idempotent and avoids DuplicateError during pl.concat.
-        if all(c in self._df.columns for c in target_cols):
-            return self if inplace else DataFrame(self._df)
+        # Decide if we need to proceed. Proceed if any target column is missing,
+        # OR if we need to compute hashes and the column is missing or has nulls.
+        needs_hashes = compute_hash and ("sha256" not in self._df.columns or self._df["sha256"].null_count() > 0)
+        missing_any = not all(c in self._df.columns for c in target_cols)
+
+        if not missing_any and not needs_hashes:
+            return self if inplace else DataFrame(self._df, lineage=list(self._lineage))
 
         # Resolve base path if provided
         base = Path(base_path) if base_path is not None else None
@@ -478,7 +521,7 @@ class DataFrame:
                     }
 
                 # Use the profiler; let it handle symlinks and permissions
-                filo = profiler.probe(full_path, compute_hash=False)
+                filo = profiler.probe(full_path, compute_hash=compute_hash)
                 row = filo.as_dict()
 
                 # Normalize keys to a stable schema used by this helper
@@ -533,13 +576,22 @@ class DataFrame:
             },
         )
 
-        df_with_stats = pl.concat([self._df, stats_df], how="horizontal")
+        # If columns already exist, we need to drop them before joining to avoid duplicates
+        df_base = self._df
+        overlapping_cols = [c for c in stats_df.columns if c in df_base.columns]
+        if overlapping_cols:
+            df_base = df_base.drop(overlapping_cols)
+
+        df_with_stats = pl.concat([df_base, stats_df], how="horizontal")
         if inplace:
             self._df = df_with_stats
             self.invalidate_pandas_cache()
+            self.add_lineage_entry("add_file_stats_cols", path_col=path, compute_hash=compute_hash)
             return self
 
-        return DataFrame(df_with_stats)
+        res = DataFrame(df_with_stats, lineage=list(self._lineage))
+        res.add_lineage_entry("add_file_stats_cols", path_col=path, compute_hash=compute_hash)
+        return res
 
     def add_depth_col(self, path: Optional[Union[str, Path]] = None, inplace: bool = False) -> "DataFrame":
         """Add a depth column showing the nesting level of each path.
@@ -592,9 +644,12 @@ class DataFrame:
         if inplace:
             self._df = df_with_depth
             self.invalidate_pandas_cache()
+            self.add_lineage_entry("add_depth_col", reference_path=path)
             return self
 
-        return DataFrame(df_with_depth)
+        res = DataFrame(df_with_depth, lineage=list(self._lineage))
+        res.add_lineage_entry("add_depth_col", reference_path=path)
+        return res
 
     def filter_by_extension(self, extensions: Union[str, List[str]]) -> "DataFrame":
         """Filter the DataFrame to only include files with specific extensions.
@@ -624,7 +679,9 @@ class DataFrame:
                 return_dtype=pl.Boolean,
             )
         )
-        return DataFrame(filtered_df)
+        res = DataFrame(filtered_df, lineage=list(self._lineage))
+        res.add_lineage_entry("filter_by_extension", extensions=extensions)
+        return res
 
     def filter_by_pattern(self, pattern: str) -> "DataFrame":
         """Filter the DataFrame by path pattern.
@@ -639,7 +696,9 @@ class DataFrame:
 
         """
         filtered_df = self._df.filter(pl.col("path").str.contains(pattern))
-        return DataFrame(filtered_df)
+        res = DataFrame(filtered_df, lineage=list(self._lineage))
+        res.add_lineage_entry("filter_by_pattern", pattern=pattern)
+        return res
 
     def extension_counts(self) -> pl.DataFrame:
         """Group files by extension and count them.
@@ -845,7 +904,9 @@ class DataFrame:
             result = self._df.unique()
         else:
             result = self._df.unique(subset=subset)
-        return DataFrame(result)
+        res = DataFrame(result, lineage=list(self._lineage))
+        res.add_lineage_entry("unique", subset=subset)
+        return res
 
     def sort(self, by: Union[str, List[str]], descending: bool = False) -> "DataFrame":
         """Sort the DataFrame.
@@ -857,7 +918,9 @@ class DataFrame:
 
         """
         result = self._df.sort(by, descending=descending)
-        return DataFrame(result)
+        res = DataFrame(result, lineage=list(self._lineage))
+        res.add_lineage_entry("sort", by=by, descending=descending)
+        return res
 
     def enrich(self, inplace: bool = False):
         """Enrich the DataFrame by adding features like path components, file stats, and depth.
@@ -870,18 +933,24 @@ class DataFrame:
         """
         # Chain the enrichment methods; this produces a new DataFrame wrapper.
         # These methods are now idempotent, so calling enrich() multiple times is safe.
-        enriched_wrapper = self.add_path_components().add_file_stats_cols().add_depth_col()
-        enriched_wrapper.with_enrich = True
+        # Use intermediate wrappers to avoid redundant lineage entries if desired,
+        # but here we'll just record a single 'enrich' operation for the user.
+        # To avoid multiple inner lineage entries, we can use the underlying _df.
+        enriched_df = self.add_path_components().add_file_stats_cols().add_depth_col()._df
 
         if inplace:
             # Update the internal state of the current object
-            self._df = enriched_wrapper._df
+            self._df = enriched_df
             self.with_enrich = True
             self.invalidate_pandas_cache()
+            self.add_lineage_entry("enrich")
             return self
 
         # Return the new, enriched DataFrame instance
-        return enriched_wrapper
+        res = DataFrame(enriched_df, lineage=list(self._lineage))
+        res.with_enrich = True
+        res.add_lineage_entry("enrich")
+        return res
 
     def evaluate_duplicates(
         self,
@@ -1056,8 +1125,16 @@ class DataFrame:
         pl_result = pl_df.with_columns(new_cols)
 
         # Wrap the result in a filoma.DataFrame
-        enriched_wrapper = DataFrame(pl_result)
+        enriched_wrapper = DataFrame(pl_result, lineage=list(self._lineage))
         enriched_wrapper.with_filename_features = True
+        enriched_wrapper.add_lineage_entry(
+            "add_filename_features",
+            sep=sep,
+            prefix=prefix,
+            max_tokens=max_tokens,
+            include_parent=include_parent,
+            token_names=token_names,
+        )
 
         if inplace:
             self._df = enriched_wrapper._df
@@ -1065,6 +1142,7 @@ class DataFrame:
             if enrich and not self.with_enrich:
                 self.with_enrich = True
             self.invalidate_pandas_cache()
+            self._lineage = enriched_wrapper._lineage
             return self
 
         return enriched_wrapper

@@ -11,7 +11,7 @@ modules on-demand.
 """
 
 import importlib
-from typing import Any
+from typing import Any, Dict, Optional
 
 # Lightweight metadata
 from ._version import __version__
@@ -29,6 +29,8 @@ __all__ = [
     "probe_to_df",
     "probe_file",
     "probe_image",
+    "snapshot",
+    "verify_snapshot",
 ]
 
 
@@ -184,6 +186,70 @@ def probe_image(arg: Any, **kwargs: Any) -> Any:
     return ImageReport(path=str(p), status="failed_to_load_or_unsupported_format")
 
 
+def snapshot(
+    path: str,
+    mode: str = "fast",
+    export: Optional[str] = None,
+    include_hidden: bool = False,
+    pattern: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Any:
+    """Create a snapshot of a dataset with configurable integrity checking.
+
+    Three integrity levels:
+    - "fast": Hash of filename + size + mtime (99% effective for accidental changes)
+    - "deep": Fast + hash of first/last 4KB (detects header/corruption changes)
+    - "full": Complete SHA-256 hash (audit mode, slow for large files)
+
+    Args:
+        path: Path to the dataset directory to snapshot
+        mode: Integrity level - "fast", "deep", or "full"
+        export: Optional path to save the snapshot JSON file
+        include_hidden: Whether to include hidden files/directories
+        pattern: Optional glob pattern to filter files (e.g., "*.txt")
+        metadata: Optional metadata dictionary to include in snapshot
+
+    Returns:
+        DatasetSnapshot object containing all file entries and hashes
+
+    """
+    from .core.snapshot import snapshot as _snapshot
+
+    return _snapshot(
+        path=path,
+        mode=mode,
+        export=export,
+        include_hidden=include_hidden,
+        pattern=pattern,
+        metadata=metadata,
+    )
+
+
+def verify_snapshot(
+    snapshot_path: str,
+    target_path: Optional[str] = None,
+    mode: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Verify a directory against a saved snapshot.
+
+    Args:
+        snapshot_path: Path to the saved snapshot JSON file
+        target_path: Optional path to verify (defaults to snapshot's root_path)
+        mode: Verification mode (defaults to snapshot's mode)
+
+    Returns:
+        Dictionary with verification results
+
+    """
+    from .core.snapshot import verify as _verify
+
+    return _verify(
+        snapshot_path=snapshot_path,
+        target_path=target_path,
+        mode=mode,
+    )
+
+
 def probe_to_df(path: str, to_pandas: bool = False, enrich: bool = True, **kwargs: Any) -> Any:
     """Return a Polars DataFrame (or pandas if to_pandas=True).
 
@@ -206,6 +272,9 @@ def probe_to_df(path: str, to_pandas: bool = False, enrich: bool = True, **kwarg
     df_wrapper = analysis.to_df()
     if df_wrapper is None:
         raise RuntimeError("DataFrame was not built. Ensure 'polars' is installed and that DataFrame building is enabled (build_dataframe=True).")
+
+    # Initialize lineage
+    df_wrapper.add_lineage_entry("probe", path=path, **kwargs)
 
     # Optionally enrich the DataFrame wrapper with useful columns/stats
     df_enriched = df_wrapper

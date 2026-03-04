@@ -24,3 +24,10 @@ Design goals:
 - Predictable analysis: deterministic results across runs.
 
 When in doubt: start with `probe('.')`, then `probe_to_df('.')` if you need tabular work.
+
+Related guides:
+- [Scanning](scanning.md)
+- [DataFrame enrichment](dataframe.md)
+- [File & image profiling](profiling.md)
+- [Deduplication](dedup.md)
+- [Snapshots & manifests](snapshots-and-manifests.md)

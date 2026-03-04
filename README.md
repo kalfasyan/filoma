@@ -48,6 +48,7 @@
 - **📊 Rich Directory Analysis**: Get detailed statistics on file counts, extensions, sizes, and more.
 - **🔍 Smart File Search**: Use regex and glob patterns to find files with `FdFinder`.
 - **🖼️ File/Image Profiling**: Extract metadata and statistics from various file formats.
+- **📸 Dataset Snapshots & Manifests**: Create integrity-checked snapshots and hash-verified manifests for dataset versioning and validation. [📖 **Snapshots & Manifests Guide →**](docs/guides/snapshots-and-manifests.md)
 - **🧠 Agentic Analysis**: Natural language interface for file discovery, deduplication, and metadata inspection. [📖 **Brain Guide →**](docs/guides/brain.md)
 - **🏗️ Architectural Clarity**: High-level visual flows for discovery and processing. [📖 **Architecture Documentation →**](docs/reference/architecture.md)
 - **🖥️ Interactive CLI**: Beautiful terminal interface for filesystem exploration and DataFrame analysis [📖 **CLI Documentation →**](docs/guides/cli.md)
@@ -271,6 +272,40 @@ Or chat directly from the terminal:
 filoma brain chat
 ```
 [📖 **Read the Agentic Analysis Guide →**](docs/guides/brain.md)
+
+### 6. 📸 Dataset Snapshots & Manifests
+Create integrity-checked snapshots and hash-verified manifests for dataset versioning and validation.
+
+**Snapshots** provide fast integrity checking with three modes:
+- `fast`: Metadata-based (filename + size + mtime) - 99% effective
+- `deep`: Fast + partial content hash (first/last 4KB) - detects corruption
+- `full`: Complete SHA-256 hash - audit mode
+
+```python
+# Create a snapshot
+snap = flm.snapshot("./my_dataset", mode="fast", export="snapshot.json")
+
+# Verify against snapshot later
+results = flm.verify_snapshot("snapshot.json")
+print(f"Matched: {len(results['matched'])}, Modified: {len(results['modified'])}")
+```
+
+**Manifests** track complete dataset state with lineage:
+```python
+from filoma.core.manifest import Manifest
+
+# Generate manifest from DataFrame
+df = flm.probe_to_df("./my_dataset", enrich=True)
+manifest = Manifest()
+manifest_data = manifest.generate(df, compute_hashes=True)
+manifest.save(manifest_data, "manifest.json")
+
+# Verify dataset integrity
+results = manifest.verify("manifest.json")
+manifest.print_report(results)  # Beautiful Rich table with file details
+```
+
+[📖 **Read the Snapshots & Manifests Guide →**](docs/guides/snapshots-and-manifests.md)
 
 ## Performance & Benchmarks
 
