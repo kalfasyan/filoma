@@ -60,3 +60,6 @@ site/
 bench_test/
 snapshot.json
 manifest.json
+
+# Secret scanning
+.secrets.baseline
