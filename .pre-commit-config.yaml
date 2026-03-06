@@ -10,11 +10,8 @@ repos:
     hooks:
       - id: detect-secrets
         args: ["--baseline", ".secrets.baseline"]
-#  - repo: local
-#    hooks:
-#      - id: ty
-#        name: ty check
-#        entry: ty check . --ignore unresolved-import
-#        language: system
-#        pass_filenames: false
-#        always_run: true
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.7.1
+    hooks:
+      - id: nbstripout
+
