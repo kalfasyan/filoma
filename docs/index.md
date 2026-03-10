@@ -30,6 +30,7 @@ filoma /path/to/analyze   # Start in specific directory
 Navigate with arrow keys, probe files and directories, and analyze DataFrames—all with beautiful terminal UI powered by Rich and questionary. [Learn more →](guides/cli.md)
 
 ## Why filoma?
+
 - **Automatic speed**: Rust / fd / Python backend selection
 - **DataFrame-first**: Direct Polars integration + enrichment helpers
 - **One-liners**: `probe`, `probe_to_df`, `probe_file`, `probe_image`
@@ -52,16 +53,18 @@ Best place to begin is the Demo notebook (see the [`Demo` page](tutorials/demo.m
 8. Dive into the [API Reference](reference/api.md)
 
 ## Common Tasks (TL;DR)
-| Task | Snippet |
-|------|---------|
-| Scan dir | `probe('.')` |
-| DataFrame | `probe_to_df('.')` |
-| Chat with Brain | `filoma brain chat` |
-| Largest N files | see Cookbook |
+
+| Task             | Snippet                         |
+| ---------------- | ------------------------------- |
+| Scan dir         | `probe('.')`                    |
+| DataFrame        | `probe_to_df('.')`              |
+| Chat with Brain  | `filoma brain chat`             |
+| Largest N files  | see Cookbook                    |
 | Filter extension | `df.filter_by_extension('.py')` |
-| Add stats | `df.add_file_stats_cols()` |
+| Add stats        | `df.add_file_stats_cols()`      |
 
 ## Installation
+
 ```bash
 pip install filoma
 ```
@@ -69,4 +72,5 @@ pip install filoma
 Want performance? Install Rust (for fastest backend) or fd.
 
 ---
+
 Need something else? Check the [Cookbook](tutorials/cookbook.md) or jump to the [API](reference/api.md).

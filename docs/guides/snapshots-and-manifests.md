@@ -79,4 +79,3 @@ Verification reports:
 
 By default, relative paths in the manifest are resolved relative to the manifest file
 location; use `root_path` if you need to verify against a different directory.
-

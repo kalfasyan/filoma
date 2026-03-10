@@ -1,17 +1,76 @@
 repos:
+  # ========== BASIC FILE HYGIENE ==========
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-added-large-files
+        args: ["--maxkb=1000"]
+      - id: check-merge-conflict
+      - id: debug-statements
+      - id: check-case-conflict
+      - id: mixed-line-ending
+      - id: check-symlinks
+
+  # ========== PYTHON ==========
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.9.6
     hooks:
       - id: ruff
         args: ["--fix"]
       - id: ruff-format
+
+  # ========== SECRETS ==========
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.5.0
     hooks:
       - id: detect-secrets
         args: ["--baseline", ".secrets.baseline"]
+
+  # ========== NOTEBOOKS ==========
   - repo: https://github.com/kynan/nbstripout
     rev: 0.7.1
     hooks:
       - id: nbstripout
 
+  # ========== RUST ==========
+  - repo: local
+    hooks:
+      - id: rustfmt
+        name: rustfmt
+        entry: rustfmt --edition 2021
+        language: system
+        types: [rust]
+        pass_filenames: true
+      - id: clippy
+        name: clippy
+        entry: cargo clippy --manifest-path Cargo.toml -- -D warnings
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+  # ========== MODERN FORMATTING ==========
+  # Prettier: Universal formatter for Markdown, YAML, JSON
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        types_or: [yaml, markdown, json]
+        exclude: "^notebooks/.*\\.ipynb$"
+
+  # Taplo: Modern TOML formatter (Rust-based)
+  - repo: https://github.com/ComPWA/taplo-pre-commit
+    rev: v0.9.3
+    hooks:
+      - id: taplo-format
+
+  # Markdownlint: Modern Markdown linting
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.17.2
+    hooks:
+      - id: markdownlint-cli2
+        exclude: "^notebooks/.*\\.ipynb$"

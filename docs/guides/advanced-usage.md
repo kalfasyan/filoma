@@ -20,6 +20,7 @@ profiler.print_summary(result)
 ```
 
 Key arguments (what they do & which backend(s) support them):
+
 - `search_backend` — choose preferred backend. Supported values: `rust`, `fd`, `python`, `auto` (default). All profilers use this to decide implementation.
 - `use_async` — enable Rust async scanner (when `search_backend` allows Rust and tokio-enabled build). Backend: Rust (async only).
 - `use_parallel` / `parallel_threshold` — prefer parallel Rust scanning when available; adjusts parallel decision heuristics. Backend: Rust (parallel only).
@@ -43,6 +44,7 @@ print(filo.to_dict())
 ```
 
 Key arguments:
+
 - `compute_hash` (bool) — compute content hash (sha256). Supported by: FileProfiler (Python implementation) and internal Rust file profilers when enabled; computing a hash may be slower for large files.
 - `follow_links` — when probing a path that is a symlink, whether to resolve it. Supported by: FileProfiler (behavior depends on implementation; FileProfiler forwards to low-level routines).
 
@@ -61,11 +63,13 @@ img_report2 = ImageProfiler().probe(arr)
 ```
 
 Key arguments & notes:
+
 - `path` or numpy array input — ImageProfiler accepts either a path-like (dispatches by extension) or an ndarray directly.
 - `compute_stats` — compute pixel-level statistics (min/max/mean/std) and simple histograms. Supported by: image profilers implemented in Python; some heavy operations may call compiled helpers.
 - `load_lazy` / `fast` — some backends/profilers may provide a fast/low-memory mode for very large images (TIF/ZARR). Backend support: varies by specific image profiler (Tif/Zarr profilers often support chunked/lazy reading).
 
 Assumptions & compatibility
+
 - The doc lists commonly available options; exact flag names and behavior are implemented in the specific profiler classes. When unspecified, `DirectoryProfiler` attempts to forward preferences to the chosen backend (`rust`/`fd`/`python`).
 
 ## Smart File Discovery
@@ -118,16 +122,16 @@ from filoma.core import FdIntegration
 fd = FdIntegration()
 if fd.is_available():
     print(f"fd version: {fd.get_version()}")
-    
+
     # Regex pattern search
     py_files = fd.find(pattern=r"\.py$", path="/src", max_depth=2)
-    
-    # Glob pattern search  
+
+    # Glob pattern search
     config_files = fd.find(pattern="*.json", use_glob=True, max_results=10)
-    
+
     # Files only
     files = fd.find(file_types=["f"], max_depth=3)
-    
+
     # Directories only
     dirs = fd.find(file_types=["d"], search_hidden=True)
 ```
@@ -240,7 +244,7 @@ if results:
 ```python
 # Force specific backends
 profiler_python = DirectoryProfiler(DirectoryProfilerConfig(search_backend="python", show_progress=False))
-profiler_rust = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust", show_progress=False))  
+profiler_rust = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust", show_progress=False))
 profiler_fd = DirectoryProfiler(DirectoryProfilerConfig(search_backend="fd", show_progress=False))
 
 # Disable progress for pure benchmarking
@@ -267,7 +271,7 @@ if fd.is_available():
         max_depth=3,
         case_sensitive=False
     )
-    
+
     # Glob patterns with exclusions
     source_files = fd.find(
         pattern="*.{py,rs,js}",
@@ -275,14 +279,14 @@ if fd.is_available():
         exclude_patterns=["*test*", "*__pycache__*"],
         max_depth=5
     )
-    
+
     # Find large files
     large_files = fd.find(
         pattern=".",
         file_types=["f"],
         absolute_paths=True
     )
-    
+
     # Search hidden files
     hidden_files = fd.find(
         pattern=".*",

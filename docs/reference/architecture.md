@@ -12,7 +12,7 @@ The primary goal of Filoma is to scan massive directory trees and extract metada
 
 ![Profiling flow](../assets/images/profiling-flow.svg)
 
-*Intuition: Filoma acts as a smart orchestrator that picks the fastest path to your data, enriching it with deep metadata (like hashes or image stats) along the way.*
+_Intuition: Filoma acts as a smart orchestrator that picks the fastest path to your data, enriching it with deep metadata (like hashes or image stats) along the way._
 
 DOT source: `docs/diagrams/profiling-flow.dot`.
 
@@ -22,7 +22,7 @@ Once discovered, Filoma turns raw filesystem metadata into a powerful `filoma.Da
 
 ![Data processing](../assets/images/data-processing.svg)
 
-*Intuition: Filoma bridges the gap between raw files and actionable insights, providing a clean API to transform, filter, and deduplicate your data for downstream use.*
+_Intuition: Filoma bridges the gap between raw files and actionable insights, providing a clean API to transform, filter, and deduplicate your data for downstream use._
 
 DOT source: `docs/diagrams/data-processing.dot`.
 

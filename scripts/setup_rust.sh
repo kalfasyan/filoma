@@ -17,7 +17,7 @@ echo "✅ Rust found: $(rustc --version)"
 # Check if we're in a virtual environment
 if [[ -z "$VIRTUAL_ENV" ]]; then
     echo "⚠️  Not in a virtual environment. Creating one..."
-    
+
     # Check if uv is available (faster)
     if command -v uv &> /dev/null; then
         echo "📦 Using uv to create virtual environment..."
@@ -37,7 +37,7 @@ fi
 # Check if maturin is installed
 if ! command -v maturin &> /dev/null; then
     echo "📦 Installing maturin..."
-    
+
     # Check if we have a pyproject.toml (indicating this is a uv project)
     if [[ -f "pyproject.toml" ]] && command -v uv &> /dev/null; then
         echo "📁 Detected uv project, using 'uv add' for proper dependency management..."

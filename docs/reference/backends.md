@@ -5,23 +5,27 @@
 ## Backend Overview
 
 ### 🐍 Python Backend (Universal)
+
 - **Always available** - works on any Python installation
 - **Full compatibility** - complete feature set
 - **Reliable fallback** - when other backends aren't available
 
 ### 🦀 Rust Backend (Fastest for Local Storage)
+
 - **Best performance** - 2.5x+ faster than alternatives on local storage
 - **Parallel processing** - automatic multi-threading with rayon
 - **Auto-selected** - chosen by default when available for local filesystems
 - **Same API** - drop-in replacement with identical output
 
 ### ⚡ Async Backend (Network-optimized)
+
 - **Network optimized** - tokio-based with bounded concurrency
 - **85% of Rust speed** - excellent for network filesystems (NFS, SMB, CIFS)
 - **Auto-selected** - automatically chosen for network mounts when available
 - **Tunable concurrency** - `network_concurrency`, `network_timeout_ms`, `network_retries` parameters
 
 ### 🔍 fd Backend (Competitive Alternative)
+
 - **Fast file discovery** - leverages the `fd` command-line tool
 - **Advanced patterns** - supports regex and glob patterns
 - **Hybrid approach** - fd for discovery + Python for analysis
@@ -46,9 +50,9 @@ profiler.print_summary(result)
 - **When**: Automatically selected for network-mounted filesystems (NFS/CIFS/SMB/Gluster/SSHFS) when available.
 - **Why**: Uses a tokio-based scanner with bounded concurrency to hide network latency and avoid overwhelming remote servers.
 - **Tuning**: `DirectoryProfiler` accepts network tuning parameters:
-    - `network_concurrency` (int): maximum outstanding directory ops (default 64)
-    - `network_timeout_ms` (int): per-operation timeout in milliseconds (default 5000)
-    - `network_retries` (int): number of retries on transient failures (default 0)
+  - `network_concurrency` (int): maximum outstanding directory ops (default 64)
+  - `network_timeout_ms` (int): per-operation timeout in milliseconds (default 5000)
+  - `network_retries` (int): number of retries on transient failures (default 0)
 
 Use these to tune behavior on slow or flaky mounts. Example:
 
@@ -93,19 +97,20 @@ for backend in backends:
 
 ## When to Use Each Backend
 
-| Use Case | Recommended Backend | Why |
-|----------|-------------------|-----|
-| **Large local directories** | Auto (Rust preferred) | Best overall performance for local storage |
-| **Network filesystems (NFS)** | Auto or explicit `async` | Async backend handles high latency efficiently |
-| **CI/CD environments** | Auto | Reliable with graceful fallbacks |
-| **Maximum compatibility** | `python` | Always works, no dependencies |
-| **DataFrame analysis** | Auto (Rust on local, Async on network) | Fastest metadata collection |
-| **Pattern matching** | `fd` | Advanced regex/glob support |
-| **Tuning network performance** | Explicit `async` with config | Use `network_concurrency`, `network_timeout_ms`, `network_retries` |
+| Use Case                       | Recommended Backend                    | Why                                                                |
+| ------------------------------ | -------------------------------------- | ------------------------------------------------------------------ |
+| **Large local directories**    | Auto (Rust preferred)                  | Best overall performance for local storage                         |
+| **Network filesystems (NFS)**  | Auto or explicit `async`               | Async backend handles high latency efficiently                     |
+| **CI/CD environments**         | Auto                                   | Reliable with graceful fallbacks                                   |
+| **Maximum compatibility**      | `python`                               | Always works, no dependencies                                      |
+| **DataFrame analysis**         | Auto (Rust on local, Async on network) | Fastest metadata collection                                        |
+| **Pattern matching**           | `fd`                                   | Advanced regex/glob support                                        |
+| **Tuning network performance** | Explicit `async` with config           | Use `network_concurrency`, `network_timeout_ms`, `network_retries` |
 
 ## Technical Details
 
 All backends provide:
+
 - **Identical APIs** - same function signatures and parameters
 - **Same output format** - consistent data structures
 - **Progress bars** - real-time feedback for large operations

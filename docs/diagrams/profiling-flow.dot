@@ -12,7 +12,7 @@ digraph profiling_flow {
   }
 
   Scanner [label="Filoma Scanner", style="rounded,filled", fillcolor="#e1f5fe"];
-  
+
   subgraph cluster_backends {
     label = "Smart Multi-Backend Strategy";
     style = rounded;
@@ -29,10 +29,10 @@ digraph profiling_flow {
   Scanner -> Rust [label="preferred"];
   Scanner -> FD;
   Scanner -> Python;
-  
+
   Rust -> Enricher;
   FD -> Enricher;
   Python -> Enricher;
-  
+
   Enricher -> Result;
 }

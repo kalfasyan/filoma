@@ -77,7 +77,7 @@ print(file_info.as_dict())
 - **Fast Scans**: Uses a Rust backend and `fd` for high-performance directory traversal.
 - **DataFrame-First**: Easily integrates with the Polars for powerful data manipulation and analysis.
 - **Image Profiling**: Extracts metadata from images.
--- **Splitting utilities**: Provides helpers for creating deterministic train/validation/test splits from your file data when preparing datasets.
+  -- **Splitting utilities**: Provides helpers for creating deterministic train/validation/test splits from your file data when preparing datasets.
 - **Lazy Loading**: `import filoma` is fast and lightweight. Dependencies like `polars` and `Pillow` are loaded on demand.
 
 ## Where to Go Next

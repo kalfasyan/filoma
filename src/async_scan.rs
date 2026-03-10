@@ -6,7 +6,7 @@ use std::time::Instant;
 use pyo3::prelude::*;
 use tokio::fs;
 use tokio::sync::{mpsc, Semaphore};
-use tokio::time::{timeout, sleep, Duration};
+use tokio::time::{sleep, timeout, Duration};
 
 use crate::{analysis::get_file_extension, AnalysisConfig, ParallelDirectoryStats};
 
@@ -102,7 +102,12 @@ pub async fn probe_directory_async_internal(
     if let Some(name) = path_root.file_name().and_then(|n| n.to_str()) {
         let is_empty = crate::analysis::estimate_directory_size(&path_root, 1) == 0;
         if !is_empty {
-            stats.add_folder(name.to_string(), false, path_root.to_string_lossy().to_string(), 0);
+            stats.add_folder(
+                name.to_string(),
+                false,
+                path_root.to_string_lossy().to_string(),
+                0,
+            );
         }
     }
 
@@ -114,9 +119,12 @@ pub async fn probe_directory_async_internal(
     let pending_work = Arc::new(AtomicUsize::new(1)); // Start with 1 for root
 
     // Send root directory to work queue
-    tx.send(WorkItem { path: path_root.clone(), depth: 0 })
-        .await
-        .map_err(|e| format!("Failed to send root to work queue: {}", e))?;
+    tx.send(WorkItem {
+        path: path_root.clone(),
+        depth: 0,
+    })
+    .await
+    .map_err(|e| format!("Failed to send root to work queue: {}", e))?;
 
     // Spawn worker tasks - these will pull work from the queue
     // Use concurrency_limit as the number of workers since that's user-configurable
@@ -152,6 +160,10 @@ pub async fn probe_directory_async_internal(
                 };
 
                 // Process this directory
+                let proc_config = ProcessDirectoryConfig {
+                    timeout_ms,
+                    retries,
+                };
                 let subdirs = process_directory(
                     &work_item.path,
                     work_item.depth,
@@ -159,19 +171,21 @@ pub async fn probe_directory_async_internal(
                     &worker_config,
                     &worker_sem,
                     &worker_metrics,
-                    timeout_ms,
-                    retries,
-                ).await;
+                    &proc_config,
+                )
+                .await;
 
                 // Add subdirectories to work queue
                 let subdir_count = subdirs.len();
                 if subdir_count > 0 {
                     worker_pending.fetch_add(subdir_count, Ordering::SeqCst);
                     for subdir in subdirs {
-                        let _ = worker_tx.send(WorkItem {
-                            path: subdir,
-                            depth: work_item.depth + 1,
-                        }).await;
+                        let _ = worker_tx
+                            .send(WorkItem {
+                                path: subdir,
+                                depth: work_item.depth + 1,
+                            })
+                            .await;
                     }
                 }
 
@@ -205,6 +219,12 @@ pub async fn probe_directory_async_internal(
     Ok(result)
 }
 
+/// Configuration for processing a directory
+struct ProcessDirectoryConfig {
+    timeout_ms: u64,
+    retries: u8,
+}
+
 /// Process a single directory and return list of subdirectories to scan
 async fn process_directory(
     dir: &PathBuf,
@@ -213,8 +233,7 @@ async fn process_directory(
     config: &AnalysisConfig,
     sem: &Arc<Semaphore>,
     metrics: &Arc<ScanMetrics>,
-    timeout_ms: u64,
-    retries: u8,
+    proc_config: &ProcessDirectoryConfig,
 ) -> Vec<PathBuf> {
     // Respect max_depth
     if let Some(max_d) = config.max_depth {
@@ -233,7 +252,7 @@ async fn process_directory(
     let mut attempt = 0u8;
     let read_dir = loop {
         let fut = fs::read_dir(dir);
-        match timeout(Duration::from_millis(timeout_ms), fut).await {
+        match timeout(Duration::from_millis(proc_config.timeout_ms), fut).await {
             Ok(Ok(rd)) => break rd,
             Ok(Err(_e)) => {
                 metrics.record_readdir_error();
@@ -243,13 +262,16 @@ async fn process_directory(
             }
         }
 
-        if attempt >= retries {
+        if attempt >= proc_config.retries {
             metrics.record_skipped_entry();
             drop(permit);
             return Vec::new();
         }
         attempt += 1;
-        sleep(Duration::from_millis(READDIR_BACKOFF_BASE_MS * (1 << attempt.min(4)))).await;
+        sleep(Duration::from_millis(
+            READDIR_BACKOFF_BASE_MS * (1 << attempt.min(4)),
+        ))
+        .await;
     };
 
     // Release permit after read_dir succeeds
@@ -267,7 +289,12 @@ async fn process_directory(
         // Metadata with timeout & retries
         let mut meta_attempt = 0u8;
         let metadata = loop {
-            match timeout(Duration::from_millis(timeout_ms), entry.metadata()).await {
+            match timeout(
+                Duration::from_millis(proc_config.timeout_ms),
+                entry.metadata(),
+            )
+            .await
+            {
                 Ok(Ok(md)) => break Some(md),
                 Ok(Err(_e)) => {
                     metrics.record_metadata_error();
@@ -277,11 +304,14 @@ async fn process_directory(
                 }
             }
 
-            if meta_attempt >= retries {
+            if meta_attempt >= proc_config.retries {
                 break None;
             }
             meta_attempt += 1;
-            sleep(Duration::from_millis(METADATA_BACKOFF_BASE_MS * (1 << meta_attempt.min(4)))).await;
+            sleep(Duration::from_millis(
+                METADATA_BACKOFF_BASE_MS * (1 << meta_attempt.min(4)),
+            ))
+            .await;
         };
 
         if let Some(md) = metadata {
@@ -300,7 +330,10 @@ async fn process_directory(
             } else if md.is_file() {
                 let ext = get_file_extension(&path);
                 let size = if config.fast_path_only { 0 } else { md.len() };
-                let parent = path.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
+                let parent = path
+                    .parent()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_default();
                 stats.add_file(size, ext, parent, config.fast_path_only);
             }
         } else {
@@ -311,7 +344,12 @@ async fn process_directory(
     // Record empty directory
     if is_empty {
         if let Some(name) = dir.file_name().and_then(|n| n.to_str()) {
-            stats.add_folder(name.to_string(), true, dir.to_string_lossy().to_string(), current_depth);
+            stats.add_folder(
+                name.to_string(),
+                true,
+                dir.to_string_lossy().to_string(),
+                current_depth,
+            );
         }
     }
 
@@ -320,14 +358,31 @@ async fn process_directory(
 
 #[pyfunction]
 #[pyo3(signature = (path_root, max_depth=None, concurrency_limit=None, timeout_ms=None, retries=None, fast_path_only=None, follow_links=None, search_hidden=None, no_ignore=None))]
-pub(crate) fn probe_directory_rust_async(path_root: &str, max_depth: Option<u32>, concurrency_limit: Option<usize>, timeout_ms: Option<u64>, retries: Option<u8>, fast_path_only: Option<bool>, follow_links: Option<bool>, search_hidden: Option<bool>, no_ignore: Option<bool>) -> PyResult<PyObject> {
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn probe_directory_rust_async(
+    path_root: &str,
+    max_depth: Option<u32>,
+    concurrency_limit: Option<usize>,
+    timeout_ms: Option<u64>,
+    retries: Option<u8>,
+    fast_path_only: Option<bool>,
+    follow_links: Option<bool>,
+    search_hidden: Option<bool>,
+    no_ignore: Option<bool>,
+) -> PyResult<PyObject> {
     let root = PathBuf::from(path_root);
 
     if !root.exists() {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!("Path does not exist: {}", path_root)));
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "Path does not exist: {}",
+            path_root
+        )));
     }
     if !root.is_dir() {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!("Path is not a directory: {}", path_root)));
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "Path is not a directory: {}",
+            path_root
+        )));
     }
 
     // Build config
@@ -350,14 +405,19 @@ pub(crate) fn probe_directory_rust_async(path_root: &str, max_depth: Option<u32>
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to build tokio runtime: {}", e)))?;
+        .map_err(|e| {
+            pyo3::exceptions::PyRuntimeError::new_err(format!(
+                "Failed to build tokio runtime: {}",
+                e
+            ))
+        })?;
 
     // Wrap the internal call to inject timeout/retry behavior into a config closure
     let stats = rt.block_on(async move {
         probe_directory_async_internal(root, config, concurrency, op_timeout_ms, retries).await
     });
 
-    let stats = stats.map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
+    let stats = stats.map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
 
     Python::with_gil(|py| stats.to_py_dict(py, path_root))
 }

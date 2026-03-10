@@ -25,33 +25,34 @@ python benchmarks/benchmark.py [OPTIONS]
 ```
 
 By default, the benchmark:
+
 - Creates a test dataset in a temp directory
 - Runs profiling backends (rust, rust-seq, async, fd, python)
 - Cleans up after completion
 
 ### Options
 
-| Option | Description |
-|--------|-------------|
-| `--path [LABEL=]PATH` | Directory to benchmark (auto-creates test data if doesn't exist) |
-| `--backend BACKEND` | Backend group or specific backend (default: profiling) |
-| `-n, --iterations N` | Number of iterations per test (default: 3) |
+| Option                | Description                                                          |
+| --------------------- | -------------------------------------------------------------------- |
+| `--path [LABEL=]PATH` | Directory to benchmark (auto-creates test data if doesn't exist)     |
+| `--backend BACKEND`   | Backend group or specific backend (default: profiling)               |
+| `-n, --iterations N`  | Number of iterations per test (default: 3)                           |
 | `--dataset-size SIZE` | Dataset size: `small`, `medium`, `large`, `xlarge` (default: medium) |
-| `--use-existing` | Use existing directory as-is (don't create test data) |
-| `--no-cleanup` | Keep generated test data after benchmarking |
-| `--clear-cache` | Clear filesystem cache between runs (requires sudo) |
-| `--warmup` | Prime NFS cache before benchmarking |
-| `--shuffle` | Randomize backend order |
-| `-o, --output FILE` | Save results to JSON file |
+| `--use-existing`      | Use existing directory as-is (don't create test data)                |
+| `--no-cleanup`        | Keep generated test data after benchmarking                          |
+| `--clear-cache`       | Clear filesystem cache between runs (requires sudo)                  |
+| `--warmup`            | Prime NFS cache before benchmarking                                  |
+| `--shuffle`           | Randomize backend order                                              |
+| `-o, --output FILE`   | Save results to JSON file                                            |
 
 ### Dataset Sizes
 
-| Size | Directories | Files/Dir | Approx Total |
-|------|-------------|-----------|--------------|
-| small | 10 | 100 | ~1,000 |
-| medium | 50 | 200 | ~10,000 |
-| large | 100 | 500 | ~50,000 |
-| xlarge | 200 | 1000 | ~200,000 |
+| Size   | Directories | Files/Dir | Approx Total |
+| ------ | ----------- | --------- | ------------ |
+| small  | 10          | 100       | ~1,000       |
+| medium | 50          | 200       | ~10,000      |
+| large  | 100         | 500       | ~50,000      |
+| xlarge | 200         | 1000      | ~200,000     |
 
 ## Examples
 
@@ -117,13 +118,13 @@ Backends are organized into groups based on what they measure:
 
 Full directory profiling with metadata collection, extension counting, and statistics.
 
-| Backend | Description |
-|---------|-------------|
-| `rust` | Rust parallel scanner (rayon) - fastest for local storage |
-| `rust-seq` | Rust sequential scanner |
-| `async` | Rust async scanner (tokio) - optimized for high-latency network storage |
-| `fd` | External fd tool with metadata enrichment |
-| `python` | Pure Python implementation |
+| Backend    | Description                                                             |
+| ---------- | ----------------------------------------------------------------------- |
+| `rust`     | Rust parallel scanner (rayon) - fastest for local storage               |
+| `rust-seq` | Rust sequential scanner                                                 |
+| `async`    | Rust async scanner (tokio) - optimized for high-latency network storage |
+| `fd`       | External fd tool with metadata enrichment                               |
+| `python`   | Pure Python implementation                                              |
 
 ```bash
 # Profiling backends (default)
@@ -142,12 +143,12 @@ python benchmarks/benchmark.py \
 
 Fast file/directory traversal only - no metadata collection. Useful for measuring raw filesystem traversal speed.
 
-| Backend | Description |
-|---------|-------------|
-| `os.walk` | Python standard library |
-| `pathlib` | Python pathlib.Path.rglob |
-| `rust-fast` | Rust parallel scanner with `fast_path_only` (no metadata) |
-| `async-fast` | Rust async scanner with `fast_path_only` (no metadata) |
+| Backend      | Description                                               |
+| ------------ | --------------------------------------------------------- |
+| `os.walk`    | Python standard library                                   |
+| `pathlib`    | Python pathlib.Path.rglob                                 |
+| `rust-fast`  | Rust parallel scanner with `fast_path_only` (no metadata) |
+| `async-fast` | Rust async scanner with `fast_path_only` (no metadata)    |
 
 ```bash
 # Traversal backends only
@@ -199,4 +200,3 @@ fd                     0.045s      388,889      0.69x     17,500
 rust-seq               0.089s      196,629      0.35x     17,500
 python                 0.198s       88,384      0.16x     17,500
 ```
-

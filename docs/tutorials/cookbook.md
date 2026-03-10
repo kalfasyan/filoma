@@ -5,6 +5,7 @@ Practical, copy‑paste recipes organized by what you want to accomplish.
 ## I want to search and discover files...
 
 ### Find specific file types quickly
+
 Use `FdFinder` for powerful pattern-based file discovery:
 
 ```python
@@ -25,6 +26,7 @@ print(f"Found {len(python_files)} Python files.")
 ```
 
 ### Profile directories and files
+
 Get comprehensive analysis of directory contents:
 
 ```python
@@ -42,6 +44,7 @@ paths_df = analysis.to_df().df
 ```
 
 ### Skip metadata collection for speed
+
 When you only need file paths without size/time information:
 
 ```python
@@ -59,6 +62,7 @@ with_stats = base.add_file_stats_cols()  # adds size, times, owner, etc.
 ## I want to explore and analyze my data...
 
 ### Find the largest files
+
 ```python
 from filoma import probe_to_df
 
@@ -68,6 +72,7 @@ print(largest)
 ```
 
 ### Analyze file extension distribution
+
 ```python
 from filoma import probe_to_df
 
@@ -77,6 +82,7 @@ print(by_ext)
 ```
 
 ### Count files per directory
+
 ```python
 from filoma import probe_to_df
 
@@ -89,6 +95,7 @@ print(counts)
 ```
 
 ### Filter files by criteria
+
 ```python
 from filoma import probe_to_df
 
@@ -107,6 +114,7 @@ recent = dfw.df.filter(dfw.df['modified_time'] > cutoff.isoformat())
 ```
 
 ### Analyze directory depth patterns
+
 ```python
 from filoma import probe_to_df
 
@@ -116,6 +124,7 @@ print(depth_stats)
 ```
 
 ### Profile image files
+
 ```python
 from filoma import probe_to_df, probe_image
 
@@ -130,6 +139,7 @@ reports = [probe_image(p) for p in large_images['path'].to_list()]
 ## I want to find and remove duplicates...
 
 ### Simple duplicate detection by size and hash
+
 ```python
 from filoma import probe_to_df, probe_file
 import collections
@@ -151,6 +161,7 @@ print(f"Found {len(duplicates)} groups of duplicates")
 ```
 
 ### Compute hashes for specific files
+
 ```python
 from filoma import probe_file
 
@@ -166,6 +177,7 @@ print(rows)
 ## I want to export and integrate with other tools...
 
 ### Export data for downstream processing
+
 ```python
 from filoma import probe_to_df
 
@@ -183,6 +195,7 @@ polars_df = dfw.df
 ```
 
 ### Work with the raw polars DataFrame
+
 ```python
 from filoma import probe_to_df
 import polars as pl
@@ -194,7 +207,7 @@ raw_df = dfw.df
 
 # Complex polars operations
 result = raw_df.lazy().filter(
-    (pl.col('size_bytes') > 1000000) & 
+    (pl.col('size_bytes') > 1000000) &
     (pl.col('path').str.contains(r'\.py$'))
 ).group_by('depth').agg([
     pl.col('size_bytes').sum().alias('total_size'),
@@ -203,4 +216,5 @@ result = raw_df.lazy().filter(
 ```
 
 ---
+
 Missing a recipe? [Open an issue](https://github.com/kalfasyan/filoma/issues) to request it!

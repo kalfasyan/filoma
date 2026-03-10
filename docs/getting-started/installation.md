@@ -87,12 +87,14 @@ result = profiler_safe.probe("/", max_depth=3)
 ### Common Issues
 
 **Permission denied errors:**
+
 ```bash
 # Run with limited depth to avoid deep system directories
 python -c "from filoma import probe; print(probe('/', max_depth=2)['summary'])"
 ```
 
 **Memory issues with large directories:**
+
 ```python
 # Use fast_path_only for path discovery without metadata
 profiler = DirectoryProfiler(DirectoryProfilerConfig(fast_path_only=True, build_dataframe=False))

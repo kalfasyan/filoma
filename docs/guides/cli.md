@@ -55,23 +55,27 @@ Analyze files and directories with multiple probe options:
 When you use "Probe to DataFrame", unlock powerful data analysis capabilities:
 
 #### Core DataFrame Operations
+
 - **DataFrame Info**: Shape, column types, memory usage
 - **Head Display**: View first N rows with customizable count
 - **Column Overview**: All columns with types and sample values
 - **Basic Statistics**: Descriptive statistics for numeric columns
 
 #### Advanced Column Analysis
+
 - **Value Counts**: Frequency distribution of column values
 - **Unique Values**: List of unique values (with count)
 - **Column Statistics**: Mean, std, min, max for numeric data
 - **Null Analysis**: Missing value counts and percentages
 
 #### Data Exploration
+
 - **Interactive Filtering**: Filter by column values with live preview
 - **Search Functionality**: Find specific values across columns
 - **Sample Data**: Preview column contents before analysis
 
 #### Export Options
+
 - **CSV Export**: Standard comma-separated format
 - **JSON Export**: Structured JSON format
 - **Parquet Export**: High-performance columnar format
@@ -141,6 +145,7 @@ What would you like to do with this DataFrame?
 ### 5. Explore Your Data
 
 **View column information:**
+
 ```
 📋 DataFrame Columns
 ┏━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -177,17 +182,20 @@ Select "💾 Export Options" → "📄 Export to CSV" → enter filename:
 ## Tips and Tricks
 
 ### Efficient Navigation
+
 - Use the parent directory option (`📁 ..`) to quickly move up the tree
 - File type icons help identify content at a glance
 - The current directory is always shown in the welcome panel
 
 ### DataFrame Analysis
+
 - Start with "📊 Show DataFrame Info" for a quick overview
 - Use "👀 Show Head" to understand your data structure
 - "📈 Column Analysis" → "📊 Value Counts" reveals data distributions
 - Export results for further analysis in other tools
 
 ### Performance
+
 - Large directories are analyzed with progress bars
 - DataFrame operations are optimized for speed
 - Filtering shows live previews without affecting the original data

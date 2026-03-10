@@ -13,11 +13,11 @@ The top-level package docstring is rendered above. Below are some focused sectio
 The `filoma.DataFrame` wrapper provides convenience enrichers and helpers that operate on a Polars DataFrame internally.
 
 ::: filoma.dataframe.DataFrame
-	handler: python
+handler: python
 
 ## Directory profiler
 
 The directory profiling API and configuration helpers.
 
 ::: filoma.directories.directory_profiler
-	handler: python
+handler: python

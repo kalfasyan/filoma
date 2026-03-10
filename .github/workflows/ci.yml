@@ -7,13 +7,32 @@ on:
     branches: [main, master]
 
 jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Rust
+        run: |
+          rustup update stable
+          rustup default stable
+      - name: Install pre-commit
+        run: pip install pre-commit
+      - name: Run pre-commit
+        run: pre-commit run --all-files
+
   lint-and-test:
     runs-on: ubuntu-latest
     # Skip CI for version bump commits since publish workflow will run tests
     if: ${{ !contains(github.event.head_commit.message, 'Bump version') }}
+    needs: pre-commit
     strategy:
       matrix:
-        python-version: ['3.11', '3.12', '3.13', '3.14']
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

@@ -35,14 +35,17 @@
 </p>
 
 > 📖 **New to Filoma?** Check out the [**Cookbook**](docs/tutorials/cookbook.md) for practical, copy-paste recipes for common tasks!
+
 ---
 
 `filoma` helps you analyze file directory trees, inspect file metadata, and prepare your data for exploration. It can achieve this blazingly fast using the best available backend (Rust, [`fd`](https://github.com/sharkdp/fd), or pure Python) ⚡🍃
+
 <p align="center">
     <img src="docs/assets/images/filoma_ad.png" alt="Filoma Package Overview" width="400">
 </p>
 
 ## Key Features
+
 - **🚀 High-Performance Backends**: Automatic selection of Rust, `fd`, or Python for the best performance.
 - **📈 DataFrame Integration**: Convert scan results to [Polars](https://github.com/pola-rs/polars) (or [pandas](https://github.com/pandas-dev/pandas)) DataFrames for powerful analysis.
 - **📊 Rich Directory Analysis**: Get detailed statistics on file counts, extensions, sizes, and more.
@@ -64,6 +67,7 @@
 `filoma` provides a unified API for all your filesystem analysis needs. Whether you're inspecting a single file or a million-file directory, it stays fast and intuitive.
 
 ### 1. Simple File & Image Profiling
+
 Extract rich metadata and statistics from any file or image with a single call.
 
 ```python
@@ -79,20 +83,22 @@ print(info)
 
 ```text
 Filo(
-    path=PosixPath('README.md'), 
-    size=12237, 
-    mode_str='-rw-rw-r--', 
-    owner='user', 
-    modified=datetime.datetime(2025, 12, 30, 22, 45, 53), 
+    path=PosixPath('README.md'),
+    size=12237,
+    mode_str='-rw-rw-r--',
+    owner='user',
+    modified=datetime.datetime(2025, 12, 30, 22, 45, 53),
     is_file=True,
     ...
 )
 ```
+
 </details>
 
 For images, `probe_image` automatically extracts shapes, types, and pixel statistics.
 
 ### 2. Blazingly Fast Directory Analysis
+
 Scan entire directory trees in milliseconds. `filoma` automatically picks the fastest available backend (Rust → `fd` → Python).
 
 ```python
@@ -121,6 +127,7 @@ analysis.print_summary()
 │ Processing Speed         │ 102,114 items/sec    │
 └──────────────────────────┴──────────────────────┘
 ```
+
 </details>
 
 ```python
@@ -161,9 +168,11 @@ analysis.print_report()
 │ /project/temp/scratch                      │
 └────────────────────────────────────────────┘
 ```
+
 </details>
 
 ### 3. DataFrames & Enrichment
+
 Convert scan results to Polars DataFrames for advanced analysis. Use `.enrich()` to instantly add path components, file stats, and hierarchy data.
 
 ```python
@@ -188,15 +197,17 @@ shape: (2, 18)
 │ src/filoma        ┆ 1     ┆ src    ┆ filoma        ┆ … ┆ 7603126 ┆ 8     ┆ null   ┆ {}     │
 └───────────────────┴───────┴────────┴───────────────┴───┴─────────┴───────┴────────┴────────┘
 
-✨ Enriched columns added: parent, name, stem, suffix, size_bytes, modified_time, 
+✨ Enriched columns added: parent, name, stem, suffix, size_bytes, modified_time,
    created_time, is_file, is_dir, owner, group, mode_str, inode, nlink, sha256, xattrs, depth
 ```
+
 </details>
 
 - **Seamless Pandas Integration**: Just use `df.pandas` for instant conversion.
 - **Lazy Loading**: `import filoma` is cheap; heavy dependencies load only when needed.
 
 ### 4. Specialized DataFrame Operations
+
 Filoma's `DataFrame` extends Polars with specialized filesystem operations, providing quick ways to filter and summarize your data.
 
 ```python
@@ -212,6 +223,7 @@ df.directory_counts()
 <summary><b>🔍 See Operation Examples</b></summary>
 
 **`filter_by_extension([".py", ".rs"])`**
+
 ```text
 shape: (3, 1)
 ┌─────────────────────┐
@@ -226,7 +238,8 @@ shape: (3, 1)
 ```
 
 **`extension_counts()`**
-*Groups files by extension and returns counts.*
+_Groups files by extension and returns counts._
+
 ```text
 shape: (3, 2)
 ┌────────────┬─────┐
@@ -241,7 +254,8 @@ shape: (3, 2)
 ```
 
 **`directory_counts()`**
-*Summarizes file distribution across parent directories.*
+_Summarizes file distribution across parent directories._
+
 ```text
 shape: (3, 2)
 ┌────────────┬─────┐
@@ -254,9 +268,11 @@ shape: (3, 2)
 │ docs       ┆ 5   │
 └────────────┴─────┘
 ```
+
 </details>
 
 ### 5. 🧠 Filoma Brain (Agentic Analysis)
+
 Connect a "brain" to your filesystem. Filoma integrates with [PydanticAI](https://ai.pydantic.dev/) to allow you to interact with your files using natural language. The agent has tools to scan directories, find duplicates, and inspect metadata.
 
 ```python
@@ -268,15 +284,19 @@ await agent.run("Find duplicate images...")
 ```
 
 Or chat directly from the terminal:
+
 ```bash
 filoma brain chat
 ```
+
 [📖 **Read the Agentic Analysis Guide →**](docs/guides/brain.md)
 
 ### 6. 📸 Dataset Snapshots & Manifests
+
 Create integrity-checked snapshots and hash-verified manifests for dataset versioning and validation.
 
 **Snapshots** provide fast integrity checking with three modes:
+
 - `fast`: Metadata-based (filename + size + mtime) - 99% effective
 - `deep`: Fast + partial content hash (first/last 4KB) - detects corruption
 - `full`: Complete SHA-256 hash - audit mode
@@ -291,6 +311,7 @@ print(f"Matched: {len(results['matched'])}, Modified: {len(results['modified'])}
 ```
 
 **Manifests** track complete dataset state with lineage:
+
 ```python
 from filoma.core.manifest import Manifest
 
@@ -312,6 +333,7 @@ manifest.print_report(results)  # Beautiful Rich table with file details
 Need to compare backend performance? Check out the comprehensive [**Benchmarks Guide**](docs/reference/benchmarks.md)!
 
 **Latest Results:**
+
 - **Local SSD** (1M files, MacBook Air M4):
   - 🦀 **Rust**: 7.3s (136K files/sec) - fastest for metadata collection
   - ⚡ **Async**: 11.5s (87K files/sec) - strong alternative
@@ -324,11 +346,13 @@ Need to compare backend performance? Check out the comprehensive [**Benchmarks G
   - 🐍 **Python**: 15.1s (13K files/sec)
 
 The [Benchmarks Guide](docs/reference/benchmarks.md) includes:
+
 - 📊 Detailed results across backends and storage types
-- 🔧 Testing methodology and best practices  
+- 🔧 Testing methodology and best practices
 - 💡 Backend selection recommendations for your use case
 
 Run your own benchmarks:
+
 ```bash
 python benchmarks/benchmark.py --path /your/directory -n 3 --backend profiling
 ```

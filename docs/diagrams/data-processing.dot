@@ -5,12 +5,12 @@ digraph data_processing {
   edge [fontname="Helvetica", fontsize=10];
 
   RawData [label="Raw Scan Results\n(File Paths & Basic Metadata)", shape=cylinder, fillcolor="#eeeeee"];
-  
+
   subgraph cluster_filoma_df {
     label = "Filoma DataFrame (Polars/Pandas)";
     style = rounded;
     color = "#4caf50";
-    
+
     Enrich [label="Enrich\n(Components, Depth, Stats)"];
     Transform [label="Transform & Chain\n(Map, Filter, Expand)"];
     Deduplicate [label="Deduplicate\n(Content-based)"];
