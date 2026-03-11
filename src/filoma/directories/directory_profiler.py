@@ -353,7 +353,10 @@ class DirectoryProfiler:
                 backend_choice = "fd"
             else:
                 # No explicit preference from user -> auto-detect best available
-                if RUST_AVAILABLE:
+                # For pure file discovery (fast_path_only), prefer python/os.walk
+                if config.fast_path_only:
+                    backend_choice = "python"
+                elif RUST_AVAILABLE:
                     backend_choice = "rust"
                 elif FD_AVAILABLE:
                     backend_choice = "fd"
