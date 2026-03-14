@@ -6,7 +6,6 @@ Provides fast, multi-level integrity checking for dataset snapshots:
 - Full: Complete SHA-256 hashing
 """
 
-import hashlib
 import json
 import os
 from dataclasses import dataclass, field
@@ -15,6 +14,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Union
 
 from loguru import logger
+
+from .hashes import compute_deep_hash, compute_fast_hash, compute_full_hash
 
 
 @dataclass
@@ -102,55 +103,6 @@ class DatasetSnapshot:
         return snapshot
 
 
-def _compute_fast_hash(path: Path, size: int, mtime: float) -> str:
-    """Compute fast metadata-based hash.
-
-    Combines filename, size, and modification time for quick change detection.
-    """
-    content = f"{path.name}:{size}:{mtime}"
-    return hashlib.sha256(content.encode()).hexdigest()[:16]
-
-
-def _compute_deep_hash(path: Path) -> str:
-    """Compute deep partial content hash.
-
-    Hashes first 4KB and last 4KB of file for header/corruption detection.
-    """
-    hasher = hashlib.sha256()
-    chunk_size = 4096  # 4KB
-
-    try:
-        with open(path, "rb") as f:
-            # Hash first 4KB
-            first_chunk = f.read(chunk_size)
-            hasher.update(first_chunk)
-
-            # If file is larger than 8KB, also hash last 4KB
-            file_size = path.stat().st_size
-            if file_size > chunk_size * 2:
-                f.seek(-chunk_size, os.SEEK_END)
-                last_chunk = f.read(chunk_size)
-                hasher.update(last_chunk)
-
-        return hasher.hexdigest()[:32]
-    except (IOError, OSError) as e:
-        logger.warning(f"Could not compute deep hash for {path}: {e}")
-        return ""
-
-
-def _compute_full_hash(path: Path) -> str:
-    """Compute full SHA-256 hash of entire file."""
-    hasher = hashlib.sha256()
-    try:
-        with open(path, "rb") as f:
-            while chunk := f.read(8192):
-                hasher.update(chunk)
-        return hasher.hexdigest()
-    except (IOError, OSError) as e:
-        logger.warning(f"Could not compute full hash for {path}: {e}")
-        return ""
-
-
 def _scan_directory(
     root_path: Path,
     mode: Literal["fast", "deep", "full"],
@@ -188,14 +140,14 @@ def _scan_directory(
 
                 # Compute hash based on mode
                 if mode == "fast":
-                    entry.hash_fast = _compute_fast_hash(file_path, entry.size, entry.mtime)
+                    entry.hash_fast = compute_fast_hash(file_path, entry.size, entry.mtime)
                 elif mode == "deep":
-                    entry.hash_fast = _compute_fast_hash(file_path, entry.size, entry.mtime)
-                    entry.hash_deep = _compute_deep_hash(file_path)
+                    entry.hash_fast = compute_fast_hash(file_path, entry.size, entry.mtime)
+                    entry.hash_deep = compute_deep_hash(file_path)
                 elif mode == "full":
-                    entry.hash_fast = _compute_fast_hash(file_path, entry.size, entry.mtime)
-                    entry.hash_deep = _compute_deep_hash(file_path)
-                    entry.hash_full = _compute_full_hash(file_path)
+                    entry.hash_fast = compute_fast_hash(file_path, entry.size, entry.mtime)
+                    entry.hash_deep = compute_deep_hash(file_path)
+                    entry.hash_full = compute_full_hash(file_path)
 
                 entries.append(entry)
 
@@ -305,7 +257,9 @@ def verify(
     logger.info(f"Verifying {target_path} against snapshot (mode: {verify_mode})")
 
     # Create current snapshot for comparison
-    current = snapshot(target_path, mode=verify_mode)
+    from typing import cast
+
+    current = snapshot(target_path, mode=cast(Literal["fast", "deep", "full"], verify_mode))
 
     # Build lookup dictionaries
     snap_files = {e.path: e for e in snap.entries}

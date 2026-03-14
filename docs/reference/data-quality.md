@@ -21,3 +21,24 @@ For images and text, `filoma` can help identify similar content that isn't an ex
 - **Text Normalization**: Compare text files after removing whitespace or other noise.
 
 Refer to the [Cookbook](../tutorials/cookbook.md) for more examples.
+
+## Dataset Integrity
+
+`filoma` provides a higher-level `DatasetVerifier` class to check for dataset-wide integrity issues.
+
+```python
+from filoma.core.verifier import DatasetVerifier
+
+# Perform all checks
+verifier = DatasetVerifier("/path/to/dataset")
+verifier.run_all()
+verifier.print_summary()
+```
+
+This automates checking for:
+- Corrupt and zero-byte files
+- Dimension consistency
+- Near-duplicates
+- Label balance
+- Split leakage
+- Anomalous pixel statistics

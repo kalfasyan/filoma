@@ -113,8 +113,10 @@ class Manifest:
                     continue
 
                 # Now check hash
-                filo = profiler.probe(str(p), compute_hash=True)
-                if filo.sha256 != f_info["sha256"]:
+                from filoma.core.hashes import compute_full_hash
+
+                actual_hash = compute_full_hash(p)
+                if actual_hash != f_info["sha256"]:
                     results["hash_mismatch"].append(rel_path)
                     continue
 

@@ -84,4 +84,5 @@ print(file_info.as_dict())
 
 - **Cookbook**: Find copy-paste recipes for common tasks.
 - **Concepts**: Learn about the core ideas behind `filoma`.
+- **Data Quality**: Check your dataset for integrity and quality.
 - **DataFrame Workflow**: See how to work with `filoma`'s DataFrame output.

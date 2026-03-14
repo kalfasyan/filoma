@@ -33,4 +33,4 @@ Related guides:
 - [DataFrame enrichment](dataframe.md)
 - [File & image profiling](profiling.md)
 - [Deduplication](dedup.md)
-- [Snapshots & manifests](snapshots-and-manifests.md)
+- [Data integrity & quality](data-integrity.md)

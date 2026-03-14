@@ -18,6 +18,7 @@ from rich.console import Console
 from rich.table import Table
 
 from filoma import dedup as _dedup
+from filoma.core.hashes import compute_full_hash
 
 
 class FileProfiler:
@@ -145,14 +146,9 @@ class FileProfiler:
 
         Returns the hex digest or ``None`` on error.
         """
-        import hashlib
-
-        h = hashlib.sha256()
         try:
-            with open(path, "rb") as f:
-                for chunk in iter(lambda: f.read(chunk_size), b""):
-                    h.update(chunk)
-            return h.hexdigest()
+            result = compute_full_hash(Path(path))
+            return result if result else None
         except Exception:
             return None
 
