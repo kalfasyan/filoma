@@ -293,21 +293,34 @@ filoma brain chat
 
 ### 6. 🛡️ Dataset Integrity & Quality
 
-Filoma provides a comprehensive suite for dataset validation: you can perform unified snapshot/manifest integrity checks or deep content quality scans (corruption, duplicates, leakage, etc.).
+Filoma provides a comprehensive suite for dataset validation: perform snapshot/manifest integrity checks or deep content quality scans (corruption, leaks, balance).
 
 ```python
+# 1. Integrity check (snapshot/manifest)
 import filoma.core.verifier as vrf
+vrf.verify_dataset("manifest.json", target_path="./data")
 
-# Verify integrity for snapshots or manifests
-results = vrf.verify_dataset("data_reference.json", target_path="./data")
-
-# Run deep quality checks
-verifier = vrf.DatasetVerifier("./data")
+# 2. Deep quality analysis
+from filoma.core.verifier import DatasetVerifier
+verifier = DatasetVerifier("./data")
 verifier.run_all()
 verifier.print_summary()
 ```
 
-[📖 **Read the Data Integrity & Quality Guide →**](docs/guides/data-integrity.md)
+[📖 **Data Integrity & Quality Guide →**](docs/guides/data-integrity.md) • 
+[🖥️ **CLI Command**](docs/guides/cli.md)
+
+## Deduplication
+
+Filoma can find duplicate files, images (perceptual hash), or text files (shingle-based jaccard similarity).
+
+```bash
+# Standard find
+filoma dedup /path/to/dataset
+
+# Cross-directory find (compare two sets)
+filoma dedup train/ valid/ --cross-dir
+```
 
 ## Performance & Benchmarks
 

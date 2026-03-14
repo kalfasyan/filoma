@@ -174,13 +174,20 @@ def find_duplicates(ctx: RunContext[Any], path: str, ignore_safety_limits: bool 
         exact_groups = dupes.get("exact", [])
         exact_count = sum(len(g) for g in exact_groups) if exact_groups else 0
 
-        return (
+        report = (
             f"DUPLICATE REPORT FOR: {p}\n"
             f"--------------------------------------------------\n"
             f"TOTAL DUPLICATE FILES FOUND: {exact_count}\n"
             f"NUMBER OF DUPLICATE GROUPS: {len(exact_groups)}\n"
-            f"--------------------------------------------------"
+            f"--------------------------------------------------\n"
         )
+
+        for i, group in enumerate(exact_groups):
+            report += f"\nGroup {i + 1}:\n"
+            for file_path in group:
+                report += f"  - {file_path}\n"
+
+        return report
 
     except Exception as e:
         return f"Error finding duplicates: {str(e)}"
@@ -198,6 +205,36 @@ def get_file_info(ctx: RunContext[Any], path: str) -> str:
         return f"FILE METADATA:\n{json.dumps(info.as_dict(), indent=2)}"
     except Exception as e:
         return f"Error getting file info: {str(e)}"
+
+
+def verify_integrity(ctx: RunContext[Any], reference: str, target: str) -> str:
+    """Verify dataset integrity using snapshots or manifests."""
+    from filoma.core.verifier import verify_dataset
+
+    try:
+        results = verify_dataset(reference, target_path=target)
+        return f"INTEGRITY CHECK RESULTS:\n{results}"
+    except Exception as e:
+        return f"Error during verification: {str(e)}"
+
+
+def run_quality_check(ctx: RunContext[Any], path: str) -> str:
+    """Run data quality analysis on a dataset."""
+    from filoma.core.verifier import DatasetVerifier
+
+    try:
+        verifier = DatasetVerifier(path)
+        verifier.run_all()
+        # Capture the output of print_summary
+        import io
+        from contextlib import redirect_stdout
+
+        f = io.StringIO()
+        with redirect_stdout(f):
+            verifier.print_summary()
+        return f"QUALITY CHECK RESULTS:\n{f.getvalue()}"
+    except Exception as e:
+        return f"Error during quality checks: {str(e)}"
 
 
 def search_files(

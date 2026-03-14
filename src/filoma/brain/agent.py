@@ -40,7 +40,7 @@ COMPLETE TOOL LIST (exhaustive - no other operations exist):
    Summarizes a directory (top extensions, file/folder counts). Use ignore_safety_limits=True for deep scans of known large dirs.
 
 3. find_duplicates(path: str = ".", ignore_safety_limits: bool = False) -> str
-   Finds duplicate files in a directory.
+   Finds duplicate files in a directory and lists their full paths.
 
 4. get_file_info(path: str) -> str
    Retrieves detailed technical metadata (JSON) for a specific file.
@@ -145,6 +145,8 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
                 tools.open_file,
                 tools.read_file,
                 tools.preview_image,
+                tools.verify_integrity,
+                tools.run_quality_check,
             ],
         )
 

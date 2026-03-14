@@ -65,6 +65,83 @@ def main(path: Optional[str] = typer.Argument(None, help="Starting directory (de
         raise typer.Exit(1)
 
 
+@app.command()
+def verify(
+    reference: str = typer.Argument(..., help="Path to reference snapshot or manifest file"),
+    target: str = typer.Option(..., "--target", "-t", help="Target directory for integrity check"),
+) -> None:
+    """Verify dataset integrity using snapshots or manifests."""
+    from filoma.core.verifier import verify_dataset
+
+    console.print(f"[bold blue]Checking integrity of {target} against {reference}...[/bold blue]")
+    try:
+        results = verify_dataset(reference, target_path=target)
+        console.print("[green]✅ Integrity check complete.[/green]")
+        console.print(results)
+    except Exception as e:
+        console.print(f"[red]Error during verification: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def quality(
+    path: str = typer.Argument(..., help="Dataset path for quality check"),
+) -> None:
+    """Run data quality analysis on a dataset."""
+    from filoma.core.verifier import DatasetVerifier
+
+    console.print(f"[bold blue]Running quality checks on {path}...[/bold blue]")
+    try:
+        verifier = DatasetVerifier(path)
+        verifier.run_all()
+        verifier.print_summary()
+    except Exception as e:
+        console.print(f"[red]Error during quality checks: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def dedup(
+    paths: List[str] = typer.Argument(..., help="Path(s) to check for duplicates"),
+    cross_dir: bool = typer.Option(False, "--cross-dir", help="Only check for duplicates across provided paths"),
+) -> None:
+    """Find and report duplicate files in one or more directories."""
+    import filoma
+
+    console.print(f"[bold blue]Checking for duplicates in {', '.join(paths)}...[/bold blue]")
+    try:
+        # Create a single dataframe from all paths if cross-dir checking,
+        # or process them individually. For simplicity, we merge.
+        # Actually, probe_to_df usually takes a single path.
+        # We can create a consolidated DataFrame.
+        combined_dfs = [filoma.probe_to_df(p) for p in paths]
+        combined_df = combined_dfs[0]
+        for df in combined_dfs[1:]:
+            combined_df = combined_df.vstack(df.to_polars())
+
+        # Wrapped as a filoma.DataFrame
+        df = filoma.DataFrame(combined_df)
+
+        # If cross_dir, restrict duplicate search to span different directories
+        cross_dir_paths = paths if cross_dir else None
+
+        dupes = df.evaluate_duplicates(show_table=True, cross_dir_paths=cross_dir_paths)
+
+        for category in ["exact", "text", "image"]:
+            groups = dupes.get(category, [])
+            if groups:
+                console.print(f"\n[bold yellow]{category.capitalize()} duplicates ({len(groups)} groups):[/bold yellow]")
+                for i, group in enumerate(groups):
+                    console.print(f"Group {i + 1}:")
+                    for file_path in group:
+                        console.print(f"  • {file_path}")
+            else:
+                console.print(f"\n[dim]No {category} duplicates found.[/dim]")
+    except Exception as e:
+        console.print(f"[red]Error during duplicate check: {e}[/red]")
+        raise typer.Exit(1)
+
+
 def show_welcome(current_dir: Path) -> None:
     """Display welcome message and current directory."""
     welcome_text = f"""
@@ -115,7 +192,7 @@ def create_file_browser_choices(current_dir: Path) -> List[questionary.Choice]:
         choices.append(questionary.Choice(f"{file_icon} {file.name}", value=("file", file)))
 
     # Add action options
-    choices.append(questionary.Choice("━━━━━━━━━━━━━━━━━━━━━━━━", disabled=True))
+    choices.append(questionary.Choice("━━━━━━━━━━━━━━━━━━━━━━━━", disabled=""))
     choices.append(questionary.Choice("🔍 Probe current directory", value=("probe_dir", current_dir)))
     choices.append(questionary.Choice("❌ Exit", value=("exit", None)))
 

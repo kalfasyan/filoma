@@ -112,7 +112,7 @@ class DatasetVerifier:
                     if cols:
                         target_col = cols[0]
                         counts.update(df[target_col].value_counts().to_dict())
-                except Exception:
+                except (ImportError, Exception):
                     pass
 
         # 2. If no csv, fallback to directory structure

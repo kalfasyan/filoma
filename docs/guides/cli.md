@@ -25,6 +25,16 @@ filoma /path/to/analyze
 filoma --help
 ```
 
+## Additional CLI Commands
+
+`filoma` includes built-in commands for specific tasks:
+
+- **`filoma dedup [paths...]`**: Find and report duplicate files.
+  - `--cross-dir`: Check for duplicates across provided paths.
+- **`filoma verify [reference] --target [target]`**: Verify dataset integrity against a reference snapshot/manifest.
+- **`filoma quality [path]`**: Run data quality analysis on a dataset.
+- **`filoma brain chat`**: Start an interactive chat with the Filoma Brain.
+
 ### Navigation
 
 - **Arrow keys**: Navigate menus

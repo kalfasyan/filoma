@@ -959,24 +959,40 @@ class DataFrame:
         image_max_distance: int = 5,
         text_k: int = 3,
         show_table: bool = True,
+        cross_dir_paths: Optional[List[str]] = None,
     ) -> dict:
         """Evaluate duplicates among files in the DataFrame.
 
         Scans the `path_col` column, runs exact, text and image duplicate
-        detectors and prints a small Rich table summarizing counts.
-
-        Returns the raw dict produced by `filoma.dedup.find_duplicates`.
+        detectors. Optionally filters to show only duplicates that cross
+        directory boundaries (requires `cross_dir_paths` to define boundaries).
         """
         if path_col not in self._df.columns:
             raise ValueError(f"Column '{path_col}' not found in DataFrame")
 
-        paths = [str(p) for p in self._df[path_col].to_list()]
+        # filter for files only
+        paths = [str(p) for p in self._df[path_col].to_list() if Path(p).is_file()]
         res = _dedup.find_duplicates(
             paths,
             text_k=text_k,
             text_threshold=text_threshold,
             image_max_distance=image_max_distance,
         )
+
+        # Filter for cross-directory duplicates if requested
+        if cross_dir_paths:
+            for category in ["exact", "text", "image"]:
+                filtered_groups = []
+                for group in res.get(category, []):
+                    # Check if file sources span multiple folders
+                    source_dirs = set()
+                    for p in group:
+                        for cp in cross_dir_paths:
+                            if str(p).startswith(str(cp)):
+                                source_dirs.add(cp)
+                    if len(source_dirs) > 1:
+                        filtered_groups.append(group)
+                res[category] = filtered_groups
 
         # Summarize counts
         exact_groups = res.get("exact", [])
@@ -985,7 +1001,7 @@ class DataFrame:
 
         console = Console()
         if show_table:
-            table = Table(title="Duplicate Summary")
+            table = Table(title="Duplicate Summary (Cross-Dir)" if cross_dir_paths else "Duplicate Summary")
             table.add_column("Type", style="bold cyan")
             table.add_column("Groups", style="white")
             table.add_column("Files In Groups", style="white")
