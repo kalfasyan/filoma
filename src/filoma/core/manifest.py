@@ -104,6 +104,10 @@ class Manifest:
                 results["missing"].append(rel_path)
                 continue
 
+            if p.is_dir():
+                results["matched"].append(rel_path)
+                continue
+
             # Check size and hash
             try:
                 # We probe without hash first for speed
