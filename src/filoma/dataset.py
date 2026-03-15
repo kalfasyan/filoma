@@ -54,8 +54,14 @@ class Dataset:
 
     def dedup(self, **kwargs) -> Any:
         """Perform deduplication."""
-        from .dedup import dedup
-        return dedup(str(self.root_path), **kwargs)
+        from .dedup import find_duplicates
+        import os
+        paths = [
+            os.path.join(root, fname)
+            for root, _, files in os.walk(str(self.root_path))
+            for fname in files
+        ]
+        return find_duplicates(paths, **kwargs)
 
     def get_brain(self) -> Any:
         """Access the agentic AI tool for this dataset."""

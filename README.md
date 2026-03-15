@@ -20,17 +20,13 @@
 </p>
 
 <p align="center">
-  <code>import filoma as flm</code>
-</p>
-
-<p align="center">
   <a href="docs/getting-started/installation.md">Installation</a> •
   <a href="https://filoma.readthedocs.io/en/latest/">Documentation</a> •
   <a href="docs/guides/brain.md">Agentic Analysis</a> •
   <a href="docs/guides/cli.md">Interactive CLI</a> •
   <a href="docs/getting-started/quickstart.md">Quickstart</a> •
   <a href="docs/tutorials/cookbook.md">Cookbook</a> •
-  <a href="https://github.com/kalfasyan/filoma/blob/main/notebooks/roboflow_demo.ipynb">Roboflow Dataset Demo</a> •
+  <a href="https://github.com/kalfasyan/filoma/blob/main/notebooks/roboflow_demo.ipynb">Roboflow Demo</a> •
   <a href="https://github.com/kalfasyan/filoma">Source Code</a>
 </p>
 
@@ -53,7 +49,7 @@
 - **🖼️ File/Image Profiling**: Extract metadata and statistics from various file formats.
 - **🛡️ Dataset Integrity & Quality**: Unified integrity checking for snapshots, manifests, and automated quality scans (corruption, duplicates, leakage, class balance). [📖 **Data Integrity Guide →**](docs/guides/data-integrity.md)
 - **🧠 Agentic Analysis**: Natural language interface for file discovery, deduplication, and metadata inspection. [📖 **Brain Guide →**](docs/guides/brain.md)
-- **🖥️ Interactive CLI**: Beautiful terminal interface for filesystem exploration and DataFrame analysis [📖 **CLI Documentation →**](docs/guides/cli.md)
+- **🖥️ Interactive CLI**: Beautiful terminal interface for filesystem exploration and DataFrame analysis. [📖 **CLI Documentation →**](docs/guides/cli.md)
 
 <p align="center">
     <img src="docs/assets/images/filoma_graph.jpg" alt="Filoma Package Overview" width="800">
@@ -63,11 +59,11 @@
 
 ## ⚡ Quick Start
 
-`filoma` provides a unified API for all your filesystem analysis needs. Whether you're inspecting a single file or a million-file directory, it stays fast and intuitive.
+`filoma` provides a unified API for filesystem analysis.
 
-### 1. Simple File & Image Profiling
+### 1. File & Image Profiling
 
-Extract rich metadata and statistics from any file or image with a single call.
+Extract rich metadata and statistics from any file or image.
 
 ```python
 import filoma as flm
@@ -91,12 +87,11 @@ Filo(
     ...
 )
 ```
-
 </details>
 
 For images, `probe_image` automatically extracts shapes, types, and pixel statistics.
 
-### 2. Blazingly Fast Directory Analysis
+### 2. Directory Analysis
 
 Scan entire directory trees in milliseconds. `filoma` automatically picks the fastest available backend (Rust → `fd` → Python).
 
@@ -104,7 +99,7 @@ Scan entire directory trees in milliseconds. `filoma` automatically picks the fa
 # Analyze a directory
 analysis = flm.probe('.')
 
-# Print a high-level summary
+# Print high-level summary
 analysis.print_summary()
 ```
 
@@ -170,18 +165,20 @@ analysis.print_report()
 
 </details>
 
-### 3. DataFrames & Enrichment
+### 3. DataFrame Analysis
 
-Convert scan results to Polars DataFrames for advanced analysis. Use `.enrich()` to instantly add path components, file stats, and hierarchy data.
+Convert scan results to Polars DataFrames for advanced analysis.
 
 ```python
 # Scan and get an enriched filoma.DataFrame (Polars)
 df = flm.probe_to_df('src', enrich=True)
 
-print(df.head(2))
+# Perform operations
+df.filter_by_extension([".py", ".rs"])
+df.directory_counts()
 ```
 
-<details open>
+<details>
 <summary><b>📊 See Enriched DataFrame Output</b></summary>
 
 ```text
@@ -207,13 +204,13 @@ shape: (2, 18)
 
 ### 4. Specialized DataFrame Operations
 
-Filoma's `DataFrame` extends Polars with specialized filesystem operations, providing quick ways to filter and summarize your data.
+Filoma's `DataFrame` extends Polars with filesystem-specific operations for quick filtering and summarization.
 
 ```python
 # Filter by extensions
 df.filter_by_extension([".py", ".rs"])
 
-# Quick frequency analysis (counts)
+# Quick frequency analysis
 df.extension_counts()
 df.directory_counts()
 ```
@@ -236,8 +233,7 @@ shape: (3, 1)
 └─────────────────────┘
 ```
 
-**`extension_counts()`**
-_Groups files by extension and returns counts._
+**`extension_counts()`** — groups files by extension and returns counts.
 
 ```text
 shape: (3, 2)
@@ -252,8 +248,7 @@ shape: (3, 2)
 └────────────┴─────┘
 ```
 
-**`directory_counts()`**
-_Summarizes file distribution across parent directories._
+**`directory_counts()`** — summarizes file distribution across parent directories.
 
 ```text
 shape: (3, 2)
@@ -270,130 +265,102 @@ shape: (3, 2)
 
 </details>
 
-### 5. 🧠 Filoma Brain (Agentic Analysis)
+---
 
-Connect a "brain" to your filesystem. Filoma integrates with [PydanticAI](https://ai.pydantic.dev/) to allow you to interact with your files using natural language. The agent has tools to scan directories, find duplicates, and inspect metadata.
+## 🗂️ Advanced Topics
 
-```python
-from filoma.brain import get_agent
-
-# "Find duplicate images in ./data and tell me how many groups you found"
-agent = get_agent()
-await agent.run("Find duplicate images...")
-```
-
-Or chat directly from the terminal:
-
-```bash
-filoma brain chat
-```
-
-[📖 **Read the Agentic Analysis Guide →**](docs/guides/brain.md)
-
-### 6. 📦 The Dataset Convenience Class
-
-For a unified experience, use the `Dataset` class. It orchestrates snapshotting, profiling, integrity checks, and AI interactions in one place.
+### Dataset Convenience Class
+Use the `Dataset` class for orchestration of snapshotting, profiling, integrity checks, and AI interactions:
 
 ```python
 import filoma as flm
 
-# 1. Initialize
 ds = flm.Dataset("./my_data")
 
-# 2. Run analysis workflows
-# Snapshot + Quality Scan + Deduplication
-ds.snap(mode="deep") \
-  .run_quality_scan() \
-  .dedup()
+# Snapshot, Quality Scan, and Deduplication
+ds.snap(mode="deep")
+ds.run_quality_scan()
+ds.dedup()
 
-# 3. Explore & Analyze
-# Automatically generates an enriched DataFrame
+# Get an enriched DataFrame of the dataset
 df = ds.to_dataframe()
 print(df.extension_counts())
 
-# 4. Agentic Interaction
-# Ask the AI about this specific dataset
+# Agentic interaction with this specific dataset
 ds.get_brain().run("Is there any class imbalance in my dataset?")
 ```
 
-### 7. 🛡️ Dataset Integrity & Quality
-
-Filoma provides a comprehensive suite for dataset validation: perform snapshot/manifest integrity checks or deep content quality scans (corruption, leaks, balance).
->>>>>>>
+### Dataset Integrity & Quality
+Filoma provides a comprehensive suite for dataset validation (corruption, leaks, balance) and manifest integrity:
 
 ```python
-# 1. Integrity check (snapshot/manifest)
-import filoma.core.verifier as vrf
-vrf.verify_dataset("manifest.json", target_path="./data")
-
-# 2. Deep quality analysis
 from filoma.core.verifier import DatasetVerifier
 verifier = DatasetVerifier("./data")
 verifier.run_all()
 verifier.print_summary()
 ```
 
-[📖 **Data Integrity & Quality Guide →**](docs/guides/data-integrity.md) •
-[🖥️ **CLI Command**](docs/guides/cli.md)
-
-## Deduplication
-
-Filoma can find duplicate files, images (perceptual hash), or text files (shingle-based jaccard similarity).
+### Deduplication
+Find duplicate files, images (perceptual hash), or text files.
 
 ```bash
 # Standard find
 filoma dedup /path/to/dataset
 
-# Cross-directory find (compare two sets)
+# Cross-directory find
 filoma dedup train/ valid/ --cross-dir
 ```
 
-## Performance & Benchmarks
+### Agentic Analysis
+Connect a "brain" to your filesystem for natural language interaction:
+
+```python
+from filoma.brain import get_agent
+
+agent = get_agent()
+await agent.run("Find duplicate images...")
+```
+
+### Interactive CLI
+```bash
+filoma brain chat
+```
+
+[📖 **Browse all guides →**](docs/guides/index.md)
+
+---
+
+## 📊 Performance & Benchmarks
 
 Need to compare backend performance? Check out the comprehensive [**Benchmarks Guide**](docs/reference/benchmarks.md)!
 
-**Latest Results:**
+**Local SSD** (1M files):
+- 🦀 **Rust**: 7.3s (136K files/sec)
+- ⚡ **Async**: 11.5s (87K files/sec)
+- 🐍 **Python**: 35.5s (28K files/sec)
 
-- **Local SSD** (1M files, MacBook Air M4):
-  - 🦀 **Rust**: 7.3s (136K files/sec) - fastest for metadata collection
-  - ⚡ **Async**: 11.5s (87K files/sec) - strong alternative
-  - 🐍 **Python**: 35.5s (28K files/sec) - reliable baseline
-  - **os.walk** (discovery-only): 0.565s (1.77M files/sec)
-
-- **Network Storage** (200k files, cold cache):
-  - 🦀 **Rust**: 2.3s (86K files/sec)
-  - ⚡ **Async**: 2.8s (70K files/sec)
-  - 🐍 **Python**: 15.1s (13K files/sec)
-
-The [Benchmarks Guide](docs/reference/benchmarks.md) includes:
-
-- 📊 Detailed results across backends and storage types
-- 🔧 Testing methodology and best practices
-- 💡 Backend selection recommendations for your use case
-
-Run your own benchmarks:
+**Network Storage** (200K files, cold cache):
+- 🦀 **Rust**: 2.3s (86K files/sec)
+- ⚡ **Async**: 2.8s (70K files/sec)
+- 🐍 **Python**: 15.1s (13K files/sec)
 
 ```bash
 python benchmarks/benchmark.py --path /your/directory -n 3 --backend profiling
 ```
 
+---
+
 ## License
 
-Shield: [![CC BY 4.0][cc-by-shield]][cc-by]
-
-This work is licensed under a
-[Creative Commons Attribution 4.0 International License][cc-by].
+This work is licensed under a [Creative Commons Attribution 4.0 International License][cc-by].
 
 [![CC BY 4.0][cc-by-image]][cc-by]
 
 [cc-by]: http://creativecommons.org/licenses/by/4.0/
 [cc-by-image]: https://i.creativecommons.org/l/by/4.0/88x31.png
-[cc-by-shield]: https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg
+
+---
 
 ## Contributing
 
 Contributions welcome! Please check the [issues](https://github.com/filoma/filoma/issues) for planned features and bug reports.
-
----
-
-**filoma** - Fast, multi-backend file/directory profiling and data preparation.
