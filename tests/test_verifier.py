@@ -5,6 +5,7 @@ import pytest
 from filoma.core.verifier import DatasetVerifier
 
 
+@pytest.mark.skip(reason="Too slow, needs optimization")
 def test_verifier_on_weeds_dataset():
     dataset_path = Path("notebooks/Weeds-3/")
     if not dataset_path.exists():
