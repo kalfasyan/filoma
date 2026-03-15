@@ -25,6 +25,7 @@ __all__ = [
     "images",
     "files",
     "DataFrame",
+    "Dataset",
     "probe",
     "probe_to_df",
     "probe_file",
@@ -52,6 +53,11 @@ def __getattr__(name: str):
         "FileProfiler": "filoma.files.file_profiler:FileProfiler",
         "ImageProfiler": "filoma.images.image_profiler:ImageProfiler",
     }
+
+    if name == "Dataset":
+        from .dataset import Dataset
+        globals()["Dataset"] = Dataset
+        return Dataset
 
     if name in mapping:
         target = mapping[name]

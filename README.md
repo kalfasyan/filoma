@@ -290,9 +290,36 @@ filoma brain chat
 
 [📖 **Read the Agentic Analysis Guide →**](docs/guides/brain.md)
 
-### 6. 🛡️ Dataset Integrity & Quality
+### 6. 📦 The Dataset Convenience Class
+
+For a unified experience, use the `Dataset` class. It orchestrates snapshotting, profiling, integrity checks, and AI interactions in one place.
+
+```python
+import filoma as flm
+
+# 1. Initialize
+ds = flm.Dataset("./my_data")
+
+# 2. Run analysis workflows
+# Snapshot + Quality Scan + Deduplication
+ds.snap(mode="deep") \
+  .run_quality_scan() \
+  .dedup()
+
+# 3. Explore & Analyze
+# Automatically generates an enriched DataFrame
+df = ds.to_dataframe()
+print(df.extension_counts())
+
+# 4. Agentic Interaction
+# Ask the AI about this specific dataset
+ds.get_brain().run("Is there any class imbalance in my dataset?")
+```
+
+### 7. 🛡️ Dataset Integrity & Quality
 
 Filoma provides a comprehensive suite for dataset validation: perform snapshot/manifest integrity checks or deep content quality scans (corruption, leaks, balance).
+>>>>>>>
 
 ```python
 # 1. Integrity check (snapshot/manifest)
