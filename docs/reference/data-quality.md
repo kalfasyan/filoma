@@ -36,6 +36,7 @@ verifier.print_summary()
 ```
 
 This automates checking for:
+
 - Corrupt and zero-byte files
 - Dimension consistency
 - Near-duplicates

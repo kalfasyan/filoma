@@ -53,7 +53,6 @@
 - **🖼️ File/Image Profiling**: Extract metadata and statistics from various file formats.
 - **🛡️ Dataset Integrity & Quality**: Unified integrity checking for snapshots, manifests, and automated quality scans (corruption, duplicates, leakage, class balance). [📖 **Data Integrity Guide →**](docs/guides/data-integrity.md)
 - **🧠 Agentic Analysis**: Natural language interface for file discovery, deduplication, and metadata inspection. [📖 **Brain Guide →**](docs/guides/brain.md)
-- **🏗️ Architectural Clarity**: High-level visual flows for discovery and processing. [📖 **Architecture Documentation →**](docs/reference/architecture.md)
 - **🖥️ Interactive CLI**: Beautiful terminal interface for filesystem exploration and DataFrame analysis [📖 **CLI Documentation →**](docs/guides/cli.md)
 
 <p align="center">
@@ -307,7 +306,7 @@ verifier.run_all()
 verifier.print_summary()
 ```
 
-[📖 **Data Integrity & Quality Guide →**](docs/guides/data-integrity.md) • 
+[📖 **Data Integrity & Quality Guide →**](docs/guides/data-integrity.md) •
 [🖥️ **CLI Command**](docs/guides/cli.md)
 
 ## Deduplication

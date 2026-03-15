@@ -30,6 +30,7 @@ snap = flm.snapshot("./data", mode="fast", export="snapshot.json")
 ```
 
 Snapshot modes:
+
 - `"fast"`: hash of filename + size + mtime (default; very fast).
 - `"deep"`: fast hash + partial content hash (first/last 4KB).
 - `"full"`: full SHA-256 of every file (audit-grade).
