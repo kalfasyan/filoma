@@ -54,8 +54,9 @@ class Dataset:
 
     def dedup(self, **kwargs) -> Any:
         """Perform deduplication."""
-        from .dedup import find_duplicates
         import os
+
+        from .dedup import find_duplicates
         paths = [
             os.path.join(root, fname)
             for root, _, files in os.walk(str(self.root_path))

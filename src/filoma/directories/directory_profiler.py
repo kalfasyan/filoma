@@ -8,9 +8,9 @@ statistics and optional DataFrame support.
 import time
 from collections import Counter, defaultdict
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from loguru import logger
 from rich.console import Console
@@ -163,6 +163,20 @@ class DirectoryAnalysis(Mapping):
     dataframe: Optional["DataFrame"] = None
     timing: Optional[Dict] = None
     dataframe_note: Optional[str] = None
+    _path_obj: Path = field(init=False, repr=False)
+
+    def __post_init__(self):
+        """Initialize the path object."""
+        self._path_obj = Path(self.path)
+
+    def __getattr__(self, name: str) -> Any:
+        """Delegate attribute access to the path object."""
+        return getattr(self._path_obj, name)
+
+    @property
+    def path_obj(self) -> Path:
+        """Return the path object."""
+        return self._path_obj
 
     @classmethod
     def from_dict(cls, d: Dict) -> "DirectoryAnalysis":
