@@ -55,55 +55,53 @@ COMPLETE TOOL LIST (exhaustive - no other operations exist):
 7. analyze_image(path: str) -> str
    Performs specialized analysis on an image (shape, dtype, stats).
 
-8. analyze_dataframe(operation: str, **kwargs) -> str
-   Perform operations on the currently loaded search results (DataFrame).
-   The DataFrame is automatically loaded after running search_files.
-   Available operations:
+8. filter_by_extension(extensions: Union[str, List[str]]) -> str
+   Filters the current DataFrame to only include files with specific extensions.
+   Example: filter_by_extension('jpg, png') or filter_by_extension(['py', 'rs'])
 
-   a) 'filter_by_extension' - Keep only files with specific extension
-      Example: analyze_dataframe(operation='filter_by_extension', extension='py')
-      Returns: Count of filtered files
+9. filter_by_pattern(pattern: str) -> str
+   Filters the current DataFrame to only include files matching a regex pattern.
+   Example: filter_by_pattern('train/.*\\.jpg$')
 
-   b) 'filter_by_pattern' - Keep only files matching a regex pattern
-      Example: analyze_dataframe(operation='filter_by_pattern', pattern='test.*')
-      Returns: Count of filtered files
+10. sort_dataframe_by_size(ascending: bool = False, top_n: int = 10) -> str
+    Sorts the current DataFrame by file size and returns a top-N preview.
+    Example: sort_dataframe_by_size(ascending=False, top_n=15)
 
-   c) 'sort_by_size' - Sort files by size (small to large or vice versa)
-      Example: analyze_dataframe(operation='sort_by_size', ascending=False)
-      Returns: Top 10 files with their sizes in human-readable format
+11. dataframe_head(n: int = 5) -> str
+    Shows the first N rows of the currently loaded DataFrame.
+    Example: dataframe_head(n=20)
 
-   d) 'head' - Show first N rows of the DataFrame
-      Example: analyze_dataframe(operation='head', n=10)
-      Returns: JSON with paths, sizes, and other metadata for first N files
+12. summarize_dataframe() -> str
+    Returns summary statistics for the current DataFrame.
+    Includes total count, top extensions, and top directories.
 
-   e) 'summary' - Get statistics about the DataFrame
-      Example: analyze_dataframe(operation='summary')
-      Returns: Total count, top extensions, top directories
-
-   Note: Each filter operation updates the DataFrame, so multiple filters can be chained.
-
-9. export_dataframe(path: str, format: str = "csv") -> str
+13. export_dataframe(path: str, format: str = "csv") -> str
    Exports the current DataFrame to a file (csv, json, or parquet format).
    Example: export_dataframe(path='results.csv', format='csv')
    Supported formats: 'csv', 'json', 'parquet'
 
-10. open_file(path: str) -> str
+14. open_file(path: str) -> str
     Displays the content of a file directly to the user's terminal using 'bat' or 'cat'.
     This is the most efficient way to VIEW a file. The agent DOES NOT see the content.
     Use this when the user asks to "view", "show", "open", or "read" a file for themselves.
 
-11. read_file(path: str, start_line: int = 1, end_line: int = None) -> str
+15. read_file(path: str, start_line: int = 1, end_line: int = None) -> str
     Reads the content of a file into the agent's context.
     Use this ONLY when you need to ANALYZE the content (e.g., summarize, find bugs, explain code).
     Returns text wrapped in markdown code blocks with line numbers.
 
-12. preview_image(path: str, width: int = 60, mode: str = "ansi") -> str
+16. preview_image(path: str, width: int = 60, mode: str = "ansi") -> str
     Generates a preview of an image. Useful for visual confirmation of image contents.
     Modes: 'ansi' (default) for colored RGB blocks, 'ascii' for grayscale text.
     Works with PNG, JPG, BMP, etc.
 
-13. list_available_tools() -> str
+17. list_available_tools() -> str
     Returns this API reference. Use this if you are unsure of your capabilities.
+
+18. create_dataset_dataframe(path: str, enrich: bool = True) -> str
+    Creates a metadata dataframe from all files in a directory using filoma's probe_to_df.
+    The resulting dataframe can be analyzed and exported using other tools.
+    Use enrich=False for faster processing without additional metadata.
 
 IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-ONLY analysis tool (except for export_dataframe).
 """
@@ -140,13 +138,18 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
                 tools.get_directory_tree,
                 tools.list_available_tools,
                 tools.analyze_image,
-                tools.analyze_dataframe,
+                tools.filter_by_extension,
+                tools.filter_by_pattern,
+                tools.sort_dataframe_by_size,
+                tools.dataframe_head,
+                tools.summarize_dataframe,
                 tools.export_dataframe,
                 tools.open_file,
                 tools.read_file,
                 tools.preview_image,
                 tools.verify_integrity,
                 tools.run_quality_check,
+                tools.create_dataset_dataframe,
             ],
         )
 
@@ -238,19 +241,20 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
                 "- WHEN DATAFRAME IS LOADED: After running search_files, a DataFrame is automatically loaded with file metadata.\n"
                 "- WHAT THE DATAFRAME CONTAINS: Paths, sizes, extensions, modification dates, and other file properties.\n"
                 "- HOW TO USE IT:\n"
-                "  1. VIEWING DATA: Use analyze_dataframe(operation='head', n=10) to see file details\n"
-                "  2. SORTING: Use analyze_dataframe(operation='sort_by_size', ascending=False) for largest files first\n"
-                "  3. FILTERING: Use analyze_dataframe(operation='filter_by_extension', extension='py') to narrow results\n"
-                "  4. STATISTICS: Use analyze_dataframe(operation='summary') for counts and breakdowns\n"
+                "  1. VIEWING DATA: Use dataframe_head(n=10) to see file details\n"
+                "  2. SORTING: Use sort_dataframe_by_size(ascending=False) for largest files first\n"
+                "  3. FILTERING: Use filter_by_extension(extensions='py') or filter_by_pattern(pattern='.*test.*')\n"
+                "  4. STATISTICS: Use summarize_dataframe() for counts and breakdowns\n"
                 "  5. EXPORTING: Use export_dataframe(path='results.csv') to save results\n"
                 "- CHAINING OPERATIONS: Each filter operation updates the DataFrame, so you can:\n"
                 "  Step 1: search_files(extension='md')\n"
-                "  Step 2: analyze_dataframe(operation='sort_by_size', ascending=False)\n"
-                "  Step 3: analyze_dataframe(operation='head', n=5) to see top 5 largest .md files\n"
+                "  Step 2: filter_by_extension(extensions='md')\n"
+                "  Step 3: sort_dataframe_by_size(ascending=False)\n"
+                "  Step 4: dataframe_head(n=5) to see top 5 largest .md files\n"
                 "- FOLLOW-UP REQUESTS: When a user makes a follow-up request about results from a previous search:\n"
-                "  * For 'show paths' or 'list them': Use analyze_dataframe(operation='head', n=20)\n"
-                "  * For 'show sizes': Use analyze_dataframe(operation='sort_by_size')\n"
-                "  * For 'largest files': Use analyze_dataframe(operation='sort_by_size', ascending=False)\n"
+                "  * For 'show paths' or 'list them': Use dataframe_head(n=20)\n"
+                "  * For 'show sizes': Use sort_dataframe_by_size()\n"
+                "  * For 'largest files': Use sort_dataframe_by_size(ascending=False)\n"
                 "  * NEVER output tool call JSON as plain text. Always use the actual tool calling mechanism.\n"
                 "  * If the dataframe is already loaded from a previous search, use it instead of searching again.\n"
                 "- EXECUTE ONE TOOL AT A TIME. Do not output multiple tool calls in one message.\n"

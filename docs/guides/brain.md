@@ -121,7 +121,12 @@ The agent is equipped with the following "eyes and hands":
 - **`search_files`**: Searches for files matching a regex pattern, extension, or minimum size. Automatically loads results into a DataFrame.
 - **`get_directory_tree`**: Lists immediate contents (files/folders) of a directory (non-recursive).
 - **`analyze_image`**: Performs specialized analysis on an image (shape, dtype, stats).
-- **`analyze_dataframe`**: Performs operations on the currently loaded search results (filter, sort, summarize, etc.).
+- **`filter_by_extension`**: Filters the current DataFrame to only include files with specific extensions (e.g., 'jpg', '.py', ['png', 'jpg']).
+- **`filter_by_pattern`**: Filters the current DataFrame using a regex pattern on file paths.
+- **`sort_dataframe_by_size`**: Sorts the current DataFrame by file size and returns a top-N preview.
+- **`dataframe_head`**: Shows the first N rows from the currently loaded DataFrame.
+- **`summarize_dataframe`**: Returns DataFrame summary statistics (total files, top extensions, top directories).
+- **`create_dataset_dataframe`**: Creates a metadata dataframe from all files in a directory using filoma's `probe_to_df`.
 - **`export_dataframe`**: Exports the current DataFrame to a file (csv, json, or parquet).
 - **`open_file`**: **(Recommended for Viewing)** Displays file content directly in your terminal using `bat` or `cat`. Fast, energy-efficient, and syntax-highlighted.
 - **`read_file`**: Reads file content into the agent's context for analysis (summarization, bug finding, etc.). Supports reading specific line ranges.

@@ -61,6 +61,34 @@
 
 `filoma` provides a unified API for filesystem analysis.
 
+### End-to-End Example: Folder → DataFrame → Insights
+
+This is the core Filoma workflow in one place: scan a folder, build a rich dataframe, filter it, and extract quick insights.
+
+```python
+import filoma as flm
+
+dataset = "notebooks/Weeds-3"
+
+# 1) Fast scan + high-level summary
+analysis = flm.probe(dataset)
+analysis.print_summary()
+
+# 2) Build an enriched dataframe (paths, extension, sizes, ownership, timestamps, etc.)
+df = flm.probe_to_df(dataset, enrich=True)
+
+# 3) Narrow to image files and inspect distribution
+images = df.filter_by_extension(["jpg", "png"])
+print(images.extension_counts())
+print(images.directory_counts().head(3))
+
+# 4) Get the largest files quickly
+largest = images.sort("size_bytes", descending=True).head(5)
+print(largest.select(["path", "size_bytes"]))
+```
+
+This flow is typically the fastest way to move from raw folder structure to actionable dataset insight.
+
 ### 1. File & Image Profiling
 
 Extract rich metadata and statistics from any file or image.
@@ -318,7 +346,21 @@ Connect a "brain" to your filesystem for natural language interaction:
 from filoma.brain import get_agent
 
 agent = get_agent()
-await agent.run("Find duplicate images...")
+await agent.run("Create a dataframe from notebooks/Weeds-3 with enrichment")
+await agent.run("Filter by extension: jpg, png")
+await agent.run("Summarize dataframe and show top directories")
+await agent.run("Sort dataframe by size descending and show top 5")
+```
+
+Or use the interactive chat CLI:
+
+```bash
+filoma brain chat
+# Then ask:
+# - create a dataframe from notebooks/Weeds-3
+# - filter by extension jpg,png
+# - summarize dataframe
+# - export dataframe to weeds_images.csv
 ```
 
 ### Interactive CLI

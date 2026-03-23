@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional, Union
 
 from loguru import logger
 from pydantic import BaseModel
@@ -237,6 +237,122 @@ def run_quality_check(ctx: RunContext[Any], path: str) -> str:
         return f"Error during quality checks: {str(e)}"
 
 
+def filter_by_extension(ctx: RunContext[Any], extensions: Union[str, List[str]]) -> str:
+    """Filter the current DataFrame to only include files with specific extensions.
+
+    Args:
+    ----
+        ctx: The run context.
+        extensions: File extension(s) to filter by (e.g., 'jpg', '.py', ['png', 'jpg']).
+
+    """
+    if ctx.deps.current_df is None:
+        return "Error: No DataFrame loaded. Please run 'search_files' or 'create_dataset_dataframe' first."
+
+    # Lazy import to avoid recursive dependencies
+    df = ctx.deps.current_df
+    try:
+        if not extensions:
+            return "Error: 'extensions' argument is required (e.g., 'jpg' or ['py', 'rs'])."
+
+        if isinstance(extensions, str):
+            # Split by comma or space if multiple extensions are provided in a string
+            import re
+
+            ext_list = re.split(r"[\s,]+", extensions.strip())
+            extensions = [e for e in ext_list if e]
+
+        df = df.filter_by_extension(extensions)
+        ctx.deps.current_df = df
+        return f"✅ Successfully filtered DataFrame to {len(df)} files with extensions: {', '.join(extensions)}"
+    except Exception as e:
+        return f"Error filtering by extension: {str(e)}"
+
+
+def filter_by_pattern(ctx: RunContext[Any], pattern: str) -> str:
+    """Filter the current DataFrame to only include files matching a regex pattern."""
+    if ctx.deps.current_df is None:
+        return "Error: No DataFrame loaded. Please run 'search_files' or 'create_dataset_dataframe' first."
+
+    if not pattern:
+        return "Error: 'pattern' argument is required."
+
+    df = ctx.deps.current_df
+    try:
+        df = df.filter_by_pattern(pattern)
+        ctx.deps.current_df = df
+        return f"✅ Successfully filtered DataFrame to {len(df)} files matching pattern '{pattern}'."
+    except Exception as e:
+        return f"Error filtering by pattern: {str(e)}"
+
+
+def sort_dataframe_by_size(ctx: RunContext[Any], ascending: bool = False, top_n: int = 10) -> str:
+    """Sort the current DataFrame by file size and return a top-N preview."""
+    if ctx.deps.current_df is None:
+        return "Error: No DataFrame loaded. Please run 'search_files' or 'create_dataset_dataframe' first."
+
+    df = ctx.deps.current_df
+    try:
+        if "size_bytes" not in df.columns:
+            df.enrich(inplace=True)
+
+        df = df.sort("size_bytes", descending=not ascending)
+        ctx.deps.current_df = df
+
+        top_n = max(1, min(int(top_n), 100))
+        top_df = df.head(top_n).to_dict()
+        paths = top_df.get("path", [])
+        sizes = top_df.get("size_bytes", [])
+
+        report = f"Sorted DataFrame by size ({'ascending' if ascending else 'descending'}). Top {len(paths)} files:\n"
+        for p, s in zip(paths, sizes):
+            size_str = f"{s / 1024 / 1024:.2f} MB" if s > 1024 * 1024 else f"{s / 1024:.2f} KB"
+            report += f"- {p} ({size_str})\n"
+        return report
+    except Exception as e:
+        return f"Error sorting dataframe by size: {str(e)}"
+
+
+def dataframe_head(ctx: RunContext[Any], n: int = 5) -> str:
+    """Show the first N rows from the current DataFrame."""
+    if ctx.deps.current_df is None:
+        return "Error: No DataFrame loaded. Please run 'search_files' or 'create_dataset_dataframe' first."
+
+    df = ctx.deps.current_df
+    try:
+        n = max(1, min(int(n), 200))
+        head_df = df.head(n)
+        data = head_df.to_dict()
+        return f"First {n} rows:\n{json.dumps(data, indent=2, default=str)}"
+    except Exception as e:
+        return f"Error retrieving dataframe head: {str(e)}"
+
+
+def summarize_dataframe(ctx: RunContext[Any]) -> str:
+    """Get summary statistics about the current DataFrame."""
+    if ctx.deps.current_df is None:
+        return "Error: No DataFrame loaded. Please run 'search_files' or 'create_dataset_dataframe' first."
+
+    df = ctx.deps.current_df
+    try:
+        count = len(df)
+        ext_counts = df.extension_counts().head(10).to_dict()
+
+        try:
+            dir_counts = df.directory_counts().head(10).to_dict()
+        except Exception:
+            dir_counts = "N/A"
+
+        summary = {
+            "total_files": count,
+            "top_extensions": ext_counts,
+            "top_directories": dir_counts,
+        }
+        return f"DataFrame Summary:\n{json.dumps(summary, indent=2)}"
+    except Exception as e:
+        return f"Error summarizing dataframe: {str(e)}"
+
+
 def search_files(
     ctx: RunContext[Any],
     path: str,
@@ -324,7 +440,7 @@ def search_files(
         if use_absolute:
             report += "\nNote: Showing absolute paths because result count is small."
 
-        report += "\n\n✅ Results loaded into DataFrame. You can now use 'analyze_dataframe' to filter, sort, or summarize."
+        report += "\n\n✅ Results loaded into DataFrame. You can now use tools like 'filter_by_extension', 'filter_by_pattern', 'sort_dataframe_by_size', and 'summarize_dataframe'."  # noqa: E501
 
         return report
 
@@ -428,92 +544,33 @@ def analyze_image(ctx: RunContext[Any], path: str) -> str:
 
 
 def analyze_dataframe(ctx: RunContext[Any], operation: str, **kwargs) -> str:
-    """Perform operations on the currently loaded search results (DataFrame).
+    """Legacy dataframe operation router kept for backward compatibility.
 
-    Operations:
-    - 'filter_by_extension' (arg: extension)
-    - 'filter_by_pattern' (arg: pattern)
-    - 'sort_by_size' (arg: ascending=True/False)
-    - 'head' (arg: n)
-    - 'summary' (no args) - returns counts by extension and directory
-
-    Args:
-    ----
-        ctx: The run context.
-        operation: The name of the operation to perform.
-        **kwargs: Arguments for the operation.
-
+    Prefer using dedicated tools directly:
+    - filter_by_extension
+    - filter_by_pattern
+    - sort_dataframe_by_size
+    - dataframe_head
+    - summarize_dataframe
     """
-    if ctx.deps.current_df is None:
-        return "Error: No DataFrame loaded. Please run 'search_files' first to populate the DataFrame."
+    operation = (operation or "").strip().lower()
+    if operation == "filter_by_extension":
+        ext = kwargs.get("extension") or kwargs.get("extensions")
+        return filter_by_extension(ctx, ext)
+    if operation == "filter_by_pattern":
+        return filter_by_pattern(ctx, kwargs.get("pattern"))
+    if operation in {"sort_by_size", "sort_dataframe_by_size"}:
+        return sort_dataframe_by_size(ctx, ascending=bool(kwargs.get("ascending", False)), top_n=int(kwargs.get("top_n", 10)))
+    if operation in {"head", "dataframe_head"}:
+        return dataframe_head(ctx, n=int(kwargs.get("n", 5)))
+    if operation in {"summary", "summarize_dataframe"}:
+        return summarize_dataframe(ctx)
 
-    df = ctx.deps.current_df
-    try:
-        if operation == "filter_by_extension":
-            ext = kwargs.get("extension")
-            if not ext:
-                return "Error: 'extension' argument required for filter_by_extension"
-            df = df.filter_by_extension(ext)
-            ctx.deps.current_df = df
-            return f"Filtered DataFrame to {len(df)} files with extension '{ext}'."
-
-        elif operation == "filter_by_pattern":
-            pattern = kwargs.get("pattern")
-            if not pattern:
-                return "Error: 'pattern' argument required for filter_by_pattern"
-            df = df.filter_by_pattern(pattern)
-            ctx.deps.current_df = df
-            return f"Filtered DataFrame to {len(df)} files matching pattern '{pattern}'."
-
-        elif operation == "sort_by_size":
-            ascending = kwargs.get("ascending", False)
-            # Check if size_bytes exists (it should if enriched)
-            if "size_bytes" not in df.columns:
-                df.enrich(inplace=True)
-
-            df = df.sort("size_bytes", descending=not ascending)
-            ctx.deps.current_df = df
-
-            # Show top results after sort
-            top_n = df.head(10).to_dict()
-            paths = top_n.get("path", [])
-            sizes = top_n.get("size_bytes", [])
-
-            report = f"Sorted DataFrame by size ({'ascending' if ascending else 'descending'}). Top 10 files:\n"
-            for p, s in zip(paths, sizes):
-                size_str = f"{s / 1024 / 1024:.2f} MB" if s > 1024 * 1024 else f"{s / 1024:.2f} KB"
-                report += f"- {p} ({size_str})\n"
-            return report
-
-        elif operation == "head":
-            n = int(kwargs.get("n", 5))
-            head_df = df.head(n)
-            # Convert to dictionary for readable JSON output
-            data = head_df.to_dict()
-            return f"First {n} rows:\n{json.dumps(data, indent=2, default=str)}"
-
-        elif operation == "summary":
-            count = len(df)
-            ext_counts = df.extension_counts().head(5).to_dict()
-
-            # Directory counts if possible
-            try:
-                dir_counts = df.directory_counts().head(5).to_dict()
-            except Exception:
-                dir_counts = "N/A"
-
-            summary = {
-                "total_files": count,
-                "top_extensions": ext_counts,
-                "top_directories": dir_counts,
-            }
-            return f"DataFrame Summary:\n{json.dumps(summary, indent=2)}"
-
-        else:
-            return f"Error: Unknown operation '{operation}'. Supported: filter_by_extension, filter_by_pattern, sort_by_size, head, summary."
-
-    except Exception as e:
-        return f"Error performing dataframe operation: {str(e)}"
+    return (
+        f"Error: Unknown operation '{operation}'. "
+        "Supported: filter_by_extension, filter_by_pattern, sort_by_size, head, summary. "
+        "Prefer using dedicated dataframe tools directly."
+    )
 
 
 def export_dataframe(ctx: RunContext[Any], path: str, format: str = "csv") -> str:
@@ -687,6 +744,53 @@ def read_file(
 
     except Exception as e:
         return f"Error reading file: {str(e)}"
+
+
+def create_dataset_dataframe(ctx: RunContext[Any], path: str, enrich: bool = True) -> str:
+    """Create a dataframe from a dataset directory and make it available for analysis.
+
+    This tool creates a metadata dataframe from all files in a directory using
+    filoma's probe_to_df functionality. The resulting dataframe can be analyzed
+    and exported using other tools.
+
+    Args:
+        ctx: The run context.
+        path: Path to the dataset directory.
+        enrich: Whether to enrich the dataframe with additional metadata (default: True).
+
+    Returns:
+        Success message with information about the created dataframe.
+
+    """
+    try:
+        p = Path(path).expanduser().resolve()
+        if not p.exists():
+            return f"Error: Path '{path}' does not exist."
+
+        if not p.is_dir():
+            return f"Error: '{path}' is not a directory."
+
+        logger.info(f"Creating dataframe for dataset directory: {p}")
+
+        # Use filoma's probe_to_df to create the dataframe
+        df = filoma.probe_to_df(str(p), enrich=enrich)
+
+        # Store the dataframe in context for further analysis
+        ctx.deps.current_df = df
+
+        # Get basic information about the dataframe
+        row_count = len(df)
+        columns = list(df.columns)
+
+        return (
+            f"✅ Successfully created dataframe from dataset directory: {p}\n"
+            f"📊 DataFrame contains {row_count:,} rows and {len(columns)} columns\n"
+            f"📋 Available columns: {', '.join(columns)}\n\n"
+            f"You can now use filter_by_extension(), filter_by_pattern(), sort_dataframe_by_size(), "
+            f"dataframe_head(), summarize_dataframe(), or export_dataframe()."
+        )
+    except Exception as e:
+        return f"Error creating dataset dataframe: {str(e)}"
 
 
 def preview_image(ctx: RunContext[Any], path: str, width: int = 60, mode: str = "ansi") -> str:
