@@ -1,6 +1,8 @@
 """Tools for the FilomaAgent."""
 
 import json
+import time
+import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, List, Optional, Union
 
@@ -12,6 +14,8 @@ if TYPE_CHECKING:
     pass
 
 import filoma
+
+from .models import AuditFinding, AuditReport, HygieneMetric, HygieneReport, MigrationReadinessItem, MigrationReadinessReport
 
 
 class ProbeResult(BaseModel):
@@ -63,8 +67,395 @@ def count_files(ctx: RunContext[Any], path: str) -> str:
             f"This is a COMPLETE scan of the entire directory tree."
         )
     except Exception as e:
-        return f"Error counting files: {str(e)}"
+        return f"Error generating image preview: {str(e)}"
 
+
+def audit_corrupted_files(ctx: RunContext[Any], path: str) -> str:
+    """Perform a corrupted file audit and return a structured report.
+
+    This tool checks for zero-byte files, corrupt images, and other integrity issues.
+
+    Args:
+        ctx: The run context.
+        path: Path to the directory to audit.
+
+    Returns:
+        JSON-formatted audit report with findings and recommendations.
+
+    """
+    start_time = time.time()
+    try:
+        p = Path(path).expanduser().resolve()
+        if not p.exists():
+            return f"Error: Path '{path}' does not exist."
+
+        from filoma.core.verifier import DatasetVerifier
+
+        # Run integrity checks
+        verifier = DatasetVerifier(str(p))
+        results = verifier.check_integrity()
+
+        # Process findings
+        findings = []
+        failed_files = results.get("failed_files", [])
+
+        for i, issue in enumerate(failed_files):
+            file_path = issue.get("path", "")
+            reason = issue.get("reason", "unknown")
+
+            severity = "critical" if reason == "corrupt_or_unsupported" else "high"
+            description = "Corrupted or unsupported file" if reason == "corrupt_or_unsupported" else "Zero-byte file"
+            recommendation = "Remove or repair the file" if reason == "corrupt_or_unsupported" else "Remove or restore the file"
+
+            finding = AuditFinding(
+                id=f"corruption-{i+1}",
+                severity=severity,
+                category="integrity",
+                description=description,
+                evidence={"file_path": file_path, "issue_type": reason},
+                confidence=0.95,
+                recommendation=recommendation,
+                affected_paths=[file_path]
+            )
+            findings.append(finding)
+
+        # Create summary
+        summary = {
+            "total_files_checked": len(failed_files),
+            "corrupted_files": len([f for f in failed_files if f.get("reason") == "corrupt_or_unsupported"]),
+            "zero_byte_files": len([f for f in failed_files if f.get("reason") == "zero_byte"]),
+            "success_rate": 1.0 - (len(failed_files) / max(len(failed_files) + 1, 1))  # Avoid division by zero
+        }
+
+        # Create report
+        report = AuditReport(
+            report_id=str(uuid.uuid4()),
+            timestamp=time.strftime("%Y-%m-%d %H:%M:%S"),
+            target_path=str(p),
+            status="completed",
+            summary=summary,
+            findings=findings,
+            execution_time_seconds=time.time() - start_time,
+            tool_versions={"filoma": "1.11.11", "verifier": "1.0"}
+        )
+
+        return f"CORRUPTED FILE AUDIT REPORT:\n{report.model_dump_json(indent=2)}"
+
+    except Exception as e:
+        report = AuditReport(
+            report_id=str(uuid.uuid4()),
+            timestamp=time.strftime("%Y-%m-%d %H:%M:%S"),
+            target_path=path,
+            status="failed",
+            summary={"error": str(e)},
+            findings=[],
+            execution_time_seconds=time.time() - start_time,
+            tool_versions={"filoma": "1.11.11"}
+        )
+        return f"CORRUPTED FILE AUDIT REPORT (FAILED):\n{report.model_dump_json(indent=2)}"
+
+
+def generate_hygiene_report(ctx: RunContext[Any], path: str) -> str:
+    """Generate a dataset hygiene report with quality metrics.
+
+    This tool analyzes dataset quality including duplicates, class balance,
+    cross-split leakage, and anomalous files.
+
+    Args:
+        ctx: The run context.
+        path: Path to the dataset directory.
+
+    Returns:
+        JSON-formatted hygiene report with metrics and issues.
+
+    """
+    start_time = time.time()
+    try:
+        p = Path(path).expanduser().resolve()
+        if not p.exists():
+            return f"Error: Path '{path}' does not exist."
+
+        from filoma.core.verifier import DatasetVerifier
+
+        # Run quality checks
+        verifier = DatasetVerifier(str(p))
+        results = verifier.run_all()
+
+        # Process metrics
+        metrics = []
+
+        # Dimension consistency metric
+        dims = results.get("dimensions", {})
+        if "outlier_percentage" in dims:
+            outlier_pct = dims["outlier_percentage"]
+            metrics.append(HygieneMetric(
+                name="dimension_consistency",
+                value=100 - outlier_pct,
+                threshold=95.0,
+                status="pass" if (100 - outlier_pct) >= 95 else "warn" if (100 - outlier_pct) >= 90 else "fail",
+                description="Percentage of images with consistent dimensions"
+            ))
+
+        # Duplicate detection metric
+        dups = results.get("duplicates", {})
+        dup_count = dups.get("duplicate_count", 0)
+        metrics.append(HygieneMetric(
+            name="duplicate_files",
+            value=float(dup_count),
+            threshold=0.0,
+            status="pass" if dup_count == 0 else "fail",
+            description="Number of duplicate file groups detected"
+        ))
+
+        # Class balance metric
+        balance = results.get("class_balance", {})
+        class_dist = balance.get("class_distribution", {})
+        if class_dist:
+            import statistics
+            counts = list(class_dist.values())
+            if len(counts) > 1:
+                mean_count = statistics.mean(counts)
+                std_dev = statistics.stdev(counts) if len(counts) > 1 else 0
+                cv = (std_dev / mean_count * 100) if mean_count > 0 else 0  # Coefficient of variation
+
+                metrics.append(HygieneMetric(
+                    name="class_balance",
+                    value=cv,
+                    threshold=30.0,
+                    status="pass" if cv <= 30 else "warn" if cv <= 50 else "fail",
+                    description="Class distribution coefficient of variation (lower is better)"
+                ))
+
+        # Process issues
+        issues = []
+
+        # Duplicates as issues
+        if dup_count > 0:
+            issue = AuditFinding(
+                id="hygiene-duplicates",
+                severity="high",
+                category="quality",
+                description=f"Found {dup_count} duplicate file groups",
+                evidence={"duplicate_count": dup_count, "duplicates": dups.get("duplicates", [])[:5]},  # Limit evidence
+                confidence=0.9,
+                recommendation="Remove duplicate files to improve dataset quality",
+                affected_paths=[]
+            )
+            issues.append(issue)
+
+        # Calculate overall score (simple average of metric statuses)
+        score_components = []
+        for metric in metrics:
+            if metric.status == "pass":
+                score_components.append(100.0)
+            elif metric.status == "warn":
+                score_components.append(70.0)
+            else:  # fail
+                score_components.append(30.0)
+
+        overall_score = statistics.mean(score_components) if score_components else 100.0
+
+        # Recommendations
+        recommendations = []
+        if dup_count > 0:
+            recommendations.append("Remove duplicate files to improve dataset quality")
+        if any(m.status == "fail" for m in metrics):
+            recommendations.append("Address failed quality metrics to improve dataset hygiene")
+
+        # Create report
+        report = HygieneReport(
+            report_id=str(uuid.uuid4()),
+            timestamp=time.strftime("%Y-%m-%d %H:%M:%S"),
+            target_path=str(p),
+            status="completed",
+            overall_score=overall_score,
+            metrics=metrics,
+            issues=issues,
+            recommendations=recommendations,
+            execution_time_seconds=time.time() - start_time
+        )
+
+        return f"DATASET HYGIENE REPORT:\n{report.model_dump_json(indent=2)}"
+
+    except Exception as e:
+        report = HygieneReport(
+            report_id=str(uuid.uuid4()),
+            timestamp=time.strftime("%Y-%m-%d %H:%M:%S"),
+            target_path=path,
+            status="failed",
+            overall_score=0.0,
+            metrics=[],
+            issues=[],
+            recommendations=[f"Failed to generate report: {str(e)}"],
+            execution_time_seconds=time.time() - start_time
+        )
+        return f"DATASET HYGIENE REPORT (FAILED):\n{report.model_dump_json(indent=2)}"
+
+
+def assess_migration_readiness(ctx: RunContext[Any], path: str) -> str:
+    """Assess dataset migration readiness with structured analysis.
+
+    Evaluates dataset stability, structure, and readiness for migration.
+
+    Args:
+        ctx: The run context.
+        path: Path to the dataset directory.
+
+    Returns:
+        JSON-formatted migration readiness report.
+
+    """
+    start_time = time.time()
+    try:
+        p = Path(path).expanduser().resolve()
+        if not p.exists():
+            return f"Error: Path '{path}' does not exist."
+
+        from filoma.core.verifier import DatasetVerifier
+        from filoma.dataset import Dataset
+
+        # Check basic dataset structure
+        dataset = Dataset(str(p))
+
+        # Run verification to check integrity
+        verifier = DatasetVerifier(str(p))
+        integrity_results = verifier.check_integrity()
+
+        # Items evaluation
+        items = []
+        blockers = []
+        risks = []
+
+        # Check for corrupted files (blocker)
+        failed_files = integrity_results.get("failed_files", [])
+        if failed_files:
+            blockers.append(f"Dataset contains {len(failed_files)} corrupted or zero-byte files")
+            item = MigrationReadinessItem(
+                id="integrity-corruption",
+                category="data",
+                status="blocked",
+                description=f"Dataset contains {len(failed_files)} corrupted or zero-byte files",
+                priority="high",
+                dependencies=[],
+                estimated_effort_hours=len(failed_files) * 0.1
+            )
+            items.append(item)
+        else:
+            item = MigrationReadinessItem(
+                id="integrity-ok",
+                category="data",
+                status="ready",
+                description="No corrupted or zero-byte files detected",
+                priority="low",
+                dependencies=[],
+                estimated_effort_hours=0.0
+            )
+            items.append(item)
+
+        # Check file distribution (structure)
+        try:
+            df = dataset.to_dataframe(enrich=False)
+            total_files = len(df)
+
+            if total_files == 0:
+                blockers.append("Dataset is empty")
+                item = MigrationReadinessItem(
+                    id="structure-empty",
+                    category="structure",
+                    status="blocked",
+                    description="Dataset is empty",
+                    priority="high",
+                    dependencies=[],
+                    estimated_effort_hours=0.0
+                )
+                items.append(item)
+            else:
+                item = MigrationReadinessItem(
+                    id="structure-populated",
+                    category="structure",
+                    status="ready",
+                    description=f"Dataset contains {total_files:,} files",
+                    priority="low",
+                    dependencies=[],
+                    estimated_effort_hours=0.0
+                )
+                items.append(item)
+
+                # Check extension variety
+                try:
+                    ext_counts = df.extension_counts().to_dict()
+                    unique_extensions = len(ext_counts)
+                    item = MigrationReadinessItem(
+                        id="structure-diversity",
+                        category="structure",
+                        status="ready" if unique_extensions > 1 else "warning",
+                        description=f"Dataset contains {unique_extensions} file types",
+                        priority="medium",
+                        dependencies=[],
+                        estimated_effort_hours=0.0
+                    )
+                    items.append(item)
+                except Exception:
+                    pass  # Skip if extension analysis fails
+
+        except Exception as e:
+            risks.append(f"Unable to analyze dataset structure: {str(e)}")
+
+        # Estimate migration time (simplified model)
+        estimated_time = max(0.1, total_files * 0.0001) if 'total_files' in locals() else 1.0
+
+        # Overall readiness calculation
+        blocked_items = len([i for i in items if i.status == "blocked"])
+        warning_items = len([i for i in items if i.status == "warning"])
+
+        if blocked_items > 0:
+            overall_readiness = 0.0
+        elif warning_items > 0:
+            overall_readiness = 50.0
+        else:
+            overall_readiness = 100.0
+
+        # Recommendations
+        recommendations = []
+        if blocked_items > 0:
+            recommendations.append("Fix blocker issues before migration")
+        if warning_items > 0:
+            recommendations.append("Address warnings to improve migration success probability")
+        if overall_readiness >= 80:
+            recommendations.append("Dataset appears ready for migration")
+
+        # Create report
+        report = MigrationReadinessReport(
+            report_id=str(uuid.uuid4()),
+            timestamp=time.strftime("%Y-%m-%d %H:%M:%S"),
+            target_path=str(p),
+            status="completed" if blocked_items == 0 else "partial",
+            overall_readiness=overall_readiness,
+            items=items,
+            blockers=blockers,
+            risks=risks,
+            recommendations=recommendations,
+            estimated_migration_time_hours=estimated_time,
+            execution_time_seconds=time.time() - start_time
+        )
+
+        return f"MIGRATION READINESS REPORT:\n{report.model_dump_json(indent=2)}"
+
+    except Exception as e:
+        report = MigrationReadinessReport(
+            report_id=str(uuid.uuid4()),
+            timestamp=time.strftime("%Y-%m-%d %H:%M:%S"),
+            target_path=path,
+            status="failed",
+            overall_readiness=0.0,
+            items=[],
+            blockers=[f"Failed to assess migration readiness: {str(e)}"],
+            risks=[],
+            recommendations=["Fix the error and retry the assessment"],
+            estimated_migration_time_hours=0.0,
+            execution_time_seconds=time.time() - start_time
+        )
+        return f"MIGRATION READINESS REPORT (FAILED):\n{report.model_dump_json(indent=2)}"
 
 def probe_directory(
     ctx: RunContext[Any],

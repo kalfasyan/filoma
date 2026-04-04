@@ -114,6 +114,7 @@ if __name__ == "__main__":
 
 The agent is equipped with the following "eyes and hands":
 
+### Core Analysis Tools
 - **`count_files`**: Returns a report of total files and folders in path (full recursive scan).
 - **`probe_directory`**: Scans a directory and returns a summary of extensions, file counts, and depth.
 - **`find_duplicates`**: Runs Filoma's deduplication engine (Exact, Text, and Image) and reports findings.
@@ -121,6 +122,8 @@ The agent is equipped with the following "eyes and hands":
 - **`search_files`**: Searches for files matching a regex pattern, extension, or minimum size. Automatically loads results into a DataFrame.
 - **`get_directory_tree`**: Lists immediate contents (files/folders) of a directory (non-recursive).
 - **`analyze_image`**: Performs specialized analysis on an image (shape, dtype, stats).
+
+### Dataframe Operations
 - **`filter_by_extension`**: Filters the current DataFrame to only include files with specific extensions (e.g., 'jpg', '.py', ['png', 'jpg']).
 - **`filter_by_pattern`**: Filters the current DataFrame using a regex pattern on file paths.
 - **`sort_dataframe_by_size`**: Sorts the current DataFrame by file size and returns a top-N preview.
@@ -128,9 +131,18 @@ The agent is equipped with the following "eyes and hands":
 - **`summarize_dataframe`**: Returns DataFrame summary statistics (total files, top extensions, top directories).
 - **`create_dataset_dataframe`**: Creates a metadata dataframe from all files in a directory using filoma's `probe_to_df`.
 - **`export_dataframe`**: Exports the current DataFrame to a file (csv, json, or parquet).
+
+### Advanced Workflow Orchestrators
+- **`audit_corrupted_files`**: Performs a corrupted file audit and returns a structured report. Checks for zero-byte files, corrupt images, and other integrity issues.
+- **`generate_hygiene_report`**: Generates a dataset hygiene report with quality metrics. Analyzes dataset quality including duplicates, class balance, cross-split leakage, and anomalous files.
+- **`assess_migration_readiness`**: Assesses dataset migration readiness with structured analysis. Evaluates dataset stability, structure, and readiness for migration.
+
+### File Interaction Tools
 - **`open_file`**: **(Recommended for Viewing)** Displays file content directly in your terminal using `bat` or `cat`. Fast, energy-efficient, and syntax-highlighted.
 - **`read_file`**: Reads file content into the agent's context for analysis (summarization, bug finding, etc.). Supports reading specific line ranges.
 - **`preview_image`**: Generates a colored RGB preview of an image directly in your terminal.
+
+### Utility Tools
 - **`list_available_tools`**: Returns the complete API reference for the agent.
 
 ---

@@ -103,6 +103,18 @@ COMPLETE TOOL LIST (exhaustive - no other operations exist):
     The resulting dataframe can be analyzed and exported using other tools.
     Use enrich=False for faster processing without additional metadata.
 
+19. audit_corrupted_files(path: str) -> str
+    Performs a corrupted file audit and returns a structured report.
+    Checks for zero-byte files, corrupt images, and other integrity issues.
+
+20. generate_hygiene_report(path: str) -> str
+    Generates a dataset hygiene report with quality metrics.
+    Analyzes dataset quality including duplicates, class balance, cross-split leakage, and anomalous files.
+
+21. assess_migration_readiness(path: str) -> str
+    Assesses dataset migration readiness with structured analysis.
+    Evaluates dataset stability, structure, and readiness for migration.
+
 IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-ONLY analysis tool (except for export_dataframe).
 """
 
@@ -150,6 +162,9 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
                 tools.verify_integrity,
                 tools.run_quality_check,
                 tools.create_dataset_dataframe,
+                tools.audit_corrupted_files,
+                tools.generate_hygiene_report,
+                tools.assess_migration_readiness,
             ],
         )
 

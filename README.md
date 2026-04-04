@@ -363,6 +363,21 @@ filoma brain chat
 # - export dataframe to weeds_images.csv
 ```
 
+#### Advanced Workflow Orchestration
+Filoma Brain now includes advanced orchestrator tools for enterprise-grade dataset analysis:
+
+```bash
+# Run advanced workflow examples
+make brain-advanced
+
+# Or in code:
+await agent.run("Run a corrupted file audit on /path/to/dataset")
+await agent.run("Generate a dataset hygiene report for /path/to/dataset")
+await agent.run("Assess the migration readiness of /path/to/dataset")
+```
+
+These tools provide structured, deterministic reports with detailed findings, recommendations, and confidence scores.
+
 ### Interactive CLI
 ```bash
 filoma brain chat

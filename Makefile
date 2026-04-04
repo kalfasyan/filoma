@@ -57,6 +57,9 @@ brain-chat: brain-install  ## Start an interactive chat with the Filoma Brain
 brain-test: brain-install  ## Run the Brain tests
 	uv run poe brain-test
 
+brain-advanced: brain-install  ## Run the Brain advanced workflows example
+	uv run python examples/brain_advanced_workflows.py
+
 # Quick development tasks
 dev-install:  ## Install package in development mode with dev dependencies
 	uv sync --extra dev
