@@ -52,6 +52,8 @@
 - **🖥️ Interactive CLI**: Beautiful terminal interface for filesystem exploration and DataFrame analysis. [📖 **CLI Documentation →**](docs/guides/cli.md)
 - **🌐 MCP Server**: Expose all 21 filesystem tools to any MCP-compatible AI assistant (Claude Desktop, Cline, Cursor, etc.). [📖 **MCP Configuration →**](docs/guides/brain.md#mcp-server-configuration)
 
+> **🎯 Local AI in 10 seconds:** `curl -sL https://raw.githubusercontent.com/kalfasyan/filoma/main/scripts/install.sh | sh` → Use with [Goose](https://github.com/block/goose) + [Ollama](https://ollama.com) for fully local filesystem analysis. [Learn more →](docs/guides/brain.md#goose--ollama-local--private---recommended)
+
 <p align="center">
     <img src="docs/assets/images/filoma_graph.jpg" alt="Filoma Package Overview" width="800">
 </p>
