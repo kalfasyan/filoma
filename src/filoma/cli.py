@@ -11,12 +11,29 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
 import filoma
+from filoma._version import __version__
 
 app = typer.Typer(
     name="filoma",
     help="Interactive filesystem profiling and analysis tool",
     rich_markup_mode="rich",
+    add_completion=False,
 )
+
+
+def version_callback(value: bool) -> None:
+    """Print version and exit."""
+    if value:
+        typer.echo(f"filoma {__version__}")
+        raise typer.Exit()
+
+
+@app.callback()
+def main_callback(
+    version: bool = typer.Option(False, "--version", help="Show version information", callback=version_callback),
+) -> None:
+    """Filoma - Interactive filesystem profiling and analysis tool."""
+    return
 brain_app = typer.Typer(
     name="brain",
     help="Intelligent filesystem analysis using AI",
