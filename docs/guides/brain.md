@@ -1,172 +1,269 @@
-# Filoma Brain 🧠 (Agentic Analysis)
+# Filoma Brain - AI Agent Integration
 
-Connect a "brain" to your filesystem analysis. Filoma integrates with [PydanticAI](https://ai.pydantic.dev/) to allow you to interact with your files using natural language.
+Filoma Brain provides an intelligent AI agent for filesystem analysis using [PydanticAI](https://ai.pydantic.dev/). It can be used both programmatically and as an MCP server for integration with AI assistants like Claude Desktop, Cline, Cursor, and others.
 
-The agent doesn't just "talk"—it has **tools** that allow it to scan directories, find duplicates, and inspect metadata in real-time based on your requests.
+## Features
 
----
+- **Interactive Chat**: Have natural conversations about your filesystem
+- **21 Powerful Tools**: Directory analysis, file operations, data quality checks, image analysis, and more
+- **Smart DataFrames**: Automatically build and manipulate file metadata DataFrames
+- **Read-Only Safety**: Safe analysis that never modifies your files (except export)
+- **Multiple Backends**: Uses Rust (fastest), `fd`, or Python (fallback) for operations
+- **MCP Server**: Expose all tools to any MCP-compatible client
 
-## Quick Start (Step-by-Step)
+## Quick Start
 
-Follow these 4 steps to get the Filoma Brain running on your machine.
-
-### Step 1: Install Dependencies
-
-Install the optional AI components using the provided Makefile command:
-
-```bash
-make brain-install
-```
-
-### Step 2: Create your Configuration
-
-Copy the configuration template to a `.env` file:
+### Interactive Chat
 
 ```bash
-cp .env_example .env
-```
+# Start the chat interface
+filoma brain chat
 
-### Step 3: Configure your Scenario
-
-Open `.env` and choose **ONE** of the following scenarios. Comment out all other scenarios.
-
-#### Scenario A: Mistral AI (Recommended Cloud)
-
-1. Get a key at [console.mistral.ai](https://console.mistral.ai/).
-2. Add it to `.env`: `MISTRAL_API_KEY='your-key'`.
-3. **Benefit**: European-hosted, high performance, offers a free/experimental tier.
-
-#### Scenario B: Google Gemini (Cloud)
-
-1. Get a key at [aistudio.google.com](https://aistudio.google.com/).
-2. Add it to `.env`: `GEMINI_API_KEY='your-key'`.
-3. (Optional) Set `FILOMA_BRAIN_MODEL='gemini-2.0-flash'`.
-4. **Benefit**: Huge context window, very fast, excellent tool calling reliability.
-
-#### Scenario C: Ollama (Recommended Local/Private)
-
-1. Install [Ollama](https://ollama.com/).
-2. Pull a model: `ollama pull llama3.1:8b`.
-3. Ensure the Ollama app is running.
-4. Uncomment the Ollama lines in `.env`:
-   ```env
-   FILOMA_BRAIN_MODEL='llama3.1:8b'
-   FILOMA_BRAIN_BASE_URL='http://localhost:11434/v1'
-   ```
-5. **Benefit**: 100% private, zero cost, works offline.
-
-### Step 4: Run the Proof of Concept
-
-Verify your setup by running the agentic POC:
-
-```bash
-make brain-poc
-```
-
-Watch the logs to see the **"Handshake"**—Filoma will tell you exactly which scenario it activated.
-
-### Step 5: Start a Chat Session
-
-You can also chat interactively with your filesystem from the terminal:
-
-```bash
-make brain-chat
-# OR directly via the CLI:
+# Or use uv
 uv run filoma brain chat
 ```
 
----
-
-## Comparison Table
-
-| Feature      | Cloud (Mistral/Gemini)       | Local (Ollama)          |
-| :----------- | :--------------------------- | :---------------------- |
-| **Privacy**  | Data sent to provider        | 100% Local / Offline    |
-| **Cost**     | Pay-per-token (or free tier) | Zero Cost               |
-| **Setup**    | API Key required             | Local App + Model Pull  |
-| **Hardware** | Works on any machine         | Requires decent RAM/GPU |
-
----
-
-## Usage in your own code
-
-You can easily integrate the brain into your Python scripts.
+### Programmatic Usage
 
 ```python
-import asyncio
 from filoma.brain import get_agent
+import asyncio
 
-async def main():
-    # Filoma automatically resolves Scenario A/B from your .env
+async def analyze_directory():
     agent = get_agent()
 
-    # The agent uses filoma tools behind the scenes
-    response = await agent.run("Find any duplicate images in ./data/raw and tell me how many groups you found")
-    print(f"Brain: {response}")
+    # Simple query
+    result = await agent.run("How many files are in the current directory?")
+    print(result.output)
 
-if __name__ == "__main__":
-    asyncio.run(main())
+    # Complex analysis
+    result = await agent.run("Find all Python files and show me the 5 largest ones")
+    print(result.output)
+
+asyncio.run(analyze_directory())
 ```
 
----
+## MCP Server Configuration
 
-## Available Agent Tools
+Filoma Brain can be exposed as an MCP (Model Context Protocol) server, allowing AI assistants to use its filesystem analysis tools directly.
 
-The agent is equipped with the following "eyes and hands":
+### Claude Desktop Configuration
 
-### Core Analysis Tools
-- **`count_files`**: Returns a report of total files and folders in path (full recursive scan).
-- **`probe_directory`**: Scans a directory and returns a summary of extensions, file counts, and depth.
-- **`find_duplicates`**: Runs Filoma's deduplication engine (Exact, Text, and Image) and reports findings.
-- **`get_file_info`**: Retrieves detailed technical metadata (JSON) for a specific file path.
-- **`search_files`**: Searches for files matching a regex pattern, extension, or minimum size. Automatically loads results into a DataFrame.
-- **`get_directory_tree`**: Lists immediate contents (files/folders) of a directory (non-recursive).
-- **`analyze_image`**: Performs specialized analysis on an image (shape, dtype, stats).
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or the appropriate config for your platform:
 
-### Dataframe Operations
-- **`filter_by_extension`**: Filters the current DataFrame to only include files with specific extensions (e.g., 'jpg', '.py', ['png', 'jpg']).
-- **`filter_by_pattern`**: Filters the current DataFrame using a regex pattern on file paths.
-- **`sort_dataframe_by_size`**: Sorts the current DataFrame by file size and returns a top-N preview.
-- **`dataframe_head`**: Shows the first N rows from the currently loaded DataFrame.
-- **`summarize_dataframe`**: Returns DataFrame summary statistics (total files, top extensions, top directories).
-- **`create_dataset_dataframe`**: Creates a metadata dataframe from all files in a directory using filoma's `probe_to_df`.
-- **`export_dataframe`**: Exports the current DataFrame to a file (csv, json, or parquet).
+```json
+{
+  "mcpServers": {
+    "filoma": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/filoma", "filoma", "mcp", "serve"]
+    }
+  }
+}
+```
 
-### Advanced Workflow Orchestrators
-- **`audit_corrupted_files`**: Performs a corrupted file audit and returns a structured report. Checks for zero-byte files, corrupt images, and other integrity issues.
-- **`generate_hygiene_report`**: Generates a dataset hygiene report with quality metrics. Analyzes dataset quality including duplicates, class balance, cross-split leakage, and anomalous files.
-- **`assess_migration_readiness`**: Assesses dataset migration readiness with structured analysis. Evaluates dataset stability, structure, and readiness for migration.
+For development (using the local project):
+```json
+{
+  "mcpServers": {
+    "filoma": {
+      "command": "uv",
+      "args": ["run", "--directory", "/home/user/filoma", "python", "-m", "filoma.mcp_server"]
+    }
+  }
+}
+```
 
-### File Interaction Tools
-- **`open_file`**: **(Recommended for Viewing)** Displays file content directly in your terminal using `bat` or `cat`. Fast, energy-efficient, and syntax-highlighted.
-- **`read_file`**: Reads file content into the agent's context for analysis (summarization, bug finding, etc.). Supports reading specific line ranges.
-- **`preview_image`**: Generates a colored RGB preview of an image directly in your terminal.
+### Cline Configuration
 
-### Utility Tools
-- **`list_available_tools`**: Returns the complete API reference for the agent.
+Add to Cline's MCP settings (typically in VS Code settings):
 
----
+```json
+{
+  "mcpServers": {
+    "filoma": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/filoma", "filoma", "mcp", "serve"],
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+### Cursor Configuration
+
+Add to Cursor's MCP settings (Settings > MCP):
+
+```json
+{
+  "mcpServers": {
+    "filoma": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/filoma", "filoma", "mcp", "serve"]
+    }
+  }
+}
+```
+
+### Running the MCP Server Manually
+
+```bash
+# Via CLI
+filoma mcp serve
+
+# Via Python module
+python -m filoma.mcp_server
+
+# Via uv
+uv run python -m filoma.mcp_server
+```
+
+### Environment Variables
+
+- `FILOMA_MCP_TRANSPORT`: Transport type - `stdio` (default) or `sse`
+- `FILOMA_MCP_PORT`: Port for SSE transport (default: 8000)
+
+## Available Tools (21 Total)
+
+### Directory Analysis
+- **`count_files`** - Full recursive scan counting all files/folders
+- **`probe_directory`** - Scan directory for summary statistics with top extensions
+- **`get_directory_tree`** - List immediate directory contents (non-recursive)
+- **`find_duplicates`** - Find duplicate files in a directory
+
+### File Operations
+- **`get_file_info`** - Detailed file metadata (JSON)
+- **`search_files`** - Search by pattern, extension, or size (loads DataFrame)
+- **`open_file`** - Display file to user's terminal (bat/cat)
+- **`read_file`** - Read file content for analysis (with line numbers)
+
+### Dataset & DataFrame
+- **`create_dataset_dataframe`** - Create metadata DataFrame from directory
+- **`filter_by_extension`** - Filter DataFrame by file extension(s)
+- **`filter_by_pattern`** - Filter DataFrame by regex pattern
+- **`sort_dataframe_by_size`** - Sort by file size (descending/ascending)
+- **`dataframe_head`** - Show first N rows
+- **`summarize_dataframe`** - Get summary statistics
+- **`export_dataframe`** - Export to CSV/JSON/Parquet (only write operation)
+
+### Image Analysis
+- **`analyze_image`** - Get image shape, dtype, statistics
+- **`preview_image`** - Generate visual preview (ANSI color blocks or ASCII)
+
+### Data Quality
+- **`audit_corrupted_files`** - Find corrupted/zero-byte files
+- **`generate_hygiene_report`** - Quality metrics and issues
+- **`assess_migration_readiness`** - Dataset migration assessment
+
+### Utilities
+- **`list_available_tools`** - Show all available tools with descriptions
+
+## AI Model Configuration
+
+Filoma Brain supports multiple AI backends:
+
+### Mistral AI (Default)
+```bash
+export MISTRAL_API_KEY="your-api-key"
+filoma brain chat
+```
+
+### Ollama (Local)
+```bash
+export FILOMA_BRAIN_BASE_URL="http://localhost:11434"
+export FILOMA_BRAIN_MODEL="llama3.1:8b"
+filoma brain chat
+```
+
+### Google Gemini
+```bash
+export GEMINI_API_KEY="your-api-key"
+filoma brain chat
+```
+
+### Custom Model
+```python
+from filoma.brain import get_agent
+
+# Using model name
+agent = get_agent(model="mistral:mistral-large-latest")
+
+# Using custom Model instance
+from pydantic_ai.models.openai import OpenAIChatModel
+
+model = OpenAIChatModel(model_name="custom-model", api_key="xxx")
+agent = get_agent(model=model)
+```
+
+## Example Workflows
+
+### Dataset Audit
+```
+User: Audit the /data/images directory for corrupted files
+Brain: Running audit_corrupted_files...
+       Found 3 corrupted files: [list]
+       Recommendation: Remove or repair these files before training.
+```
+
+### File Analysis Pipeline
+```
+User: Find all JPG files in ./photos
+Brain: search_files completed. Found 1,247 JPG files.
+
+User: Show me the 10 largest ones
+Brain: sort_dataframe_by_size completed. Here are the top 10:
+       1. ./photos/vacation/dsc_001.jpg (15.2 MB)
+       2. ...
+
+User: Export the list to photos.csv
+Brain: export_dataframe completed. Saved to photos.csv
+```
+
+### Codebase Exploration
+```
+User: How many Python files are in this project?
+Brain: search_files completed. Found 42 Python files.
+
+User: Show me the largest one
+Brain: [displays largest Python file with line numbers]
+```
+
+## Architecture
+
+Filoma Brain consists of:
+
+- **`FilomaAgent`** (`agent.py`): PydanticAI agent with 21 registered tools
+- **Tools** (`tools.py`): Individual tool implementations with `RunContext` support
+- **CLI** (`cli.py`): Rich-based interactive chat interface
+- **MCP Server** (`mcp_server.py`): MCP server exposing tools to external agents
+- **Models** (`models.py`): Structured response models for reports
+
+## Best Practices
+
+1. **Start Broad**: Use `probe_directory` for initial exploration
+2. **Search Smart**: Use `search_files` instead of `count_files` for specific types
+3. **Chain Operations**: Filter, sort, and export DataFrames in sequence
+4. **View vs Analyze**: Use `open_file` for viewing, `read_file` for analysis
+5. **Safety First**: The agent is read-only except for `export_dataframe`
 
 ## Troubleshooting
 
-### "Error: AgentRunResult object has no attribute data"
+**Issue**: Agent can't find files
+- **Solution**: Check the working directory with `get_directory_tree(".")`
 
-This occurs if you are using an older version of the code. Ensure you have the latest updates from the repository.
+**Issue**: "No DataFrame loaded" error
+- **Solution**: Run `search_files` or `create_dataset_dataframe` first
 
-### "Connection Refused" (Ollama)
+**Issue**: Model not responding correctly
+- **Solution**: Check API keys are set: `MISTRAL_API_KEY`, `GEMINI_API_KEY`, etc.
 
-Ensure the Ollama app is running in your system tray or via terminal. Check that `FILOMA_BRAIN_BASE_URL` matches the port Ollama is listening on (usually 11434).
+**Issue**: MCP server not connecting
+- **Solution**: Verify the path in your MCP config and ensure uv/pip is available
 
-### Key not found
+## See Also
 
-Ensure your `.env` file is in the root of the project where you are running the command. Check for typos in `MISTRAL_API_KEY`.
-
----
-
-## Future Roadmap: Evals & Reliability
-
-To ensure the Filoma Brain remains accurate and reliable, we are exploring the following advanced [PydanticAI](https://ai.pydantic.dev/) features:
-
-- **Model Evaluation (Evals)**: Implementing automated tests to verify that the agent correctly identifies file distributions and technical metadata without hallucinations.
-- **Model Gateway**: Providing a unified interface for switching between multiple models dynamically.
-- **Structured Data Extraction**: Moving beyond chat to allow the agent to return complex, validated Pydantic models of your directory structures.
+- [CLI Guide](../guides/cli.md) - Command-line interface documentation
+- [Data Quality Guide](../guides/data-integrity.md) - Data validation and quality checks
+- [PydanticAI Documentation](https://ai.pydantic.dev/) - Framework powering Filoma Brain
+- [MCP Documentation](https://modelcontextprotocol.io/) - Model Context Protocol specification

@@ -23,6 +23,14 @@ brain_app = typer.Typer(
     rich_markup_mode="rich",
 )
 app.add_typer(brain_app)
+
+mcp_app = typer.Typer(
+    name="mcp",
+    help="MCP server for external agent integration",
+    rich_markup_mode="rich",
+)
+app.add_typer(mcp_app)
+
 console = Console()
 
 
@@ -34,6 +42,35 @@ def brain_chat(
     from filoma.brain.cli import chat as start_chat
 
     start_chat(model=model)
+
+
+@mcp_app.command("serve")
+def mcp_serve() -> None:
+    r"""Start the MCP server for external agent integration.
+
+    This command starts a Model Context Protocol (MCP) server that exposes
+    filoma's filesystem analysis tools to any MCP-compatible client.
+
+    The server runs on stdio transport by default, making it compatible with
+    Claude Desktop, Cline, and other MCP clients.
+
+    Example:\n
+        filoma mcp serve\n
+    Environment variables:\n
+        FILOMA_MCP_TRANSPORT: 'stdio' (default) or 'sse'\n
+        FILOMA_MCP_PORT: Port for SSE transport (default: 8000)
+    """
+    import asyncio
+
+    from filoma.mcp_server import main
+
+    console.print("[bold blue]🔌 Starting Filoma MCP Server...[/bold blue]")
+    console.print("[dim]Server will run until interrupted (Ctrl+C)[/dim]\n")
+
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        console.print("\n[yellow]MCP server stopped.[/yellow]")
 
 
 @app.command()

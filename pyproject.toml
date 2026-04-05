@@ -20,7 +20,7 @@ dependencies = [
 filoma = "filoma.cli:cli"
 
 [project.optional-dependencies]
-brain = ["pydantic-ai>=0.0.1", "python-dotenv>=1.0.0", "pandas>=2.0.0"]
+brain = ["mcp>=1.6.0", "pydantic-ai>=0.0.1", "python-dotenv>=1.0.0", "pandas>=2.0.0"]
 
 stats = [
   "scipy>=1.10.0",
