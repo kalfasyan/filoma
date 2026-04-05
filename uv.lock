@@ -1012,21 +1012,19 @@ dependencies = [
     { name = "detect-secrets" },
     { name = "ipython" },
     { name = "loguru" },
+    { name = "mcp" },
     { name = "numpy" },
+    { name = "pandas" },
     { name = "pillow" },
     { name = "polars" },
+    { name = "pydantic-ai" },
+    { name = "python-dotenv" },
     { name = "questionary" },
     { name = "rich" },
     { name = "typer" },
 ]
 
 [package.optional-dependencies]
-brain = [
-    { name = "mcp" },
-    { name = "pandas" },
-    { name = "pydantic-ai" },
-    { name = "python-dotenv" },
-]
 dedup = [
     { name = "datasketch" },
     { name = "pillow" },
@@ -1102,7 +1100,7 @@ requires-dist = [
     { name = "loguru", specifier = ">=0.7.0" },
     { name = "loguru", marker = "extra == 'docs'", specifier = ">=0.7.0" },
     { name = "maturin", marker = "extra == 'dev'", specifier = ">=1.9.0" },
-    { name = "mcp", marker = "extra == 'brain'", specifier = ">=1.6.0" },
+    { name = "mcp", specifier = ">=1.6.0" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.5.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.0.0" },
     { name = "mkdocstrings", marker = "extra == 'docs'", specifier = ">=0.23.0" },
@@ -1111,7 +1109,7 @@ requires-dist = [
     { name = "nbformat", marker = "extra == 'docs'", specifier = ">=5.7.0" },
     { name = "numpy", specifier = ">=1.26.0" },
     { name = "numpy", marker = "extra == 'stats'", specifier = ">=1.26.0" },
-    { name = "pandas", marker = "extra == 'brain'", specifier = ">=2.0.0" },
+    { name = "pandas", specifier = ">=2.0.0" },
     { name = "pandas", marker = "extra == 'pd'", specifier = ">=2.0.0" },
     { name = "pillow", specifier = ">=10.0.0" },
     { name = "pillow", marker = "extra == 'dedup'", specifier = ">=10.0.0" },
@@ -1120,12 +1118,12 @@ requires-dist = [
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.2.0" },
     { name = "pyarrow", marker = "extra == 'docs'", specifier = ">=12.0.0" },
     { name = "pyarrow", marker = "extra == 'pd'", specifier = ">=12.0.0" },
-    { name = "pydantic-ai", marker = "extra == 'brain'", specifier = ">=0.0.1" },
+    { name = "pydantic-ai", specifier = ">=0.0.1" },
     { name = "pymdown-extensions", marker = "extra == 'docs'" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.5" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.2.0" },
-    { name = "python-dotenv", marker = "extra == 'brain'", specifier = ">=1.0.0" },
+    { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "questionary", specifier = ">=2.0.0" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
@@ -1134,7 +1132,7 @@ requires-dist = [
     { name = "twine", marker = "extra == 'dev'", specifier = ">=6.1.0" },
     { name = "typer", specifier = ">=0.12.0" },
 ]
-provides-extras = ["brain", "stats", "dev", "pd", "docs", "dedup"]
+provides-extras = ["stats", "dev", "pd", "docs", "dedup"]
 
 [package.metadata.requires-dev]
 dev = [
