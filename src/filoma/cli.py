@@ -78,16 +78,23 @@ def mcp_serve() -> None:
         FILOMA_MCP_PORT: Port for SSE transport (default: 8000)
     """
     import asyncio
+    import os
 
     from filoma.mcp_server import main
 
-    console.print("[bold blue]🔌 Starting Filoma MCP Server...[/bold blue]")
-    console.print("[dim]Server will run until interrupted (Ctrl+C)[/dim]\n")
+    transport = os.getenv("FILOMA_MCP_TRANSPORT", "stdio")
+
+    # Important: for stdio MCP, writing human-readable output to stdout can
+    # corrupt the JSON-RPC stream expected by MCP clients.
+    if transport != "stdio":
+        console.print("[bold blue]Starting Filoma MCP Server...[/bold blue]")
+        console.print("[dim]Server will run until interrupted (Ctrl+C)[/dim]\n")
 
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        console.print("\n[yellow]MCP server stopped.[/yellow]")
+        if transport != "stdio":
+            console.print("\n[yellow]MCP server stopped.[/yellow]")
 
 
 @app.command()

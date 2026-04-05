@@ -19,6 +19,7 @@ from filoma.mcp_server import (
     SimpleRunContext,
     _dataframe_state,
     _get_context,
+    _is_graceful_stdio_disconnect,
     _save_context,
     call_tool,
     list_tools,
@@ -264,6 +265,26 @@ class TestDataFrameState:
         assert len(result) == 1
         text = result[0].text
         assert "filtered" in text.lower() or "txt" in text.lower()
+
+
+class TestMCPDisconnectHandling:
+    """Test graceful handling of expected stdio disconnects."""
+
+    def test_detects_simple_broken_pipe(self):
+        """BrokenPipeError should be treated as graceful disconnect."""
+        assert _is_graceful_stdio_disconnect(BrokenPipeError("broken pipe"))
+
+    def test_detects_nested_exception_group(self):
+        """Nested ExceptionGroup with disconnect errors should be graceful."""
+        err = ExceptionGroup(
+            "task group",
+            [ExceptionGroup("nested", [BrokenPipeError("broken pipe")])],
+        )
+        assert _is_graceful_stdio_disconnect(err)
+
+    def test_rejects_non_disconnect_error(self):
+        """Unexpected runtime errors must not be swallowed."""
+        assert not _is_graceful_stdio_disconnect(RuntimeError("boom"))
 
 
 class TestErrorHandling:

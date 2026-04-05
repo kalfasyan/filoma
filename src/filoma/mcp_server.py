@@ -28,6 +28,7 @@ Configuration (Claude Desktop):
 """
 
 import asyncio
+import errno
 import os
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, AsyncIterator, List
@@ -95,6 +96,20 @@ class SimpleRunContext:
 _dataframe_state: dict = {}
 # Application instance - created lazily
 _app: Any = None
+
+
+def _is_graceful_stdio_disconnect(exc: BaseException) -> bool:
+    """Return True for expected stdio disconnect errors from MCP clients."""
+    if isinstance(exc, BaseExceptionGroup):
+        return all(_is_graceful_stdio_disconnect(sub_exc) for sub_exc in exc.exceptions)
+
+    if isinstance(exc, (BrokenPipeError, ConnectionResetError, EOFError)):
+        return True
+
+    if isinstance(exc, OSError) and getattr(exc, "errno", None) == errno.EPIPE:
+        return True
+
+    return False
 
 
 async def list_tools() -> List[Any]:
@@ -866,12 +881,20 @@ async def main():
     if transport == "stdio":
         mcp = _get_mcp_imports()
         stdio_server = mcp["stdio_server"]
-        async with stdio_server() as (read_stream, write_stream):
-            await app.run(
-                read_stream,
-                write_stream,
-                app.create_initialization_options(),
-            )
+        try:
+            async with stdio_server() as (read_stream, write_stream):
+                await app.run(
+                    read_stream,
+                    write_stream,
+                    app.create_initialization_options(),
+                )
+        except BaseException as exc:
+            # Some clients probe/terminate stdio quickly, which can raise
+            # BrokenPipe/connection-reset errors during stream flush.
+            if _is_graceful_stdio_disconnect(exc):
+                logger.debug("MCP stdio client disconnected. Exiting gracefully.")
+                return
+            raise
     elif transport == "sse":
         logger.info("SSE transport not yet implemented. Use stdio for now.")
         raise NotImplementedError("SSE transport coming soon. Use FILOMA_MCP_TRANSPORT=stdio")
