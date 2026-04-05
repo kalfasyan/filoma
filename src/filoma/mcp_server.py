@@ -30,17 +30,9 @@ Configuration (Claude Desktop):
 import asyncio
 import os
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, List
+from typing import TYPE_CHECKING, Any, AsyncIterator, List
 
 from loguru import logger
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
-from mcp.types import (
-    EmbeddedResource,
-    ImageContent,
-    TextContent,
-    Tool,
-)
 
 from filoma.brain.agent import FilomaDeps
 from filoma.brain.tools import (
@@ -67,6 +59,26 @@ from filoma.brain.tools import (
     summarize_dataframe,
 )
 
+# Stub variables for type checking - we create a minimal stub class
+if TYPE_CHECKING:
+    pass
+
+
+def _get_mcp_imports():
+    """Import mcp modules only when the server actually starts."""
+    from mcp.server import Server
+    from mcp.server.stdio import stdio_server
+    from mcp.types import EmbeddedResource, ImageContent, TextContent, Tool
+
+    return {
+        "Server": Server,
+        "stdio_server": stdio_server,
+        "EmbeddedResource": EmbeddedResource,
+        "ImageContent": ImageContent,
+        "TextContent": TextContent,
+        "Tool": Tool,
+    }
+
 
 class SimpleRunContext:
     """Simple context wrapper that mimics pydantic-ai RunContext for tool calls.
@@ -79,21 +91,55 @@ class SimpleRunContext:
         self.deps = deps
 
 
-@asynccontextmanager
-async def app_lifespan(server: Server) -> AsyncIterator[FilomaDeps]:
-    """Manage application lifecycle with shared dependencies."""
-    deps = FilomaDeps(working_dir=os.getcwd())
-    logger.info(f"Filoma MCP Server started. Working directory: {deps.working_dir}")
-    try:
-        yield deps
-    finally:
-        logger.info("Filoma MCP Server shutting down.")
+# Stateful storage for DataFrame operations across tool calls
+_dataframe_state: dict = {}
+# Application instance - created lazily
+_app: Any = None
 
 
-# Create the MCP server instance
-app = Server(
-    "filoma",
-    instructions="""
+async def list_tools() -> List[Any]:
+    """List all available tools exposed by this MCP server.
+
+    NOTE: This is the module-level function used for testing without mcp import.
+    The actual server uses the registered handlers inside _get_app().
+    """
+    mcp = _get_mcp_imports()
+    Tool = mcp["Tool"]
+    return [
+        Tool(name=name, description=spec["description"], inputSchema=spec["inputSchema"])
+        for name, spec in TOOL_SCHEMAS.items()
+    ]
+
+
+async def call_tool(name: str, arguments: dict) -> List[Any]:
+    """Execute a tool with the provided arguments.
+
+    NOTE: This is the module-level function used for testing without mcp import.
+    The actual server uses the registered handlers inside _get_app().
+    """
+    return await _call_tool_impl(name, arguments)
+
+
+def _get_app() -> Any:
+    """Get or create the MCP server instance lazily."""
+    global _app
+    if _app is None:
+        mcp = _get_mcp_imports()
+        Server = mcp["Server"]
+
+        @asynccontextmanager
+        async def app_lifespan(server: Any) -> AsyncIterator[FilomaDeps]:
+            """Manage application lifecycle with shared dependencies."""
+            deps = FilomaDeps(working_dir=os.getcwd())
+            logger.info(f"Filoma MCP Server started. Working directory: {deps.working_dir}")
+            try:
+                yield deps
+            finally:
+                logger.info("Filoma MCP Server shutting down.")
+
+        _app = Server(
+            "filoma",
+            instructions="""
 Filoma MCP Server - Powerful filesystem analysis tools for AI agents.
 
 This server provides 21 filesystem analysis capabilities organized into categories:
@@ -133,7 +179,160 @@ UTILITIES:
 
 All tools support path expansion (~ for home directory) and validation.
 """,
-)
+        )
+
+        # Register the tool handlers with the Server instance
+        _app.list_tools()(list_tools)
+        _app.call_tool()(call_tool)
+
+    return _app
+
+
+def _get_context(deps: FilomaDeps) -> SimpleRunContext:
+    """Create a SimpleRunContext with current state."""
+    # Restore DataFrame from state if exists
+    if "current_df" in _dataframe_state:
+        deps.current_df = _dataframe_state["current_df"]
+    return SimpleRunContext(deps=deps)
+
+
+def _save_context(ctx: SimpleRunContext) -> None:
+    """Save DataFrame state after tool execution."""
+    if ctx.deps.current_df is not None:
+        _dataframe_state["current_df"] = ctx.deps.current_df
+
+
+async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
+    """Execute a tool with the provided arguments."""
+    deps = FilomaDeps(working_dir=os.getcwd())
+    ctx = _get_context(deps)
+
+    mcp = _get_mcp_imports()
+    TextContent = mcp["TextContent"]
+
+    try:
+        # DIRECTORY ANALYSIS
+        if name == "count_files":
+            result = count_files(ctx=ctx, path=arguments.get("path", "."))
+
+        elif name == "probe_directory":
+            result = probe_directory(
+                ctx=ctx,
+                path=arguments.get("path", "."),
+                max_depth=arguments.get("max_depth"),
+                ignore_safety_limits=arguments.get("ignore_safety_limits", False),
+            )
+
+        elif name == "get_directory_tree":
+            result = get_directory_tree(ctx=ctx, path=arguments.get("path", "."))
+
+        elif name == "find_duplicates":
+            result = find_duplicates(
+                ctx=ctx,
+                path=arguments.get("path", "."),
+                ignore_safety_limits=arguments.get("ignore_safety_limits", False),
+            )
+
+        # FILE OPERATIONS
+        elif name == "get_file_info":
+            result = get_file_info(ctx=ctx, path=arguments.get("path"))
+
+        elif name == "search_files":
+            result = search_files(
+                ctx=ctx,
+                path=arguments.get("path", "."),
+                pattern=arguments.get("pattern"),
+                extension=arguments.get("extension"),
+                min_size=arguments.get("min_size"),
+                max_depth=arguments.get("max_depth"),
+                include_hidden=arguments.get("include_hidden", False),
+                ignore_git_files=arguments.get("ignore_git_files", True),
+            )
+            _save_context(ctx)
+
+        elif name == "open_file":
+            result = open_file(ctx=ctx, path=arguments.get("path"))
+
+        elif name == "read_file":
+            result = read_file(
+                ctx=ctx,
+                path=arguments.get("path"),
+                start_line=arguments.get("start_line", 1),
+                end_line=arguments.get("end_line"),
+            )
+
+        # DATASET & DATAFRAME
+        elif name == "create_dataset_dataframe":
+            result = create_dataset_dataframe(
+                ctx=ctx,
+                path=arguments.get("path"),
+                enrich=arguments.get("enrich", True),
+            )
+            _save_context(ctx)
+
+        elif name == "filter_by_extension":
+            result = filter_by_extension(ctx=ctx, extensions=arguments.get("extensions"))
+            _save_context(ctx)
+
+        elif name == "filter_by_pattern":
+            result = filter_by_pattern(ctx=ctx, pattern=arguments.get("pattern"))
+            _save_context(ctx)
+
+        elif name == "sort_dataframe_by_size":
+            result = sort_dataframe_by_size(
+                ctx=ctx,
+                ascending=arguments.get("ascending", False),
+                top_n=arguments.get("top_n", 10),
+            )
+            _save_context(ctx)
+
+        elif name == "dataframe_head":
+            result = dataframe_head(ctx=ctx, n=arguments.get("n", 5))
+
+        elif name == "summarize_dataframe":
+            result = summarize_dataframe(ctx=ctx)
+
+        elif name == "export_dataframe":
+            result = export_dataframe(
+                ctx=ctx,
+                path=arguments.get("path"),
+                format=arguments.get("format", "csv"),
+            )
+
+        # IMAGE ANALYSIS
+        elif name == "analyze_image":
+            result = analyze_image(ctx=ctx, path=arguments.get("path"))
+
+        elif name == "preview_image":
+            result = preview_image(
+                ctx=ctx,
+                path=arguments.get("path"),
+                width=arguments.get("width", 60),
+                mode=arguments.get("mode", "ansi"),
+            )
+
+        # DATA QUALITY
+        elif name == "audit_corrupted_files":
+            result = audit_corrupted_files(ctx=ctx, path=arguments.get("path"))
+
+        elif name == "generate_hygiene_report":
+            result = generate_hygiene_report(ctx=ctx, path=arguments.get("path"))
+
+        elif name == "assess_migration_readiness":
+            result = assess_migration_readiness(ctx=ctx, path=arguments.get("path"))
+
+        # UTILITIES
+        elif name == "list_available_tools":
+            result = list_available_tools(ctx=ctx)
+
+        else:
+            return [TextContent(type="text", text=f"Unknown tool: {name}")]
+
+        return [TextContent(type="text", text=result)]
+
+    except Exception as e:
+        logger.error(f"Error calling tool {name}: {e}")
+        return [TextContent(type="text", text=f"Error executing {name}: {str(e)}")]
 
 
 # Tool schemas for all 21 tools
@@ -657,171 +856,16 @@ Returns: Complete API reference with all 21 tools documented.""",
 }
 
 
-@app.list_tools()
-async def list_tools() -> List[Tool]:
-    """List all available tools exposed by this MCP server."""
-    return [
-        Tool(name=name, description=spec["description"], inputSchema=spec["inputSchema"])
-        for name, spec in TOOL_SCHEMAS.items()
-    ]
-
-
-# Stateful storage for DataFrame operations across tool calls
-_dataframe_state = {}
-
-
-def _get_context(deps: FilomaDeps) -> SimpleRunContext:
-    """Create a SimpleRunContext with current state."""
-    # Restore DataFrame from state if exists
-    if "current_df" in _dataframe_state:
-        deps.current_df = _dataframe_state["current_df"]
-    return SimpleRunContext(deps=deps)
-
-
-def _save_context(ctx: SimpleRunContext) -> None:
-    """Save DataFrame state after tool execution."""
-    if ctx.deps.current_df is not None:
-        _dataframe_state["current_df"] = ctx.deps.current_df
-
-
-@app.call_tool()
-async def call_tool(
-    name: str, arguments: dict
-) -> list[TextContent | ImageContent | EmbeddedResource]:
-    """Execute a tool with the provided arguments."""
-    deps = FilomaDeps(working_dir=os.getcwd())
-    ctx = _get_context(deps)
-
-    try:
-        # DIRECTORY ANALYSIS
-        if name == "count_files":
-            result = count_files(ctx=ctx, path=arguments.get("path", "."))
-
-        elif name == "probe_directory":
-            result = probe_directory(
-                ctx=ctx,
-                path=arguments.get("path", "."),
-                max_depth=arguments.get("max_depth"),
-                ignore_safety_limits=arguments.get("ignore_safety_limits", False),
-            )
-
-        elif name == "get_directory_tree":
-            result = get_directory_tree(ctx=ctx, path=arguments.get("path", "."))
-
-        elif name == "find_duplicates":
-            result = find_duplicates(
-                ctx=ctx,
-                path=arguments.get("path", "."),
-                ignore_safety_limits=arguments.get("ignore_safety_limits", False),
-            )
-
-        # FILE OPERATIONS
-        elif name == "get_file_info":
-            result = get_file_info(ctx=ctx, path=arguments.get("path"))
-
-        elif name == "search_files":
-            result = search_files(
-                ctx=ctx,
-                path=arguments.get("path", "."),
-                pattern=arguments.get("pattern"),
-                extension=arguments.get("extension"),
-                min_size=arguments.get("min_size"),
-                max_depth=arguments.get("max_depth"),
-                include_hidden=arguments.get("include_hidden", False),
-                ignore_git_files=arguments.get("ignore_git_files", True),
-            )
-            _save_context(ctx)
-
-        elif name == "open_file":
-            result = open_file(ctx=ctx, path=arguments.get("path"))
-
-        elif name == "read_file":
-            result = read_file(
-                ctx=ctx,
-                path=arguments.get("path"),
-                start_line=arguments.get("start_line", 1),
-                end_line=arguments.get("end_line"),
-            )
-
-        # DATASET & DATAFRAME
-        elif name == "create_dataset_dataframe":
-            result = create_dataset_dataframe(
-                ctx=ctx,
-                path=arguments.get("path"),
-                enrich=arguments.get("enrich", True),
-            )
-            _save_context(ctx)
-
-        elif name == "filter_by_extension":
-            result = filter_by_extension(ctx=ctx, extensions=arguments.get("extensions"))
-            _save_context(ctx)
-
-        elif name == "filter_by_pattern":
-            result = filter_by_pattern(ctx=ctx, pattern=arguments.get("pattern"))
-            _save_context(ctx)
-
-        elif name == "sort_dataframe_by_size":
-            result = sort_dataframe_by_size(
-                ctx=ctx,
-                ascending=arguments.get("ascending", False),
-                top_n=arguments.get("top_n", 10),
-            )
-            _save_context(ctx)
-
-        elif name == "dataframe_head":
-            result = dataframe_head(ctx=ctx, n=arguments.get("n", 5))
-
-        elif name == "summarize_dataframe":
-            result = summarize_dataframe(ctx=ctx)
-
-        elif name == "export_dataframe":
-            result = export_dataframe(
-                ctx=ctx,
-                path=arguments.get("path"),
-                format=arguments.get("format", "csv"),
-            )
-
-        # IMAGE ANALYSIS
-        elif name == "analyze_image":
-            result = analyze_image(ctx=ctx, path=arguments.get("path"))
-
-        elif name == "preview_image":
-            result = preview_image(
-                ctx=ctx,
-                path=arguments.get("path"),
-                width=arguments.get("width", 60),
-                mode=arguments.get("mode", "ansi"),
-            )
-
-        # DATA QUALITY
-        elif name == "audit_corrupted_files":
-            result = audit_corrupted_files(ctx=ctx, path=arguments.get("path"))
-
-        elif name == "generate_hygiene_report":
-            result = generate_hygiene_report(ctx=ctx, path=arguments.get("path"))
-
-        elif name == "assess_migration_readiness":
-            result = assess_migration_readiness(ctx=ctx, path=arguments.get("path"))
-
-        # UTILITIES
-        elif name == "list_available_tools":
-            result = list_available_tools(ctx=ctx)
-
-        else:
-            return [TextContent(type="text", text=f"Unknown tool: {name}")]
-
-        return [TextContent(type="text", text=result)]
-
-    except Exception as e:
-        logger.error(f"Error calling tool {name}: {e}")
-        return [TextContent(type="text", text=f"Error executing {name}: {str(e)}")]
-
-
 async def main():
     """Run the MCP server with configured transport."""
+    # Ensure the app is created (this imports mcp)
+    app = _get_app()
+
     transport = os.getenv("FILOMA_MCP_TRANSPORT", "stdio")
 
     if transport == "stdio":
+        mcp = _get_mcp_imports()
+        stdio_server = mcp["stdio_server"]
         async with stdio_server() as (read_stream, write_stream):
             await app.run(
                 read_stream,
@@ -829,7 +873,6 @@ async def main():
                 app.create_initialization_options(),
             )
     elif transport == "sse":
-        # port = int(os.getenv("FILOMA_MCP_PORT", "8000"))  # For future SSE implementation
         logger.info("SSE transport not yet implemented. Use stdio for now.")
         raise NotImplementedError("SSE transport coming soon. Use FILOMA_MCP_TRANSPORT=stdio")
     else:
