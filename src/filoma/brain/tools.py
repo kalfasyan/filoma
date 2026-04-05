@@ -798,14 +798,16 @@ def search_files(
         else:
             return "Error: Please provide at least one search criteria (pattern, extension, or min_size)."
 
-        if not results:
-            return f"No files found matching the criteria in '{p}'."
-
-        # LOAD INTO DATAFRAME
+        # LOAD INTO DATAFRAME (even if empty)
         from filoma.dataframe import DataFrame
 
-        # Create DataFrame from results
+        # Create DataFrame from results (empty list is valid)
         df = DataFrame({"path": results})
+        
+        # Only return early message if no results, but still set the DataFrame
+        if not results:
+            ctx.deps.current_df = df
+            return f"No files found matching the criteria in '{p}'.\n\n✅ Empty DataFrame initialized. You can use other tools when files are found."
         # Enrich with metadata (size, dates, etc.)
         # Only enrich if result set is reasonable size to avoid long waits
         if len(results) < 10000:
