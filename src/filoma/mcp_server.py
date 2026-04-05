@@ -1,8 +1,8 @@
 """MCP Server for Filoma - exposes filesystem analysis tools to external agents.
 
 This module provides an MCP (Model Context Protocol) server that wraps filoma's
-brain tools, making them accessible to any MCP-compatible client (Claude Desktop,
-Cline, Cursor, etc.).
+brain tools, making them accessible to any MCP-compatible client (nanobot
+recommended).
 
 Usage:
     # Run the MCP server
@@ -15,8 +15,8 @@ Environment Variables:
     FILOMA_MCP_TRANSPORT: Transport type - 'stdio' (default) or 'sse'
     FILOMA_MCP_PORT: Port for SSE transport (default: 8000)
 
-Configuration (Claude Desktop):
-    Add to ~/Library/Application Support/Claude/claude_desktop_config.json:
+Configuration (nanobot):
+    Add to ~/.nanobot/config.json under "mcpServers":
     {
       "mcpServers": {
         "filoma": {

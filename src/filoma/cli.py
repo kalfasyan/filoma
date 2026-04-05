@@ -69,7 +69,7 @@ def mcp_serve() -> None:
     filoma's filesystem analysis tools to any MCP-compatible client.
 
     The server runs on stdio transport by default, making it compatible with
-    Claude Desktop, Cline, and other MCP clients.
+    nanobot and other MCP clients.
 
     Example:\n
         filoma mcp serve\n
