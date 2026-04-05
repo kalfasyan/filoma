@@ -45,96 +45,42 @@ check_uv() {
     fi
 }
 
-# Get Claude Desktop config path
-get_claude_config_path() {
-    local os="$1"
-    case "$os" in
-        macos)
-            echo "$HOME/Library/Application Support/Claude/claude_desktop_config.json"
-            ;;
-        linux)
-            echo "$HOME/.config/Claude/claude_desktop_config.json"
-            ;;
-        windows)
-            echo "$(cygpath "$APPDATA")/Claude/claude_desktop_config.json"
-            ;;
-        *)
-            echo ""
-            ;;
-    esac
+# Get nanobot config path
+get_nanobot_config_path() {
+    echo "$HOME/.nanobot/config.json"
 }
 
-# Get Cursor config path
-get_cursor_config_path() {
-    local os="$1"
-    case "$os" in
-        macos|linux)
-            echo "$HOME/.cursor/mcp.json"
-            ;;
-        windows)
-            echo "$(cygpath "$USERPROFILE")/.cursor/mcp.json"
-            ;;
-        *)
-            echo ""
-            ;;
-    esac
-}
-
-# Get Goose config path
-get_goose_config_path() {
-    local os="$1"
-    case "$os" in
-        macos|linux)
-            echo "$HOME/.config/goose/config.yaml"
-            ;;
-        windows)
-            echo "$(cygpath "$USERPROFILE")/.config/goose/config.yaml"
-            ;;
-        *)
-            echo ""
-            ;;
-    esac
-}
-
-# Generate Goose YAML config
-generate_goose_config() {
+# Generate nanobot MCP config JSON snippet
+generate_nanobot_config() {
     cat << 'EOF'
-extensions:
-  filoma:
-    type: stdio
-    cmd: uvx
-    args:
-      - "--python"
-      - ">=3.11"
-      - filoma
-      - mcp
-      - serve
-    enabled: true
-EOF
-}
-
-# Generate MCP config JSON
-generate_config() {
-    cat << 'EOF'
-{
-  "mcpServers": {
-    "filoma": {
-      "command": "uvx",
-      "args": ["--python", ">=3.11", "filoma", "mcp", "serve"]
-    }
+"mcpServers": {
+  "filoma": {
+    "command": "uvx",
+    "args": ["--python", ">=3.11", "filoma", "mcp", "serve"]
   }
 }
 EOF
 }
 
-# Generate MCP config with uv fallback
-generate_config_with_uv() {
+# Generate full nanobot config with Ollama
+generate_full_nanobot_config() {
     cat << 'EOF'
 {
+  "agents": {
+    "defaults": {
+      "provider": "ollama",
+      "model": "qwen2.5:14b"
+    }
+  },
+  "providers": {
+    "ollama": {
+      "apiBase": "http://localhost:11434/v1"
+    }
+  },
   "mcpServers": {
     "filoma": {
-      "command": "uv",
-      "args": ["run", "--python", ">=3.11", "filoma", "mcp", "serve"]
+      "command": "uvx",
+      "args": ["--python", ">=3.11", "filoma", "mcp", "serve"]
     }
   }
 }
@@ -166,39 +112,28 @@ main() {
 
     echo ""
     echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
-    echo -e "${BLUE}  MCP Configuration${NC}"
+    echo -e "${BLUE}  MCP Configuration with Nanobot${NC}"
     echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
     echo ""
 
-    # Config paths
-    CLAUDE_CONFIG=$(get_claude_config_path "$OS")
-    CURSOR_CONFIG=$(get_cursor_config_path "$OS")
-    GOOSE_CONFIG=$(get_goose_config_path "$OS")
+    # Config path
+    NANOBOT_CONFIG=$(get_nanobot_config_path)
 
-    echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
-    echo -e "${BLUE}  🦆 Goose + Ollama (Recommended - Local & Private)${NC}"
-    echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
-    echo ""
-
-    # Check if Goose is installed
-    if command -v goose &> /dev/null; then
-        echo -e "${GREEN}✓ Goose is installed${NC}"
-        if [ -n "$GOOSE_CONFIG" ]; then
-            echo -e "${GREEN}Goose config path:${NC}"
-            echo "  $GOOSE_CONFIG"
-        fi
+    # Check if nanobot is installed
+    if command -v nanobot &> /dev/null; then
+        echo -e "${GREEN}✓ nanobot is installed${NC}"
+        echo -e "${GREEN}Config path:${NC}"
+        echo "  $NANOBOT_CONFIG"
     else
-        echo -e "${YELLOW}○ Goose not found${NC}"
-        echo "  Install: curl -fsSL https://raw.githubusercontent.com/block/goose/main/install.sh | bash"
+        echo -e "${YELLOW}○ nanobot not found${NC}"
+        echo "  Install: uv tool install nanobot-ai"
+        echo "  Then run: nanobot onboard"
     fi
 
     echo ""
-    echo -e "${GREEN}Goose YAML Configuration:${NC}"
-    echo ""
-    generate_goose_config
-    echo ""
-    echo "Add the above to: $GOOSE_CONFIG"
-    echo "Or run: goose configure"
+    echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}  🤖 nanobot + Ollama (Local & Private)${NC}"
+    echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
     echo ""
 
     # Check Ollama
@@ -212,36 +147,19 @@ main() {
 
     echo ""
     echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
-    echo -e "${BLUE}  🌐 Cloud Assistants (Claude/Cursor)${NC}"
+    echo -e "${BLUE}  Full Configuration${NC}"
     echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
     echo ""
-
-    # Show config paths
-    if [ -n "$CLAUDE_CONFIG" ]; then
-        echo -e "${GREEN}Claude Desktop config:${NC}"
-        echo "  $CLAUDE_CONFIG"
-    fi
-
-    if [ -n "$CURSOR_CONFIG" ]; then
-        echo -e "${GREEN}Cursor config:${NC}"
-        echo "  $CURSOR_CONFIG"
-    fi
+    generate_full_nanobot_config
 
     echo ""
     echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
-    echo -e "${BLUE}  Configuration JSON${NC}"
+    echo -e "${BLUE}  MCP Server Snippet${NC}"
     echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
     echo ""
-
-    if [ "$USE_UVX" = true ]; then
-        echo -e "${GREEN}Using uvx (recommended):${NC}"
-        echo ""
-        generate_config
-    else
-        echo -e "${YELLOW}Using uv run:${NC}"
-        echo ""
-        generate_config_with_uv
-    fi
+    echo "Add this to your existing nanobot config:"
+    echo ""
+    generate_nanobot_config
 
     echo ""
     echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
@@ -249,55 +167,36 @@ main() {
     echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
     echo ""
 
-    # Goose next steps
-    if [ -n "$GOOSE_CONFIG" ]; then
-        echo -e "${GREEN}🦆 Goose Setup:${NC}"
-        if [ -f "$GOOSE_CONFIG" ]; then
-            echo "  1. Edit: $GOOSE_CONFIG"
-        else
-            echo "  1. Run: goose configure"
-            echo "     Or create: $GOOSE_CONFIG"
-        fi
-        echo "  2. Add the YAML config shown above"
-        echo "  3. Ensure Ollama is running: ollama serve"
-        echo "  4. Start a Goose session: goose session"
-        echo ""
-    fi
-
-    # Check if configs exist and offer to show commands
-    if [ -n "$CLAUDE_CONFIG" ] && [ -f "$CLAUDE_CONFIG" ]; then
-        echo -e "${GREEN}✓ Claude Desktop config exists${NC}"
-        echo "  Add the JSON above to: $CLAUDE_CONFIG"
-        echo "  Then restart Claude Desktop"
-    elif [ -n "$CLAUDE_CONFIG" ]; then
-        echo -e "${YELLOW}○ Claude Desktop config not found${NC}"
-        echo "  Create: $CLAUDE_CONFIG"
-        echo "  And add the JSON above"
-    fi
-
+    echo -e "${GREEN}1. Install nanobot:${NC}"
+    echo "   uv tool install nanobot-ai"
+    echo "   nanobot onboard"
+    echo ""
+    echo -e "${GREEN}2. Create/edit nanobot config:${NC}"
+    echo "   $NANOBOT_CONFIG"
+    echo ""
+    echo -e "${GREEN}3. Add the configuration above${NC}"
+    echo ""
+    echo -e "${GREEN}4. Ensure Ollama is running:${NC}"
+    echo "   ollama serve"
+    echo ""
+    echo -e "${GREEN}5. Test nanobot:${NC}"
+    echo "   nanobot agent --logs -m \"hello\""
+    echo "   nanobot agent -m \"probe directory ~/my/project\""
     echo ""
 
-    if [ -n "$CURSOR_CONFIG" ] && [ -f "$CURSOR_CONFIG" ]; then
-        echo -e "${GREEN}✓ Cursor config exists${NC}"
-        echo "  Add the JSON above to: $CURSOR_CONFIG"
-        echo "  Or go to Settings → MCP → Add Server"
-    elif [ -n "$CURSOR_CONFIG" ]; then
-        echo -e "${YELLOW}○ Cursor config not found${NC}"
-        echo "  Create: $CURSOR_CONFIG"
-        echo "  Or go to Settings → MCP → Add Server"
-    fi
-
-    echo ""
     echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
     echo -e "${GREEN}  Installation Complete!${NC}"
     echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
     echo ""
     echo "Once configured, you can:"
-    echo "  • Ask Goose/Claude/Cursor about files in your project"
+    echo "  • Ask nanobot about files in your project"
     echo "  • Run 'filoma brain chat' for interactive mode"
     echo "  • Visit https://filoma.io for documentation"
     echo ""
-    echo -e "${YELLOW}Note: First run may take a moment as uvx downloads filoma${NC}"
+    echo -e "${YELLOW}Tips:${NC}"
+    echo "  • Use '--logs' to see tool calls and debug issues"
+    echo "  • apiBase must include '/v1' for Ollama"
+    echo "  • First run may take a moment as uvx downloads filoma"
     echo ""
 }
 

@@ -1,6 +1,6 @@
 # Filoma Brain - AI Agent Integration
 
-Filoma Brain provides an intelligent AI agent for filesystem analysis using [PydanticAI](https://ai.pydantic.dev/). It can be used both programmatically and as an MCP server for integration with AI assistants like Goose, Claude Desktop, Cline, Cursor, and others.
+Filoma Brain provides an intelligent AI agent for filesystem analysis using [PydanticAI](https://ai.pydantic.dev/). It can be used both programmatically and as an MCP server for integration with AI assistants like [nanobot](https://github.com/kilderehen/nanobot).
 
 ## Features
 
@@ -43,188 +43,76 @@ async def analyze_directory():
 asyncio.run(analyze_directory())
 ```
 
-## MCP Server Configuration
+## MCP Server Configuration with Nanobot
 
-Filoma Brain can be exposed as an MCP (Model Context Protocol) server, allowing AI assistants to use its filesystem analysis tools directly.
+Filoma Brain can be exposed as an MCP (Model Context Protocol) server to [nanobot](https://github.com/kilderehen/nanobot), a Rust-based AI agent that runs locally with [Ollama](https://ollama.com).
 
-### Quick Setup (Recommended)
+This setup keeps everything on your machine—no API keys, no cloud services.
 
-**One-line install:**
+### 1. Install nanobot
+
 ```bash
-curl -sL https://raw.githubusercontent.com/kalfasyan/filoma/main/scripts/install.sh | sh
+uv tool install nanobot-ai
+nanobot onboard
 ```
 
-Or manually add the configuration to your AI assistant:
+### 2. Configure Ollama as Provider
 
-### Goose + Ollama (Local & Private - Recommended)
+Edit `~/.nanobot/config.json` and set the following:
 
-[Goose](https://github.com/block/goose) is a Rust-based AI agent that runs locally with [Ollama](https://ollama.com). This setup keeps everything on your machine—no API keys, no cloud services.
-
-**Why Goose + Ollama?**
-- ✅ **Fully local** - No data leaves your machine
-- ✅ **No API keys** - No accounts or subscriptions needed
-- ✅ **Fast** - Rust-based agent with local model inference
-- ✅ **Private** - Your filesystem stays private
-
-**Step 1: Install Goose** (Rust binary, no Python needed)
-```bash
-curl -fsSL https://raw.githubusercontent.com/block/goose/main/install.sh | bash
+```json
+{
+  "agents": {
+    "defaults": {
+      "provider": "ollama",
+      "model": "qwen2.5:14b"
+    }
+  },
+  "providers": {
+    "ollama": {
+      "apiBase": "http://localhost:11434/v1"
+    }
+  }
+}
 ```
 
-This drops a binary in `~/.local/bin/goose`. No pip, no venv.
+> **Important:** the `apiBase` must include `/v1` — without it nanobot hits a 404 and silently returns no response.
 
-**Step 2: Install Ollama + a tool-calling model**
+Make sure Ollama is running and the model is pulled before starting nanobot:
+
 ```bash
-# Install Ollama
-curl -fsSL https://ollama.ai/install.sh | sh
-
-# Pull a tool-calling model (Qwen 2.5 is best for MCP)
-ollama pull qwen2.5:14b   # ~9GB RAM, excellent tool-calling
-# or if RAM is tight:
-ollama pull qwen2.5:7b    # ~5GB RAM
+ollama pull qwen2.5:14b
+ollama serve
 ```
 
 > ⚠️ **Model recommendation:** Avoid Llama 3 for tool-calling. Qwen 2.5 is significantly better at it.
 
-**Step 3: Configure Goose for Ollama**
+### 3. Connect Filoma as an MCP Tool Server
+
+In `~/.nanobot/config.json`, find `"mcpServers": {}` and replace it with:
+
+```json
+"mcpServers": {
+  "filoma": {
+    "command": "uvx",
+    "args": ["--python", ">=3.11", "filoma", "mcp", "serve"]
+  }
+}
+```
+
+### 4. Test It
+
 ```bash
-goose configure
-```
-Select: `Configure Providers` → `Ollama` → Set host to `http://localhost:11434` → Pick your model (`qwen2.5:14b` or `qwen2.5:7b`)
-
-**Step 4: Add Filoma as an MCP extension**
-
-Option A: Via the wizard:
-```bash
-goose configure
-# Select: Add Extension → Command → enter:
-# command: uvx
-# args: --python >=3.11 filoma mcp serve
+nanobot agent --logs -m "hello"
+nanobot agent -m "probe directory ~/my/folder"
 ```
 
-Option B: Edit config directly at `~/.config/goose/config.yaml`:
-```yaml
-extensions:
-  filoma:
-    type: stdio
-    cmd: uvx
-    args:
-      - "--python"
-      - ">=3.11"
-      - filoma
-      - mcp
-      - serve
-    enabled: true
-```
+Use `--logs` when troubleshooting — it shows tool calls and any errors clearly.
 
-**Step 5: Test it**
-```bash
-goose session
-```
-
-Then ask:
+**Example queries:**
 - "How many files are in ~/my_project?"
 - "Find all duplicate images in ./data"
 - "Create a dataframe from this directory and show me the largest files"
-
-Watch Goose automatically call Filoma tools to answer your questions.
-
-### Claude Desktop Configuration
-
-**Config file locations by OS:**
-
-| OS | Path |
-|----|------|
-| **macOS** | `~/Library/Application Support/Claude/claude_desktop_config.json` |
-| **Linux** | `~/.config/Claude/claude_desktop_config.json` |
-| **Windows** | `%APPDATA%\Claude\claude_desktop_config.json` |
-
-Add this to your Claude Desktop config:
-
-```json
-{
-  "mcpServers": {
-    "filoma": {
-      "command": "uvx",
-      "args": ["--python", ">=3.11", "filoma", "mcp", "serve"]
-    }
-  }
-}
-```
-
-**Alternative using `uv` (if uvx is not available):**
-```json
-{
-  "mcpServers": {
-    "filoma": {
-      "command": "uv",
-      "args": ["run", "--python", ">=3.11", "filoma", "mcp", "serve"]
-    }
-  }
-}
-```
-
-### Cline Configuration
-
-**Config locations:**
-
-| OS | Path |
-|----|------|
-| **VS Code Settings** | `Cmd/Ctrl + Shift + P` → "Preferences: Open Settings (JSON)" |
-| **Cline Settings** | Cline panel → MCP Servers → Edit Settings |
-
-Add to VS Code settings.json:
-
-```json
-{
-  "mcpServers": {
-    "filoma": {
-      "command": "uvx",
-      "args": ["--python", ">=3.11", "filoma", "mcp", "serve"],
-      "disabled": false,
-      "autoApprove": []
-    }
-  }
-}
-```
-
-### Cursor Configuration
-
-**Config file locations by OS:**
-
-| OS | Path |
-|----|------|
-| **macOS/Linux** | `~/.cursor/mcp.json` |
-| **Windows** | `%USERPROFILE%\.cursor\mcp.json` |
-| **Via GUI** | Settings → MCP → Add Server |
-
-Add to Cursor's MCP settings:
-
-```json
-{
-  "mcpServers": {
-    "filoma": {
-      "command": "uvx",
-      "args": ["--python", ">=3.11", "filoma", "mcp", "serve"]
-    }
-  }
-}
-```
-
-### Development Setup (Local Clone)
-
-If you're developing Filoma locally:
-
-```json
-{
-  "mcpServers": {
-    "filoma": {
-      "command": "uv",
-      "args": ["run", "--directory", "/path/to/filoma", "filoma", "mcp", "serve"]
-    }
-  }
-}
-```
 
 ### Running the MCP Server Manually
 

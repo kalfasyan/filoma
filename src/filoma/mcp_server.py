@@ -30,6 +30,7 @@ Configuration (Claude Desktop):
 import asyncio
 import errno
 import os
+import sys
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, AsyncIterator, List
 
@@ -59,6 +60,11 @@ from filoma.brain.tools import (
     sort_dataframe_by_size,
     summarize_dataframe,
 )
+
+# Reconfigure loguru to write to stderr (required for MCP stdio transport)
+# The MCP protocol uses stdout for JSON-RPC messages, so logs must go to stderr
+logger.remove()  # Remove default handler
+logger.add(sys.stderr)  # Add stderr handler
 
 # Stub variables for type checking - we create a minimal stub class
 if TYPE_CHECKING:
