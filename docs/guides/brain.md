@@ -1,6 +1,6 @@
 # Filoma Brain - AI Agent Integration
 
-Filoma Brain provides an intelligent AI agent for filesystem analysis using [PydanticAI](https://ai.pydantic.dev/). It can be used both programmatically and as an MCP server for integration with AI assistants like [nanobot](https://github.com/kilderehen/nanobot).
+Filoma Brain provides an intelligent AI agent for filesystem analysis using [PydanticAI](https://ai.pydantic.dev/). It can be used both programmatically and as an MCP server for integration with AI assistants like [nanobot](https://github.com/HKUDS/nanobot).
 
 ## Features
 
@@ -45,7 +45,7 @@ asyncio.run(analyze_directory())
 
 ## MCP Server Configuration with Nanobot
 
-Filoma Brain can be exposed as an MCP (Model Context Protocol) server to [nanobot](https://github.com/kilderehen/nanobot), a Rust-based AI agent that runs locally with [Ollama](https://ollama.com).
+Filoma Brain can be exposed as an MCP (Model Context Protocol) server to [nanobot](https://github.com/HKUDS/nanobot), a Rust-based AI agent that runs locally with [Ollama](https://ollama.com).
 
 This setup keeps everything on your machine—no API keys, no cloud services.
 
