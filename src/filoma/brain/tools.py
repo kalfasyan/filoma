@@ -803,7 +803,7 @@ def search_files(
 
         # Create DataFrame from results (empty list is valid)
         df = DataFrame({"path": results})
-        
+
         # Only return early message if no results, but still set the DataFrame
         if not results:
             ctx.deps.current_df = df
