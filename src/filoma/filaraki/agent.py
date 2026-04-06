@@ -346,6 +346,7 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
         mistral_key = env_api_key or os.getenv("MISTRAL_API_KEY")
         if mistral_key:
             from pydantic_ai.models.openai import OpenAIChatModel
+            from pydantic_ai.providers.openai import OpenAIProvider
 
             m_name = env_model or "mistral:mistral-small-latest"
             logger.info(f"Using Mistral AI with model '{m_name}' (MISTRAL_API_KEY found).")
@@ -353,7 +354,8 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
             if ":" not in m_name:
                 m_name = f"mistral:{m_name}"
 
-            return OpenAIChatModel(model_name=m_name, api_key=mistral_key)
+            provider = OpenAIProvider(base_url="https://api.mistral.ai/v1", api_key=mistral_key)
+            return OpenAIChatModel(model_name=m_name, provider=provider)
 
         # SCENARIO 3: Google Gemini (Cloud - Priority 3)
         gemini_key = os.getenv("GEMINI_API_KEY")
@@ -368,12 +370,14 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
         # SCENARIO 4: OpenAI-compatible / Custom Base URL (Priority 4)
         if env_base_url:
             from pydantic_ai.models.openai import OpenAIChatModel
+            from pydantic_ai.providers.openai import OpenAIProvider
 
             m_name = env_model or "gpt-4o-mini"
             openai_key = env_api_key or os.getenv("OPENAI_API_KEY")
 
             logger.info(f"Using OpenAI-compatible API at {env_base_url} with model: {m_name}")
-            return OpenAIChatModel(model_name=m_name, api_key=openai_key, base_url=env_base_url)
+            provider = OpenAIProvider(base_url=env_base_url, api_key=openai_key)
+            return OpenAIChatModel(model_name=m_name, provider=provider)
 
         # Default Fallback: Ollama with qwen2.5:14b
         logger.warning("No AI configuration found. Defaulting to local Ollama with 'qwen2.5:14b'.")

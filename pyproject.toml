@@ -109,9 +109,12 @@ features = ["pyo3/extension-module"]
 # Suppress the informational Rust progress warning in CI logs
 filterwarnings = ["ignore::UserWarning:filoma.directories.directory_profiler"]
 asyncio_mode = "auto"
+markers = [
+    "integration: marks tests that require real API keys",
+]
 
 [tool.poe.tasks]
-test = "pytest -n auto tests/"
+test = "pytest -n auto tests/ -m 'not integration'"
 lint = "ruff check ."
 lint-fix = "ruff check . --fix"
 precommit = "pre-commit run --all-files"
