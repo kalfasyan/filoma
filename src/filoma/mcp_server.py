@@ -29,9 +29,10 @@ Configuration (nanobot):
 
 import asyncio
 import errno
+import io
 import os
 import sys
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, redirect_stdout
 from typing import TYPE_CHECKING, Any, AsyncIterator, List
 
 from loguru import logger
@@ -233,13 +234,31 @@ async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
     mcp = _get_mcp_imports()
     TextContent = mcp["TextContent"]
 
+    def _run_guarded_stdout(func: Any, *args: Any, **kwargs: Any) -> Any:
+        """Run a tool while capturing accidental stdout writes.
+
+        MCP stdio transport requires stdout to contain only JSON-RPC messages.
+        Any human-readable output must be prevented from reaching stdout.
+        """
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            result = func(*args, **kwargs)
+
+        leaked = buf.getvalue()
+        if leaked:
+            preview = leaked[:300].replace("\n", "\\n")
+            logger.warning(f"Suppressed non-JSON stdout from tool '{name}': {preview}")
+
+        return result
+
     try:
         # DIRECTORY ANALYSIS
         if name == "count_files":
-            result = count_files(ctx=ctx, path=arguments.get("path", "."))
+            result = _run_guarded_stdout(count_files, ctx=ctx, path=arguments.get("path", "."))
 
         elif name == "probe_directory":
-            result = probe_directory(
+            result = _run_guarded_stdout(
+                probe_directory,
                 ctx=ctx,
                 path=arguments.get("path", "."),
                 max_depth=arguments.get("max_depth"),
@@ -247,10 +266,11 @@ async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
             )
 
         elif name == "get_directory_tree":
-            result = get_directory_tree(ctx=ctx, path=arguments.get("path", "."))
+            result = _run_guarded_stdout(get_directory_tree, ctx=ctx, path=arguments.get("path", "."))
 
         elif name == "find_duplicates":
-            result = find_duplicates(
+            result = _run_guarded_stdout(
+                find_duplicates,
                 ctx=ctx,
                 path=arguments.get("path", "."),
                 ignore_safety_limits=arguments.get("ignore_safety_limits", False),
@@ -258,10 +278,11 @@ async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
 
         # FILE OPERATIONS
         elif name == "get_file_info":
-            result = get_file_info(ctx=ctx, path=arguments.get("path"))
+            result = _run_guarded_stdout(get_file_info, ctx=ctx, path=arguments.get("path"))
 
         elif name == "search_files":
-            result = search_files(
+            result = _run_guarded_stdout(
+                search_files,
                 ctx=ctx,
                 path=arguments.get("path", "."),
                 pattern=arguments.get("pattern"),
@@ -274,10 +295,11 @@ async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
             _save_context(ctx)
 
         elif name == "open_file":
-            result = open_file(ctx=ctx, path=arguments.get("path"))
+            result = _run_guarded_stdout(open_file, ctx=ctx, path=arguments.get("path"))
 
         elif name == "read_file":
-            result = read_file(
+            result = _run_guarded_stdout(
+                read_file,
                 ctx=ctx,
                 path=arguments.get("path"),
                 start_line=arguments.get("start_line", 1),
@@ -286,7 +308,8 @@ async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
 
         # DATASET & DATAFRAME
         elif name == "create_dataset_dataframe":
-            result = create_dataset_dataframe(
+            result = _run_guarded_stdout(
+                create_dataset_dataframe,
                 ctx=ctx,
                 path=arguments.get("path"),
                 enrich=arguments.get("enrich", True),
@@ -294,15 +317,16 @@ async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
             _save_context(ctx)
 
         elif name == "filter_by_extension":
-            result = filter_by_extension(ctx=ctx, extensions=arguments.get("extensions"))
+            result = _run_guarded_stdout(filter_by_extension, ctx=ctx, extensions=arguments.get("extensions"))
             _save_context(ctx)
 
         elif name == "filter_by_pattern":
-            result = filter_by_pattern(ctx=ctx, pattern=arguments.get("pattern"))
+            result = _run_guarded_stdout(filter_by_pattern, ctx=ctx, pattern=arguments.get("pattern"))
             _save_context(ctx)
 
         elif name == "sort_dataframe_by_size":
-            result = sort_dataframe_by_size(
+            result = _run_guarded_stdout(
+                sort_dataframe_by_size,
                 ctx=ctx,
                 ascending=arguments.get("ascending", False),
                 top_n=arguments.get("top_n", 10),
@@ -310,13 +334,14 @@ async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
             _save_context(ctx)
 
         elif name == "dataframe_head":
-            result = dataframe_head(ctx=ctx, n=arguments.get("n", 5))
+            result = _run_guarded_stdout(dataframe_head, ctx=ctx, n=arguments.get("n", 5))
 
         elif name == "summarize_dataframe":
-            result = summarize_dataframe(ctx=ctx)
+            result = _run_guarded_stdout(summarize_dataframe, ctx=ctx)
 
         elif name == "export_dataframe":
-            result = export_dataframe(
+            result = _run_guarded_stdout(
+                export_dataframe,
                 ctx=ctx,
                 path=arguments.get("path"),
                 format=arguments.get("format", "csv"),
@@ -324,10 +349,11 @@ async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
 
         # IMAGE ANALYSIS
         elif name == "analyze_image":
-            result = analyze_image(ctx=ctx, path=arguments.get("path"))
+            result = _run_guarded_stdout(analyze_image, ctx=ctx, path=arguments.get("path"))
 
         elif name == "preview_image":
-            result = preview_image(
+            result = _run_guarded_stdout(
+                preview_image,
                 ctx=ctx,
                 path=arguments.get("path"),
                 width=arguments.get("width", 60),
@@ -336,16 +362,17 @@ async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
 
         # DATA QUALITY
         elif name == "audit_corrupted_files":
-            result = audit_corrupted_files(ctx=ctx, path=arguments.get("path"))
+            result = _run_guarded_stdout(audit_corrupted_files, ctx=ctx, path=arguments.get("path"))
 
         elif name == "generate_hygiene_report":
-            result = generate_hygiene_report(ctx=ctx, path=arguments.get("path"))
+            result = _run_guarded_stdout(generate_hygiene_report, ctx=ctx, path=arguments.get("path"))
 
         elif name == "assess_migration_readiness":
-            result = assess_migration_readiness(ctx=ctx, path=arguments.get("path"))
+            result = _run_guarded_stdout(assess_migration_readiness, ctx=ctx, path=arguments.get("path"))
 
         elif name == "audit_dataset":
-            result = audit_dataset(
+            result = _run_guarded_stdout(
+                audit_dataset,
                 ctx=ctx,
                 path=arguments.get("path"),
                 mode=arguments.get("mode", "concise"),
@@ -356,7 +383,7 @@ async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
 
         # UTILITIES
         elif name == "list_available_tools":
-            result = list_available_tools(ctx=ctx)
+            result = _run_guarded_stdout(list_available_tools, ctx=ctx)
 
         else:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]
