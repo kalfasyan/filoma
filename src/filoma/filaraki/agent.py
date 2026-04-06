@@ -285,41 +285,77 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
         base_url: Optional[str],
         api_key: Optional[str],
     ) -> Union[str, Model]:
-        """Resolve the model name or instance for pydantic-ai."""
+        """Resolve the model name or instance for pydantic-ai.
+
+        Priority order:
+        1. Ollama (Local - Privacy First, default)
+        2. Mistral AI (Cloud)
+        3. Google Gemini (Cloud)
+        4. OpenAI-compatible (Generic)
+        """
         if model and not isinstance(model, str):
             return model
 
-        # Logic: Priority to explicit Base URL (Scenario B/D: Ollama/Local)
+        # Environment variables
         env_base_url = base_url or os.getenv("FILOMA_FILARAKI_BASE_URL")
         env_model = model or os.getenv("FILOMA_FILARAKI_MODEL")
         env_api_key = api_key or os.getenv("FILOMA_FILARAKI_API_KEY")
 
-        if env_base_url:
+        # SCENARIO 1: Ollama (Local - Priority 1)
+        # Check if Ollama is explicitly configured or auto-detect running on localhost
+        ollama_base_url = env_base_url
+        is_ollama = False
+
+        if ollama_base_url:
+            # Explicit configuration provided
+            is_ollama = "localhost:11434" in ollama_base_url or "ollama" in ollama_base_url
+        else:
+            # Auto-detect: Check if Ollama is running on default port
+            try:
+                import socket
+
+                # Quick check if Ollama is listening on localhost:11434
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(0.5)
+                result = sock.connect_ex(("localhost", 11434))
+                sock.close()
+
+                if result == 0:
+                    ollama_base_url = "http://localhost:11434/v1"
+                    is_ollama = True
+                    logger.debug("Auto-detected Ollama running on localhost:11434")
+            except Exception:
+                pass
+
+        if is_ollama:
+            from pydantic_ai.models.openai import OpenAIChatModel
+            from pydantic_ai.providers.ollama import OllamaProvider
+
+            m_name = env_model or "qwen2.5:14b"
+
+            # Strip 'ollama:' prefix if present
+            if m_name.startswith("ollama:"):
+                m_name = m_name[7:]
+
+            logger.info(f"Using local Ollama at {ollama_base_url} with model: {m_name}")
+
+            provider = OllamaProvider(base_url=ollama_base_url, api_key=env_api_key)
+            return OpenAIChatModel(model_name=m_name, provider=provider)
+
+        # SCENARIO 2: Mistral AI (Cloud - Priority 2)
+        mistral_key = env_api_key or os.getenv("MISTRAL_API_KEY")
+        if mistral_key:
             from pydantic_ai.models.openai import OpenAIChatModel
 
-            m_name = env_model or "llama3.1:8b"
+            m_name = env_model or "mistral:mistral-small-latest"
+            logger.info(f"Using Mistral AI with model '{m_name}' (MISTRAL_API_KEY found).")
+            # If it doesn't have the prefix, add it for pydantic-ai resolution
+            if ":" not in m_name:
+                m_name = f"mistral:{m_name}"
 
-            # Check if it's explicitly an Ollama endpoint
-            is_ollama = "localhost:11434" in env_base_url or "ollama" in env_base_url
+            return OpenAIChatModel(model_name=m_name, api_key=mistral_key)
 
-            if is_ollama:
-                logger.info(f"Ollama detected: {env_base_url}")
-                from pydantic_ai.providers.ollama import OllamaProvider
-
-                # Strip 'ollama:' prefix if present (for consistency with pydantic-ai examples)
-                if m_name.startswith("ollama:"):
-                    m_name = m_name[7:]  # Remove 'ollama:' prefix
-
-                logger.info(f"Using local Ollama model: {m_name}")
-
-                # Use OllamaProvider for local Ollama
-                provider = OllamaProvider(base_url=env_base_url, api_key=env_api_key)
-                return OpenAIChatModel(model_name=m_name, provider=provider)
-
-            logger.error(f"Unsupported provider URL: {env_base_url}. Filaraki only supports Mistral Cloud and local Ollama.")
-            raise ValueError(f"Unsupported AI provider: {env_base_url}")
-
-        # Logic: Scenario A (Google Gemini)
+        # SCENARIO 3: Google Gemini (Cloud - Priority 3)
         gemini_key = os.getenv("GEMINI_API_KEY")
         if gemini_key:
             m_name = env_model or "gemini-1.5-flash"
@@ -327,26 +363,22 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
 
             from pydantic_ai.models.google import GoogleModel
 
-            # GoogleModel automatically uses GEMINI_API_KEY from environment
             return GoogleModel(model_name=m_name)
 
-        # Logic: Scenario B (Mistral)
-        mistral_key = os.getenv("MISTRAL_API_KEY")
-        if mistral_key:
-            m_name = env_model or "mistral:mistral-small-latest"
-            logger.info(f"Using Mistral AI with model '{m_name}' (MISTRAL_API_KEY found).")
-            # If it doesn't have the prefix, add it for pydantic-ai resolution
-            if ":" not in m_name:
-                m_name = f"mistral:{m_name}"
-
-            # Mistral via OpenAI-compatible API in pydantic-ai
+        # SCENARIO 4: OpenAI-compatible / Custom Base URL (Priority 4)
+        if env_base_url:
             from pydantic_ai.models.openai import OpenAIChatModel
 
-            return OpenAIChatModel(model_name=m_name, api_key=mistral_key)
+            m_name = env_model or "gpt-4o-mini"
+            openai_key = env_api_key or os.getenv("OPENAI_API_KEY")
 
-        # Default Fallback
-        logger.warning("No AI configuration found. Defaulting to 'llama3.1:8b'.")
-        return "llama3.1:8b"
+            logger.info(f"Using OpenAI-compatible API at {env_base_url} with model: {m_name}")
+            return OpenAIChatModel(model_name=m_name, api_key=openai_key, base_url=env_base_url)
+
+        # Default Fallback: Ollama with qwen2.5:14b
+        logger.warning("No AI configuration found. Defaulting to local Ollama with 'qwen2.5:14b'.")
+        logger.warning("Make sure Ollama is running: ollama serve && ollama pull qwen2.5:14b")
+        return "qwen2.5:14b"
 
     async def run(
         self,

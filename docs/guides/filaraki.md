@@ -16,11 +16,17 @@ Filoma Filaraki provides an intelligent AI agent for filesystem analysis using [
 ### Interactive Chat
 
 ```bash
-# Start the chat interface
+# Start the chat interface (auto-detects Ollama on localhost:11434)
 filoma filaraki chat
 
 # Or use uv
-uv run filoma filaraki chat
+uvx filoma filaraki chat
+```
+
+**Prerequisites for Ollama (if auto-detected):**
+```bash
+ollama pull qwen2.5:14b
+ollama serve
 ```
 
 ### Programmatic Usage
@@ -169,28 +175,80 @@ uv run python -m filoma.mcp_server
 
 ## AI Model Configuration
 
-Filoma Filaraki supports multiple AI backends:
+Filoma Filaraki supports multiple AI backends with **Ollama as the default**, prioritizing privacy and local execution.
 
-### Mistral AI (Default)
+### Configuration Priority
+
+1. **Ollama** (Local) - Auto-detected if running on `localhost:11434`
+2. **Mistral AI** (Cloud) - If `MISTRAL_API_KEY` is set
+3. **Google Gemini** (Cloud) - If `GEMINI_API_KEY` is set
+4. **OpenAI-Compatible** (Generic) - If `FILOMA_FILARAKI_BASE_URL` is set
+
+### Ollama (Local - Default, Recommended)
+
+**Auto-detection:** Filoma will automatically detect Ollama running on `localhost:11434` and use `qwen2.5:14b` as the default model.
+
+```bash
+# Just start filoma - it will auto-detect Ollama
+filoma filaraki chat
+```
+
+**If Ollama runs on a different host/port:**
+```bash
+export FILOMA_FILARAKI_BASE_URL="http://localhost:11434/v1"
+export FILOMA_FILARAKI_MODEL="qwen2.5:14b"
+filoma filaraki chat
+```
+
+**Setup:**
+```bash
+ollama pull qwen2.5:14b
+ollama serve
+```
+
+> 💡 **Why qwen2.5:14b?** It has excellent tool-calling capabilities, runs well on consumer hardware, and respects your privacy.
+
+### Mistral AI (Cloud)
+
 ```bash
 export MISTRAL_API_KEY="your-api-key"
 filoma filaraki chat
+
+# Optional: override default model
+export FILOMA_FILARAKI_MODEL="mistral:mistral-small-latest"
 ```
 
-### Ollama (Local)
-```bash
-export FILOMA_FILARAKI_BASE_URL="http://localhost:11434"
-export FILOMA_FILARAKI_MODEL="llama3.1:8b"
-filoma filaraki chat
-```
+### Google Gemini (Cloud)
 
-### Google Gemini
 ```bash
 export GEMINI_API_KEY="your-api-key"
 filoma filaraki chat
+
+# Optional: override default model
+export FILOMA_FILARAKI_MODEL="gemini-1.5-flash"
 ```
 
-### Custom Model
+### OpenAI-Compatible (Generic)
+
+Use any OpenAI-compatible API endpoint including OpenAI, OpenRouter, Together AI, Azure OpenAI, etc.
+
+**OpenAI:**
+```bash
+export FILOMA_FILARAKI_BASE_URL="https://api.openai.com/v1"
+export OPENAI_API_KEY="your-api-key"
+filoma filaraki chat
+```
+
+**OpenRouter (access to multiple models):**
+```bash
+export FILOMA_FILARAKI_BASE_URL="https://openrouter.ai/api/v1"
+export OPENAI_API_KEY="your-openrouter-key"
+export FILOMA_FILARAKI_MODEL="anthropic/claude-3.5-sonnet"
+filoma filaraki chat
+```
+
+### Custom Model (Programmatic)
+
 ```python
 from filoma.filaraki import get_agent
 
@@ -203,6 +261,29 @@ from pydantic_ai.models.openai import OpenAIChatModel
 model = OpenAIChatModel(model_name="custom-model", api_key="xxx")
 agent = get_agent(model=model)
 ```
+
+## Environment Configuration File
+
+For local development, copy `.env_example` to `.env`:
+
+```bash
+cp .env_example .env
+```
+
+Then edit `.env` and uncomment only ONE scenario:
+
+```bash
+# Ollama (Default - recommended)
+FILOMA_FILARAKI_MODEL=qwen2.5:14b
+
+# Or for cloud providers, set the API key:
+# MISTRAL_API_KEY=your_key_here
+# GEMINI_API_KEY=your_key_here
+# OPENAI_API_KEY=your_key_here
+# FILOMA_FILARAKI_BASE_URL=https://api.openai.com/v1
+```
+
+> ⚠️ **Note:** When using `uvx`, environment variables from `.env` are not automatically loaded. Export them in your shell or use `uv run` with `--env-file .env`.
 
 ## Example Workflows
 
@@ -254,6 +335,8 @@ Filoma Filaraki consists of:
 3. **Chain Operations**: Filter, sort, and export DataFrames in sequence
 4. **View vs Analyze**: Use `open_file` for viewing, `read_file` for analysis
 5. **Safety First**: The agent is read-only except for `export_dataframe`
+6. **Ollama First**: Use local Ollama for privacy and zero cost
+7. **Tool Calling Models**: Prefer models with good tool-calling (qwen2.5, mistral)
 
 ## Troubleshooting
 
@@ -263,11 +346,17 @@ Filoma Filaraki consists of:
 **Issue**: "No DataFrame loaded" error
 - **Solution**: Run `search_files` or `create_dataset_dataframe` first
 
+**Issue**: "Make sure Ollama is running" error
+- **Solution**: Ensure Ollama is running: `ollama serve` and you have the model: `ollama pull qwen2.5:14b`
+
 **Issue**: Model not responding correctly
-- **Solution**: Check API keys are set: `MISTRAL_API_KEY`, `GEMINI_API_KEY`, etc.
+- **Solution**: Check API keys are set: `MISTRAL_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, etc.
 
 **Issue**: MCP server not connecting
 - **Solution**: Verify the path in your MCP config and ensure uv/pip is available
+
+**Issue**: Tool-calling not working
+- **Solution**: Switch to a model with better tool-calling support (qwen2.5:14b, mistral-small)
 
 ## See Also
 
@@ -275,3 +364,4 @@ Filoma Filaraki consists of:
 - [Data Quality Guide](../guides/data-integrity.md) - Data validation and quality checks
 - [PydanticAI Documentation](https://ai.pydantic.dev/) - Framework powering Filoma Filaraki
 - [MCP Documentation](https://modelcontextprotocol.io/) - Model Context Protocol specification
+- [Ollama Documentation](https://ollama.com/) - Run LLMs locally
