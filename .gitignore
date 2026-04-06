@@ -56,6 +56,7 @@ site/
 *.csv
 *.txt
 *.html
+*.json
 
 bench_test/
 snapshot.json
@@ -63,3 +64,4 @@ manifest.json
 
 # Secret scanning
 .secrets.baseline
+tmp/audit_weeds3_v2.json

@@ -41,6 +41,7 @@ from filoma.filaraki.tools import (
     analyze_image,
     assess_migration_readiness,
     audit_corrupted_files,
+    audit_dataset,
     count_files,
     create_dataset_dataframe,
     dataframe_head,
@@ -163,7 +164,7 @@ def _get_app() -> Any:
             instructions="""
 Filoma MCP Server - Powerful filesystem analysis tools for AI agents.
 
-This server provides 21 filesystem analysis capabilities organized into categories:
+This server provides 22 filesystem analysis capabilities organized into categories:
 
 DIRECTORY ANALYSIS:
 - count_files: Full recursive scan counting all files/folders
@@ -194,6 +195,7 @@ DATA QUALITY:
 - audit_corrupted_files: Find corrupted/zero-byte files
 - generate_hygiene_report: Quality metrics and issues
 - assess_migration_readiness: Dataset migration assessment
+- audit_dataset: One-call dataset audit workflow (corruption + hygiene + readiness)
 
 UTILITIES:
 - list_available_tools: Show all available tools with descriptions
@@ -342,6 +344,16 @@ async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
         elif name == "assess_migration_readiness":
             result = assess_migration_readiness(ctx=ctx, path=arguments.get("path"))
 
+        elif name == "audit_dataset":
+            result = audit_dataset(
+                ctx=ctx,
+                path=arguments.get("path"),
+                mode=arguments.get("mode", "concise"),
+                show_evidence=arguments.get("show_evidence", False),
+                export_path=arguments.get("export_path"),
+                export_format=arguments.get("export_format", "json"),
+            )
+
         # UTILITIES
         elif name == "list_available_tools":
             result = list_available_tools(ctx=ctx)
@@ -356,7 +368,7 @@ async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
         return [TextContent(type="text", text=f"Error executing {name}: {str(e)}")]
 
 
-# Tool schemas for all 21 tools
+# Tool schemas for all MCP tools
 TOOL_SCHEMAS = {
     "count_files": {
         "description": """Count total files and folders with FULL recursive scan.
@@ -861,6 +873,53 @@ Returns: JSON migration readiness report.""",
             "required": ["path"],
         },
     },
+    "audit_dataset": {
+        "description": """Run full dataset audit workflow in one call.
+
+Executes corrupted-file audit, hygiene report, and migration readiness,
+then returns one consolidated summary plus full component reports.
+
+Args:
+    path: Dataset directory
+    mode: 'concise' (default) or 'verbose'
+    show_evidence: Include sample duplicate/corruption evidence
+    export_path: Optional path to write consolidated report
+    export_format: 'json' (default), 'md', or 'html'
+
+Returns: Consolidated workflow report with executive summary.""",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Dataset directory",
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": ["concise", "verbose"],
+                    "default": "concise",
+                    "description": "Response verbosity mode",
+                },
+                "show_evidence": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Include sample evidence in response",
+                },
+                "export_path": {
+                    "type": ["string", "null"],
+                    "default": None,
+                    "description": "Optional output path for report export",
+                },
+                "export_format": {
+                    "type": "string",
+                    "enum": ["json", "md", "html"],
+                    "default": "json",
+                    "description": "Export format when export_path is provided",
+                },
+            },
+            "required": ["path"],
+        },
+    },
     "list_available_tools": {
         "description": """List all available tools and their descriptions.
 
@@ -868,7 +927,7 @@ Use this if you are unsure what operations are possible.
 
 Args: None
 
-Returns: Complete API reference with all 21 tools documented.""",
+Returns: Complete API reference with all available tools documented.""",
         "inputSchema": {
             "type": "object",
             "properties": {},

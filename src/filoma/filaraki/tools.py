@@ -1,5 +1,6 @@
 """Tools for the FilarakiAgent."""
 
+import html
 import json
 import time
 import uuid
@@ -95,6 +96,18 @@ def audit_corrupted_files(ctx: RunContext[Any], path: str) -> str:
         verifier = DatasetVerifier(str(p))
         results = verifier.check_integrity()
 
+        # Derive total scanned files for accurate success-rate semantics
+        total_files_checked = 0
+        try:
+            from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
+
+            profiler = DirectoryProfiler(DirectoryProfilerConfig(build_dataframe=False))
+            analysis = profiler.probe(str(p), max_depth=None)
+            total_files_checked = int(analysis.summary.get("total_files", 0))
+        except Exception:
+            # Keep audit resilient even if directory counting fails
+            total_files_checked = 0
+
         # Process findings
         findings = []
         failed_files = results.get("failed_files", [])
@@ -120,11 +133,15 @@ def audit_corrupted_files(ctx: RunContext[Any], path: str) -> str:
             findings.append(finding)
 
         # Create summary
+        failed_count = len(failed_files)
+        success_rate = 1.0 if total_files_checked == 0 else 1.0 - (failed_count / total_files_checked)
+
         summary = {
-            "total_files_checked": len(failed_files),
+            "total_files_checked": total_files_checked,
             "corrupted_files": len([f for f in failed_files if f.get("reason") == "corrupt_or_unsupported"]),
             "zero_byte_files": len([f for f in failed_files if f.get("reason") == "zero_byte"]),
-            "success_rate": 1.0 - (len(failed_files) / max(len(failed_files) + 1, 1))  # Avoid division by zero
+            "failed_files": failed_count,
+            "success_rate": max(0.0, success_rate),
         }
 
         # Create report
@@ -456,6 +473,466 @@ def assess_migration_readiness(ctx: RunContext[Any], path: str) -> str:
             execution_time_seconds=time.time() - start_time
         )
         return f"MIGRATION READINESS REPORT (FAILED):\n{report.model_dump_json(indent=2)}"
+
+
+def _extract_json_payload(report_text: str) -> Optional[dict[str, Any]]:
+    r"""Extract JSON payload from a prefixed report string.
+
+    Expected input format is "TITLE:\n{...json...}".
+    Returns None when parsing fails.
+    """
+    try:
+        _, payload = report_text.split("\n", 1)
+        return json.loads(payload)
+    except Exception:
+        return None
+
+
+def audit_dataset(
+    ctx: RunContext[Any],
+    path: str,
+    mode: str = "concise",
+    show_evidence: bool = False,
+    export_path: Optional[str] = None,
+    export_format: str = "json",
+) -> str:
+    """Run a full dataset audit workflow in one call.
+
+    This orchestration tool executes three existing reports in sequence:
+    - audit_corrupted_files
+    - generate_hygiene_report
+    - assess_migration_readiness
+
+    It returns a concise or verbose summary and can optionally export a report.
+    """
+    p = Path(path).expanduser().resolve()
+    if not p.exists():
+        return f"Error: Path '{path}' does not exist."
+
+    mode = (mode or "concise").strip().lower()
+    if mode not in {"concise", "verbose"}:
+        return "Error: mode must be either 'concise' or 'verbose'."
+
+    export_format = (export_format or "json").strip().lower()
+    if export_format not in {"json", "md", "html"}:
+        return "Error: export_format must be either 'json', 'md', or 'html'."
+
+    import re
+
+    corruption_report = audit_corrupted_files(ctx, str(p))
+    hygiene_report = generate_hygiene_report(ctx, str(p))
+    readiness_report = assess_migration_readiness(ctx, str(p))
+
+    corruption_data = _extract_json_payload(corruption_report)
+    hygiene_data = _extract_json_payload(hygiene_report)
+    readiness_data = _extract_json_payload(readiness_report)
+
+    corrupted_files = 0
+    zero_byte_files = 0
+    hygiene_score = None
+    readiness_score = None
+    blockers = 0
+    total_files_checked = 0
+    failed_files = 0
+    duplicate_groups = 0
+    evidence_section: List[str] = []
+
+    # Profile dataset once to capture extension/split distributions for richer reporting.
+    profile_total_files = 0
+    extension_counts: dict[str, int] = {}
+    split_counts: dict[str, int] = {}
+    split_labels = {"train", "valid", "test"}
+
+    try:
+        df = filoma.probe_to_df(str(p), enrich=False)
+        profile_total_files = len(df)
+
+        # Normalize extension_count table to {ext: count}
+        ext_dict = df.extension_counts().to_dict()
+        keys = ext_dict.get("extension", [])
+        vals = ext_dict.get("len", ext_dict.get("count", []))
+        if keys and vals and len(keys) == len(vals):
+            extension_counts = {str(k): int(v) for k, v in zip(keys, vals)}
+
+        # Build split distribution from relative paths (train/valid/test)
+        path_dict = df.to_dict()
+        for full_path in path_dict.get("path", []):
+            try:
+                rel = Path(str(full_path)).resolve().relative_to(p)
+                top = rel.parts[0].lower() if rel.parts else ""
+                if top in split_labels:
+                    split_counts[top] = split_counts.get(top, 0) + 1
+            except Exception:
+                continue
+    except Exception:
+        # Keep workflow resilient even if profiling fails
+        profile_total_files = 0
+        extension_counts = {}
+        split_counts = {}
+
+    if corruption_data:
+        summary = corruption_data.get("summary", {})
+        total_files_checked = int(summary.get("total_files_checked", 0))
+        failed_files = int(summary.get("failed_files", 0))
+        corrupted_files = int(summary.get("corrupted_files", 0))
+        zero_byte_files = int(summary.get("zero_byte_files", 0))
+
+        if show_evidence:
+            findings = corruption_data.get("findings", [])[:5]
+            if findings:
+                evidence_section.append("Corruption findings (up to 5):")
+                for finding in findings:
+                    evidence = finding.get("evidence", {})
+                    fpath = evidence.get("file_path", "unknown")
+                    issue = evidence.get("issue_type", "unknown")
+                    evidence_section.append(f"- {issue}: {fpath}")
+
+    if hygiene_data:
+        hygiene_score = hygiene_data.get("overall_score")
+        issues = hygiene_data.get("issues", [])
+        for issue in issues:
+            if issue.get("id") == "hygiene-duplicates":
+                evidence = issue.get("evidence", {})
+                duplicate_groups = int(evidence.get("duplicate_count", 0))
+                if show_evidence:
+                    sample_dupes = evidence.get("duplicates", [])[:3]
+                    if sample_dupes:
+                        evidence_section.append("Duplicate evidence (up to 3 groups):")
+                        for i, group in enumerate(sample_dupes, start=1):
+                            group_files = group[:3] if isinstance(group, list) else [str(group)]
+                            evidence_section.append(f"- Group {i}: {', '.join(map(str, group_files))}")
+                break
+
+    # Duplicate impact metrics from hygiene evidence
+    duplicate_files_total = 0
+    largest_duplicate_group_size = 0
+    estimated_space_waste_bytes = 0
+    try:
+        dup_groups: list[list[str]] = []
+        if hygiene_data:
+            for issue in hygiene_data.get("issues", []):
+                if issue.get("id") == "hygiene-duplicates":
+                    evidence = issue.get("evidence", {})
+                    dup_groups = evidence.get("duplicates", []) or []
+                    break
+
+        if dup_groups:
+            duplicate_files_total = sum(len(group) for group in dup_groups if isinstance(group, list))
+            largest_duplicate_group_size = max(len(group) for group in dup_groups if isinstance(group, list))
+
+            # Estimate waste as size*(n-1) per group using first readable file as reference size
+            for group in dup_groups:
+                if not isinstance(group, list) or len(group) < 2:
+                    continue
+                group_size = 0
+                for fp in group:
+                    try:
+                        group_size = Path(str(fp)).stat().st_size
+                        if group_size > 0:
+                            break
+                    except Exception:
+                        continue
+                estimated_space_waste_bytes += max(0, len(group) - 1) * group_size
+    except Exception:
+        duplicate_files_total = 0
+        largest_duplicate_group_size = 0
+        estimated_space_waste_bytes = 0
+
+    if readiness_data:
+        readiness_score = readiness_data.get("overall_readiness")
+        readiness_blockers = readiness_data.get("blockers", [])
+        blockers = len(readiness_blockers)
+        if show_evidence and readiness_blockers:
+            evidence_section.append("Migration blockers:")
+            for blocker in readiness_blockers[:5]:
+                evidence_section.append(f"- {blocker}")
+
+    # Extract readiness total files from item descriptions where available.
+    readiness_total_files = 0
+    if readiness_data:
+        for item in readiness_data.get("items", []):
+            desc = str(item.get("description", ""))
+            match = re.search(r"contains\s+([\d,]+)\s+files", desc, flags=re.IGNORECASE)
+            if match:
+                readiness_total_files = int(match.group(1).replace(",", ""))
+                break
+
+    # Reconciliation across stages.
+    reconciliation = {
+        "files_total_profiled": profile_total_files,
+        "files_total_integrity_checked": total_files_checked,
+        "files_total_readiness_basis": readiness_total_files,
+        "count_delta_profile_vs_integrity": profile_total_files - total_files_checked,
+        "count_delta_profile_vs_readiness": profile_total_files - readiness_total_files,
+        "status": "ok"
+        if profile_total_files in {0, total_files_checked}
+        and readiness_total_files in {0, profile_total_files}
+        else "warn",
+    }
+
+    # Extension shares for quick format composition signal.
+    extension_share_pct = {
+        ext: round((cnt / profile_total_files) * 100.0, 2)
+        for ext, cnt in extension_counts.items()
+        if profile_total_files > 0
+    }
+
+    duplicate_ratio_pct = round((duplicate_files_total / profile_total_files) * 100.0, 2) if profile_total_files > 0 else 0.0
+
+    # Stage timing summary to show runtime hotspots.
+    stage_timings = {
+        "integrity_seconds": (corruption_data or {}).get("execution_time_seconds", 0.0),
+        "hygiene_seconds": (hygiene_data or {}).get("execution_time_seconds", 0.0),
+        "readiness_seconds": (readiness_data or {}).get("execution_time_seconds", 0.0),
+    }
+    stage_timings["total_seconds"] = round(
+        float(stage_timings["integrity_seconds"]) + float(stage_timings["hygiene_seconds"]) + float(stage_timings["readiness_seconds"]),
+        6,
+    )
+
+    # Structured continuation guidance.
+    next_actions = []
+    if duplicate_groups > 0:
+        next_actions.append({
+            "priority": "high",
+            "action": "Review and remove duplicate groups",
+            "estimated_effort": f"{duplicate_groups} groups",
+            "auto_followup_prompt": "Show all duplicate file paths and suggest deletions that preserve split integrity.",
+        })
+    if corrupted_files > 0 or zero_byte_files > 0:
+        next_actions.append({
+            "priority": "critical",
+            "action": "Quarantine corrupted/zero-byte files",
+            "estimated_effort": f"{corrupted_files + zero_byte_files} files",
+            "auto_followup_prompt": "List corrupted and zero-byte files with exact paths.",
+        })
+    if reconciliation["status"] == "warn":
+        next_actions.append({
+            "priority": "medium",
+            "action": "Investigate file-count mismatch across reports",
+            "estimated_effort": "10-20 minutes",
+            "auto_followup_prompt": "Explain why file totals differ across profile, integrity, and readiness checks.",
+        })
+    if not next_actions:
+        next_actions.append({
+            "priority": "low",
+            "action": "Export and archive this audit baseline",
+            "estimated_effort": "2 minutes",
+            "auto_followup_prompt": "Export this report as markdown and summarize key baseline metrics.",
+        })
+
+    limitations = []
+    if not extension_counts:
+        limitations.append("Extension distribution unavailable due to profiling fallback.")
+    if not split_counts:
+        limitations.append("Split distribution unavailable (no train/valid/test structure detected).")
+    if readiness_total_files == 0:
+        limitations.append("Readiness file total could not be extracted from readiness item descriptions.")
+
+    consolidated_report = {
+        "workflow": "audit_dataset",
+        "version": "1.1",
+        "target": str(p),
+        "mode": mode,
+        "summary": {
+            "total_files_checked": total_files_checked,
+            "failed_files": failed_files,
+            "corrupted_files": corrupted_files,
+            "zero_byte_files": zero_byte_files,
+            "duplicate_groups": duplicate_groups,
+            "duplicate_files_total": duplicate_files_total,
+            "duplicate_ratio_pct": duplicate_ratio_pct,
+            "largest_duplicate_group_size": largest_duplicate_group_size,
+            "estimated_space_waste_bytes": estimated_space_waste_bytes,
+            "hygiene_score": hygiene_score,
+            "migration_readiness": readiness_score,
+            "migration_blockers": blockers,
+        },
+        "dataset_profile": {
+            "files_total_profiled": profile_total_files,
+            "extension_counts": extension_counts,
+            "extension_share_pct": extension_share_pct,
+            "split_counts": split_counts,
+        },
+        "reconciliation": reconciliation,
+        "stage_timings": stage_timings,
+        "next_actions": next_actions,
+        "limitations": limitations,
+        "evidence": evidence_section if show_evidence else [],
+        "reports": {
+            "corruption": corruption_data,
+            "hygiene": hygiene_data,
+            "readiness": readiness_data,
+        },
+    }
+
+    executive = (
+        "DATASET AUDIT WORKFLOW SUMMARY:\n"
+        f"Target: {p}\n"
+        f"- Files checked: {total_files_checked}\n"
+        f"- Failed files: {failed_files}\n"
+        f"- Corrupted files: {corrupted_files}\n"
+        f"- Zero-byte files: {zero_byte_files}\n"
+        f"- Duplicate groups: {duplicate_groups}\n"
+        f"- Duplicate files total: {duplicate_files_total}\n"
+        f"- Duplicate ratio: {duplicate_ratio_pct}%\n"
+        f"- Hygiene score: {hygiene_score if hygiene_score is not None else 'unknown'}\n"
+        f"- Migration readiness: {readiness_score if readiness_score is not None else 'unknown'}\n"
+        f"- Migration blockers: {blockers}\n"
+        f"- Extension types observed: {len(extension_counts)}\n"
+        f"- Split counts: {split_counts if split_counts else 'not detected'}\n"
+        f"- Reconciliation status: {reconciliation['status']}\n"
+    )
+
+    export_note = ""
+    if export_path:
+        out = Path(export_path).expanduser().resolve()
+        out.parent.mkdir(parents=True, exist_ok=True)
+
+        if export_format == "json":
+            out.write_text(json.dumps(consolidated_report, indent=2), encoding="utf-8")
+        elif export_format == "md":
+            md = ["# Dataset Audit Workflow Report", "", executive]
+            if show_evidence and evidence_section:
+                md.extend(["", "## Evidence", *evidence_section])
+            md.extend([
+                "",
+                "## Corruption Report",
+                "```json",
+                json.dumps(corruption_data, indent=2, default=str),
+                "```",
+                "",
+                "## Hygiene Report",
+                "```json",
+                json.dumps(hygiene_data, indent=2, default=str),
+                "```",
+                "",
+                "## Readiness Report",
+                "```json",
+                json.dumps(readiness_data, indent=2, default=str),
+                "```",
+            ])
+            out.write_text("\n".join(md), encoding="utf-8")
+        else:
+            # Self-contained HTML report for visual inspection and sharing.
+            summary_rows = "".join(
+                [
+                    f"<tr><th>{html.escape(str(k))}</th><td>{html.escape(str(v))}</td></tr>"
+                    for k, v in consolidated_report.get("summary", {}).items()
+                ]
+            )
+            profile_rows = "".join(
+                [
+                    f"<tr><th>{html.escape(str(k))}</th><td>{html.escape(str(v))}</td></tr>"
+                    for k, v in consolidated_report.get("dataset_profile", {}).items()
+                ]
+            )
+            recon_rows = "".join(
+                [
+                    f"<tr><th>{html.escape(str(k))}</th><td>{html.escape(str(v))}</td></tr>"
+                    for k, v in consolidated_report.get("reconciliation", {}).items()
+                ]
+            )
+            timing_rows = "".join(
+                [
+                    f"<tr><th>{html.escape(str(k))}</th><td>{html.escape(str(v))}</td></tr>"
+                    for k, v in consolidated_report.get("stage_timings", {}).items()
+                ]
+            )
+            actions_rows = "".join(
+                [
+                    "<tr>"
+                    f"<td>{html.escape(str(a.get('priority', '')))}</td>"
+                    f"<td>{html.escape(str(a.get('action', '')))}</td>"
+                    f"<td>{html.escape(str(a.get('estimated_effort', '')))}</td>"
+                    f"<td>{html.escape(str(a.get('auto_followup_prompt', '')))}</td>"
+                    "</tr>"
+                    for a in consolidated_report.get("next_actions", [])
+                ]
+            )
+            evidence_items = "".join(
+                [f"<li>{html.escape(str(item))}</li>" for item in consolidated_report.get("evidence", [])]
+            )
+
+            version = consolidated_report.get("version", "unknown")
+
+            html_doc = f"""<!doctype html>
+<html lang=\"en\">
+<head>
+    <meta charset=\"utf-8\" />
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+    <title>Filoma Dataset Audit Report</title>
+    <style>
+        :root {{
+            --bg: #f6f8fb;
+            --panel: #ffffff;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --accent: #0f766e;
+            --border: #dbe3ee;
+        }}
+        body {{ margin: 0; padding: 24px; background: var(--bg); color: var(--text); font-family: 'Segoe UI', Tahoma, sans-serif; }}
+        .wrap {{ max-width: 1100px; margin: 0 auto; }}
+        .hero {{ background: linear-gradient(135deg, #ecfeff, #f0fdf4); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }}
+        h1 {{ margin: 0 0 8px; font-size: 1.5rem; }}
+        .meta {{ color: var(--muted); font-size: 0.95rem; }}
+        .grid {{ display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); margin-top: 14px; }}
+        .card {{ background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }}
+        .card h2 {{ margin: 0 0 10px; font-size: 1.05rem; color: var(--accent); }}
+        table {{ width: 100%; border-collapse: collapse; }}
+        th, td {{ border-bottom: 1px solid #eef2f7; text-align: left; padding: 7px 6px; vertical-align: top; font-size: 0.9rem; }}
+        th {{ width: 45%; color: #0f172a; font-weight: 600; }}
+        pre {{ white-space: pre-wrap; word-wrap: break-word; background: #0b1220; color: #e5e7eb; padding: 12px; border-radius: 10px; overflow: auto; }}
+        ul {{ margin: 0; padding-left: 20px; }}
+    </style>
+</head>
+<body>
+    <div class=\"wrap\">
+        <section class=\"hero\">
+            <h1>Filoma Dataset Audit Report</h1>
+            <div class=\"meta\">Target: {html.escape(str(p))} | Mode: {html.escape(mode)} | Version: {html.escape(str(version))}</div>
+        </section>
+
+        <section class=\"grid\">
+            <article class=\"card\"><h2>Summary</h2><table>{summary_rows}</table></article>
+            <article class=\"card\"><h2>Dataset Profile</h2><table>{profile_rows}</table></article>
+            <article class=\"card\"><h2>Reconciliation</h2><table>{recon_rows}</table></article>
+            <article class=\"card\"><h2>Stage Timings</h2><table>{timing_rows}</table></article>
+            <article class=\"card\"><h2>Next Actions</h2><table><thead><tr><th>Priority</th><th>Action</th><th>Effort</th><th>Follow-up Prompt</th></tr></thead><tbody>{actions_rows}</tbody></table></article>
+            <article class=\"card\"><h2>Evidence</h2><ul>{evidence_items or '<li>No evidence section requested.</li>'}</ul></article>
+        </section>
+
+        <section class=\"card\" style=\"margin-top:14px\">
+            <h2>Full JSON Payload</h2>
+            <pre>{html.escape(json.dumps(consolidated_report, indent=2, default=str))}</pre>
+        </section>
+    </div>
+</body>
+</html>
+"""
+            out.write_text(html_doc, encoding="utf-8")
+
+        export_note = f"\nReport exported to: {out}"
+
+    if mode == "concise":
+        concise = [executive]
+        if show_evidence and evidence_section:
+            concise.append("Evidence:")
+            concise.extend(evidence_section)
+        if export_note:
+            concise.append(export_note.strip())
+        return "\n".join(concise)
+
+    verbose_report = (
+        f"{executive}\n"
+        + ("Evidence:\n" + "\n".join(evidence_section) + "\n\n" if show_evidence and evidence_section else "")
+        + "---\n"
+        + f"{corruption_report}\n\n"
+        + f"{hygiene_report}\n\n"
+        + f"{readiness_report}"
+        + export_note
+    )
+    return verbose_report
 
 def probe_directory(
     ctx: RunContext[Any],
@@ -841,8 +1318,11 @@ def search_files(
         return f"Error searching files: {str(e)}"
 
 
-def get_directory_tree(ctx: RunContext[Any], path: str) -> str:
-    """Get a list of files and folders in the immediate directory (non-recursive).
+def list_directory(ctx: RunContext[Any], path: str) -> str:
+    """List files and folders in a directory (non-recursive, excludes hidden files).
+
+    Use this for basic directory exploration. Shows folders first, then files.
+    For hidden files (dotfiles), use list_directory_all instead.
 
     Args:
     ----
@@ -857,7 +1337,8 @@ def get_directory_tree(ctx: RunContext[Any], path: str) -> str:
         if not p.is_dir():
             return f"Error: '{path}' is not a directory."
 
-        items = list(p.iterdir())
+        # Filter out hidden files (starting with .)
+        items = [item for item in p.iterdir() if not item.name.startswith('.')]
         # Sort: directories first, then files
         items.sort(key=lambda x: (not x.is_dir(), x.name.lower()))
 
@@ -882,6 +1363,65 @@ def get_directory_tree(ctx: RunContext[Any], path: str) -> str:
 
     except Exception as e:
         return f"Error listing directory: {str(e)}"
+
+
+def list_directory_all(ctx: RunContext[Any], path: str) -> str:
+    """List ALL files and folders in a directory including hidden files (dotfiles).
+
+    Use this when you need to see hidden files like .gitignore, .env, .config files.
+    Shows folders first, then files. Includes all items starting with '.'
+
+    Args:
+    ----
+        ctx: The run context.
+        path: The path to list.
+
+    """
+    try:
+        p = Path(path).expanduser().resolve()
+        if not p.exists():
+            return f"Error: Path '{path}' does not exist."
+        if not p.is_dir():
+            return f"Error: '{path}' is not a directory."
+
+        items = list(p.iterdir())
+        # Sort: directories first, then files, all case-insensitive
+        items.sort(key=lambda x: (not x.is_dir(), x.name.lower()))
+
+        report = f"CONTENTS OF: {p} (including hidden files)\n"
+        report += f"{'-' * 50}\n"
+
+        for item in items:
+            # Mark hidden files with a special indicator
+            is_hidden = item.name.startswith('.')
+            prefix = "📁" if item.is_dir() else "📄"
+            hidden_marker = " [hidden]" if is_hidden else ""
+
+            # Special icons for known types (inspired by CLI)
+            if not item.is_dir():
+                suffix = item.suffix.lower()
+                if suffix in [".png", ".jpg", ".jpeg", ".tif"]:
+                    prefix = "🖼️"
+                elif suffix in [".py", ".rs", ".js"]:
+                    prefix = "💻"
+                elif suffix in [".csv", ".json"]:
+                    prefix = "📊"
+
+            report += f"{prefix} {item.name}{'/' if item.is_dir() else ''}{hidden_marker}\n"
+
+        return report
+
+    except Exception as e:
+        return f"Error listing directory: {str(e)}"
+
+
+def get_directory_tree(ctx: RunContext[Any], path: str) -> str:
+    """Compatibility wrapper for listing immediate directory contents.
+
+    Historically exposed as ``get_directory_tree`` in agent/MCP surfaces.
+    Delegates to ``list_directory`` (non-recursive, hidden files excluded).
+    """
+    return list_directory(ctx=ctx, path=path)
 
 
 def list_available_tools(ctx: RunContext[Any]) -> str:

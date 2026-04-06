@@ -34,86 +34,86 @@ class FilarakiAgent:
 COMPLETE TOOL LIST (exhaustive - no other operations exist):
 
 1. count_files(path: str = ".") -> str
-   Returns a report of total files and folders in path (full recursive scan).
+   Returns total files and folders in path (full recursive scan).
 
-2. probe_directory(path: str = ".", max_depth: int = None, ignore_safety_limits: bool = False) -> str
-   Summarizes a directory (top extensions, file/folder counts). Use ignore_safety_limits=True for deep scans of known large dirs.
+2. list_directory(path: str) -> str
+   Lists files/folders (non-recursive, excludes hidden files).
 
-3. find_duplicates(path: str = ".", ignore_safety_limits: bool = False) -> str
-   Finds duplicate files in a directory and lists their full paths.
+3. list_directory_all(path: str) -> str
+   Lists files/folders (non-recursive, includes hidden files).
 
-4. get_file_info(path: str) -> str
-   Retrieves detailed technical metadata (JSON) for a specific file.
+4. probe_directory(path: str = ".", max_depth: int = None, ignore_safety_limits: bool = False) -> str
+   Summarizes a directory with counts and top extensions.
 
-5. search_files(path: str = ".", pattern: str = None, extension: str = None, min_size: str = None) -> str
-   Searches for files matching a regex pattern, extension (no dot), or minimum size (e.g., '1M').
-   automatically loads results into a DataFrame for further analysis.
+5. find_duplicates(path: str = ".", ignore_safety_limits: bool = False) -> str
+   Finds duplicate files and shows duplicate groups.
 
-6. get_directory_tree(path: str) -> str
-   Lists immediate contents (files/folders) of a directory (non-recursive). Good for initial exploration.
+6. get_file_info(path: str) -> str
+   Returns detailed metadata (JSON) for one file.
 
-7. analyze_image(path: str) -> str
-   Performs specialized analysis on an image (shape, dtype, stats).
+7. search_files(path: str = ".", pattern: str = None, extension: str = None, min_size: str = None) -> str
+   Searches files by regex, extension, or minimum size and loads DataFrame state.
 
-8. filter_by_extension(extensions: Union[str, List[str]]) -> str
-   Filters the current DataFrame to only include files with specific extensions.
-   Example: filter_by_extension('jpg, png') or filter_by_extension(['py', 'rs'])
+8. get_directory_tree(path: str) -> str
+   Compatibility alias for non-recursive directory listing.
 
-9. filter_by_pattern(pattern: str) -> str
-   Filters the current DataFrame to only include files matching a regex pattern.
-   Example: filter_by_pattern('train/.*\\.jpg$')
+9. list_available_tools() -> str
+   Returns this API reference.
 
-10. sort_dataframe_by_size(ascending: bool = False, top_n: int = 10) -> str
-    Sorts the current DataFrame by file size and returns a top-N preview.
-    Example: sort_dataframe_by_size(ascending=False, top_n=15)
+10. analyze_image(path: str) -> str
+    Performs image analysis (shape, dtype, and basic stats).
 
-11. dataframe_head(n: int = 5) -> str
-    Shows the first N rows of the currently loaded DataFrame.
-    Example: dataframe_head(n=20)
+11. filter_by_extension(extensions: Union[str, List[str]]) -> str
+    Filters current DataFrame by extension(s).
 
-12. summarize_dataframe() -> str
-    Returns summary statistics for the current DataFrame.
-    Includes total count, top extensions, and top directories.
+12. filter_by_pattern(pattern: str) -> str
+    Filters current DataFrame by regex pattern.
 
-13. export_dataframe(path: str, format: str = "csv") -> str
-   Exports the current DataFrame to a file (csv, json, or parquet format).
-   Example: export_dataframe(path='results.csv', format='csv')
-   Supported formats: 'csv', 'json', 'parquet'
+13. sort_dataframe_by_size(ascending: bool = False, top_n: int = 10) -> str
+    Sorts current DataFrame by size and returns top-N preview.
 
-14. open_file(path: str) -> str
-    Displays the content of a file directly to the user's terminal using 'bat' or 'cat'.
-    This is the most efficient way to VIEW a file. The agent DOES NOT see the content.
-    Use this when the user asks to "view", "show", "open", or "read" a file for themselves.
+14. dataframe_head(n: int = 5) -> str
+    Shows first N rows of current DataFrame.
 
-15. read_file(path: str, start_line: int = 1, end_line: int = None) -> str
-    Reads the content of a file into the agent's context.
-    Use this ONLY when you need to ANALYZE the content (e.g., summarize, find bugs, explain code).
-    Returns text wrapped in markdown code blocks with line numbers.
+15. summarize_dataframe() -> str
+    Returns summary stats for current DataFrame.
 
-16. preview_image(path: str, width: int = 60, mode: str = "ansi") -> str
-    Generates a preview of an image. Useful for visual confirmation of image contents.
-    Modes: 'ansi' (default) for colored RGB blocks, 'ascii' for grayscale text.
-    Works with PNG, JPG, BMP, etc.
+16. export_dataframe(path: str, format: str = "csv") -> str
+    Exports current DataFrame to csv/json/parquet.
 
-17. list_available_tools() -> str
-    Returns this API reference. Use this if you are unsure of your capabilities.
+17. open_file(path: str) -> str
+    Displays file directly to user terminal (bat/cat).
 
-18. create_dataset_dataframe(path: str, enrich: bool = True) -> str
-    Creates a metadata dataframe from all files in a directory using filoma's probe_to_df.
-    The resulting dataframe can be analyzed and exported using other tools.
-    Use enrich=False for faster processing without additional metadata.
+18. read_file(path: str, start_line: int = 1, end_line: int = None) -> str
+    Reads file content into agent context.
 
-19. audit_corrupted_files(path: str) -> str
-    Performs a corrupted file audit and returns a structured report.
-    Checks for zero-byte files, corrupt images, and other integrity issues.
+19. preview_image(path: str, width: int = 60, mode: str = "ansi") -> str
+    Displays image preview (ansi/ascii) to user terminal.
 
-20. generate_hygiene_report(path: str) -> str
-    Generates a dataset hygiene report with quality metrics.
-    Analyzes dataset quality including duplicates, class balance, cross-split leakage, and anomalous files.
+20. verify_integrity(reference: str, target: str) -> str
+    Verifies dataset integrity using snapshots/manifests.
 
-21. assess_migration_readiness(path: str) -> str
-    Assesses dataset migration readiness with structured analysis.
-    Evaluates dataset stability, structure, and readiness for migration.
+21. run_quality_check(path: str) -> str
+    Runs data quality checks and returns summary output.
+
+22. create_dataset_dataframe(path: str, enrich: bool = True) -> str
+    Creates a metadata DataFrame from a directory.
+
+23. audit_corrupted_files(path: str) -> str
+    Reports corrupted/zero-byte files with structured findings.
+
+24. generate_hygiene_report(path: str) -> str
+    Generates dataset hygiene metrics and recommendations.
+
+25. assess_migration_readiness(path: str) -> str
+    Assesses dataset migration readiness with blockers/risks.
+
+26. audit_dataset(path: str, mode: str = "concise", show_evidence: bool = False,
+                  export_path: str = None, export_format: str = "json") -> str
+    Runs a full dataset audit workflow (corruption + hygiene + readiness).
+    Use mode='verbose' for full component reports.
+    Use show_evidence=True to include duplicate/corruption examples.
+    Use export_path to save a consolidated report (json, md, or html).
 
 IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-ONLY analysis tool (except for export_dataframe).
 """
@@ -143,6 +143,8 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
             deps_type=FilarakiDeps,
             tools=[
                 tools.count_files,
+                tools.list_directory,
+                tools.list_directory_all,
                 tools.probe_directory,
                 tools.find_duplicates,
                 tools.get_file_info,
@@ -165,6 +167,7 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
                 tools.audit_corrupted_files,
                 tools.generate_hygiene_report,
                 tools.assess_migration_readiness,
+                tools.audit_dataset,
             ],
         )
 

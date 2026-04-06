@@ -31,7 +31,7 @@ class TestMCPServerImports:
 
     def test_imports(self):
         """Test that MCP server module imports correctly."""
-        assert len(TOOL_SCHEMAS) == 21
+        assert len(TOOL_SCHEMAS) == 22
 
     def test_all_tools_have_descriptions(self):
         """Verify all tools have descriptions and schemas."""
@@ -55,9 +55,9 @@ class TestToolRegistration:
 
     @pytest.mark.asyncio
     async def test_list_tools_returns_all_tools(self):
-        """Test that list_tools returns all 21 tools."""
+        """Test that list_tools returns all MCP tools."""
         tools = await list_tools()
-        assert len(tools) == 21
+        assert len(tools) == 22
         assert all(isinstance(t, Tool) for t in tools)
 
     @pytest.mark.asyncio
@@ -84,6 +84,7 @@ class TestToolRegistration:
             "create_dataset_dataframe",
             "summarize_dataframe",
             "analyze_image",
+            "audit_dataset",
             "list_available_tools",
         }
         assert expected.issubset(tool_names)
