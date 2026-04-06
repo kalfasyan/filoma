@@ -2,6 +2,7 @@
 
 import html
 import json
+import os
 import time
 import uuid
 from pathlib import Path
@@ -26,6 +27,11 @@ class ProbeResult(BaseModel):
     row_count: int
     columns: List[str]
     summary: str
+
+
+def _is_mcp_stdio_mode() -> bool:
+    """Return True when running under MCP stdio transport."""
+    return os.getenv("FILOMA_MCP_STDIO", "0") == "1"
 
 
 def count_files(ctx: RunContext[Any], path: str) -> str:
@@ -1581,6 +1587,20 @@ def open_file(ctx: RunContext[Any], path: str) -> str:
         if not p.is_file():
             return f"Error: '{path}' is a directory, not a file."
 
+        # In MCP stdio mode, never write file content directly to stdout.
+        if _is_mcp_stdio_mode():
+            content = p.read_text(encoding="utf-8", errors="replace")
+            max_chars = 120_000
+            truncated = len(content) > max_chars
+            if truncated:
+                content = content[:max_chars]
+
+            ext = p.suffix.lstrip(".") or "text"
+            out = f"FILE CONTENT ({p}):\n```{ext}\n{content}\n```"
+            if truncated:
+                out += "\n\nNote: Output truncated due to size. Use read_file with line ranges for deeper inspection."
+            return out
+
         # Check for 'bat' (syntax highlighting) or fallback to 'cat'
         cmd = "bat" if shutil.which("bat") else "cat"
 
@@ -1751,6 +1771,9 @@ def preview_image(ctx: RunContext[Any], path: str, width: int = 60, mode: str = 
         img = Image.open(p)
         original_width, original_height = img.size
 
+        if _is_mcp_stdio_mode():
+            mode = "ascii"
+
         if mode.lower() == "ascii":
             # ASCII characters used to represent different brightness levels
             ASCII_CHARS = "@%#*+=-:. "
@@ -1788,6 +1811,9 @@ def preview_image(ctx: RunContext[Any], path: str, width: int = 60, mode: str = 
 
         icon = _get_file_icon(p)
         header = f"\n[bold blue]{icon} IMAGE PREVIEW: {p.name}[/bold blue] ({original_width}x{original_height})\n"
+
+        if _is_mcp_stdio_mode():
+            return f"{header}\n{final_preview}"
 
         # PRINT DIRECTLY TO TERMINAL
         # highlight=False prevents Rich from trying to apply regex highlighting to our pixels

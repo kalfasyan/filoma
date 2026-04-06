@@ -944,6 +944,8 @@ async def main():
     transport = os.getenv("FILOMA_MCP_TRANSPORT", "stdio")
 
     if transport == "stdio":
+        # Signal tool layer to avoid direct stdout output (must remain JSON-RPC only).
+        os.environ["FILOMA_MCP_STDIO"] = "1"
         mcp = _get_mcp_imports()
         stdio_server = mcp["stdio_server"]
         try:
