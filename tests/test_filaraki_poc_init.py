@@ -8,17 +8,17 @@ import filoma
 
 
 @pytest.mark.asyncio
-async def test_brain_imports():
-    """Test that filoma.brain can be lazily loaded and initialized."""
+async def test_filaraki_imports():
+    """Test that filoma.filaraki can be lazily loaded and initialized."""
     pytest.importorskip("pydantic_ai")
 
-    print("Testing filoma.brain lazy loading...")
+    print("Testing filoma.filaraki lazy loading...")
     try:
         # This should trigger the lazy load
-        _ = filoma.brain
-        print("Successfully accessed filoma.brain")
+        _ = filoma.filaraki
+        print("Successfully accessed filoma.filaraki")
 
-        from filoma.brain import get_agent
+        from filoma.filaraki import get_agent
 
         print("Successfully imported get_agent")
 
@@ -28,10 +28,10 @@ async def test_brain_imports():
 
         model = TestModel()
         _ = get_agent(model=model)
-        print("Successfully initialized FilomaAgent with TestModel")
+        print("Successfully initialized FilarakiAgent with TestModel")
 
         # Test a tool directly
-        from filoma.brain.tools import probe_directory
+        from filoma.filaraki.tools import probe_directory
 
         print("Testing probe_directory tool...")
         # Mocking RunContext is complex, but we can test if it accepts None for ctx
@@ -61,7 +61,7 @@ async def test_new_orchestrator_tools():
         (temp_path / "test2.txt").write_text("This is test file 2")
         (temp_path / "corrupt.bin").write_bytes(b'\x00' * 10)  # Zero-byte-like file
 
-        from filoma.brain.tools import assess_migration_readiness, audit_corrupted_files, generate_hygiene_report
+        from filoma.filaraki.tools import assess_migration_readiness, audit_corrupted_files, generate_hygiene_report
 
         print("Testing audit_corrupted_files tool...")
         try:
@@ -89,4 +89,4 @@ async def test_new_orchestrator_tools():
 
 
 if __name__ == "__main__":
-    asyncio.run(test_brain_imports())
+    asyncio.run(test_filaraki_imports())

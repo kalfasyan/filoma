@@ -34,12 +34,12 @@ def main_callback(
 ) -> None:
     """Filoma - Interactive filesystem profiling and analysis tool."""
     return
-brain_app = typer.Typer(
-    name="brain",
+filaraki_app = typer.Typer(
+    name="filaraki",
     help="Intelligent filesystem analysis using AI",
     rich_markup_mode="rich",
 )
-app.add_typer(brain_app)
+app.add_typer(filaraki_app)
 
 mcp_app = typer.Typer(
     name="mcp",
@@ -51,12 +51,12 @@ app.add_typer(mcp_app)
 console = Console()
 
 
-@brain_app.command("chat")
-def brain_chat(
+@filaraki_app.command("chat")
+def filaraki_chat(
     model: Optional[str] = typer.Option(None, "--model", "-m", help="AI model to use"),
 ) -> None:
-    """Start an interactive chat session with the Filoma Brain."""
-    from filoma.brain.cli import chat as start_chat
+    """Start an interactive chat session with Filaraki."""
+    from filoma.filaraki.cli import chat as start_chat
 
     start_chat(model=model)
 

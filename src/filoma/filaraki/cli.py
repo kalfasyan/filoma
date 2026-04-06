@@ -1,4 +1,4 @@
-"""Brain CLI module for filoma."""
+"""Filaraki CLI module for filoma."""
 
 import asyncio
 import json
@@ -11,18 +11,18 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
 
-from filoma.brain import get_agent
-from filoma.brain.agent import FilomaDeps
+from filoma.filaraki import get_agent
+from filoma.filaraki.agent import FilarakiDeps
 
 console = Console()
 
 
 async def run_chat_loop(model: Optional[str] = None):
-    """Run an interactive chat loop with the Filoma Brain."""
+    """Run an interactive chat loop with Filaraki."""
     console.print(
         Panel(
-            "[bold blue]🧠 Filoma Brain Chat[/bold blue]\n[dim]Ask anything about your filesystem. Type 'exit' or 'quit' to stop.[/dim]",
-            border_style="blue",
+            "[bold green]🌿 Filaraki Chat[/bold green]\n[dim]Ask anything about your filesystem. Type 'exit' or 'quit' to stop.[/dim]",
+            border_style="green",
         )
     )
 
@@ -34,7 +34,7 @@ async def run_chat_loop(model: Optional[str] = None):
         return
 
     message_history = []
-    deps = FilomaDeps()
+    deps = FilarakiDeps()
 
     while True:
         try:
@@ -47,7 +47,7 @@ async def run_chat_loop(model: Optional[str] = None):
             if not user_input.strip():
                 continue
 
-            with console.status("[bold green]Brain is thinking...[/bold green]"):
+            with console.status("[bold green]Filaraki is thinking...[/bold green]"):
                 result = await agent.run(user_input, deps=deps, message_history=message_history)
                 message_history = result.new_messages()
 
@@ -91,7 +91,7 @@ async def run_chat_loop(model: Optional[str] = None):
                         if isinstance(parsed, dict) and "name" in parsed and "parameters" in parsed:
                             tool_name = parsed["name"]
                             logger.warning(f"Agent generated tool call as text instead of executing: {tool_name}")
-                            console.print("\n[bold magenta]Brain[/bold magenta]")
+                            console.print("\n[bold magenta]Filaraki[/bold magenta]")
                             console.print(
                                 f"[yellow]⚠️  The model tried to call '{tool_name}' but generated text instead of executing the tool.[/yellow]"
                             )
@@ -101,7 +101,7 @@ async def run_chat_loop(model: Optional[str] = None):
                         # Not a tool call JSON, treat as normal response
                         pass
 
-            console.print("\n[bold magenta]Brain[/bold magenta]")
+            console.print("\n[bold magenta]Filaraki[/bold magenta]")
             console.print(Markdown(response_text))
 
         except KeyboardInterrupt:

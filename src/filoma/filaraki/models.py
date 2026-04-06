@@ -1,4 +1,4 @@
-"""Structured response models for Filoma Brain orchestrator tools."""
+"""Structured response models for Filaraki orchestrator tools."""
 
 from typing import Any, Dict, List, Optional
 

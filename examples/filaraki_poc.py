@@ -1,4 +1,4 @@
-"""POC for filoma brain."""
+"""POC for filoma filaraki."""
 
 import asyncio
 import os
@@ -13,11 +13,11 @@ try:
 except ImportError:
     pass
 
-from filoma.brain import get_agent
+from filoma.filaraki import get_agent
 
 
 async def main():
-    """Run the Filoma Brain POC."""
+    """Run the Filoma Filaraki POC."""
     # Configure loguru for clean output
     logger.remove()
     logger.add(
@@ -28,24 +28,24 @@ async def main():
 
     # Check for configuration
     has_mistral = bool(os.getenv("MISTRAL_API_KEY"))
-    has_custom = bool(os.getenv("FILOMA_BRAIN_MODEL"))
+    has_custom = bool(os.getenv("FILOMA_FILARAKI_MODEL"))
 
     if not (has_mistral or has_custom):
-        logger.warning("--- Filoma Brain POC: Setup Required ---")
+        logger.warning("--- Filoma Filaraki POC: Setup Required ---")
         logger.info("To run this POC, please create a .env file (see .env_example) or set one of the following environment variables:")
         logger.info("\n1. Cloud (Mistral - Recommended Default):")
         logger.info("   export MISTRAL_API_KEY='your-key'")
         logger.info("\n2. Local (Ollama):")
-        logger.info("   export FILOMA_BRAIN_MODEL='llama3.1:8b'")
-        logger.info("   export FILOMA_BRAIN_BASE_URL='http://localhost:11434/v1'")
-        logger.info("\nSee docs/guides/brain.md for more details.")
+        logger.info("   export FILOMA_FILARAKI_MODEL='llama3.1:8b'")
+        logger.info("   export FILOMA_FILARAKI_BASE_URL='http://localhost:11434/v1'")
+        logger.info("\nSee docs/guides/filaraki.md for more details.")
         return
 
     # Initialize the agent.
     # It will automatically pick up the best available configuration from .env or environment.
     agent = get_agent()
 
-    logger.info("--- Filoma Brain POC ---")
+    logger.info("--- Filoma Filaraki POC ---")
     logger.info(f"Using model: {agent.model}")
 
     # Example 1: Summarize a directory

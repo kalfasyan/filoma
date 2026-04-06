@@ -339,9 +339,9 @@ class TestContextHelpers:
 
     def test_get_context_without_state(self):
         """Test _get_context with no existing state."""
-        from filoma.brain.agent import FilomaDeps
+        from filoma.filaraki.agent import FilarakiDeps
 
-        deps = FilomaDeps(working_dir="/tmp")
+        deps = FilarakiDeps(working_dir="/tmp")
         ctx = _get_context(deps)
         assert ctx is not None
         assert ctx.deps.working_dir == "/tmp"
@@ -351,10 +351,10 @@ class TestContextHelpers:
         """Test _save_context stores DataFrame in state."""
         import polars as pl
 
-        from filoma.brain.agent import FilomaDeps
+        from filoma.filaraki.agent import FilarakiDeps
 
         # Create a mock context with a DataFrame
-        deps = FilomaDeps(working_dir="/tmp")
+        deps = FilarakiDeps(working_dir="/tmp")
         deps.current_df = pl.DataFrame({"path": ["/tmp/test"], "size": [100]})
         ctx = SimpleRunContext(deps=deps)
 

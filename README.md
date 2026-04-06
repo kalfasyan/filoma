@@ -22,7 +22,7 @@
 <p align="center">
   <a href="docs/getting-started/installation.md">Installation</a> •
   <a href="https://filoma.readthedocs.io/en/latest/">Documentation</a> •
-  <a href="docs/guides/brain.md">Agentic Analysis</a> •
+  <a href="docs/guides/filaraki.md">Agentic Analysis</a> •
   <a href="docs/guides/cli.md">Interactive CLI</a> •
   <a href="docs/getting-started/quickstart.md">Quickstart</a> •
   <a href="docs/tutorials/cookbook.md">Cookbook</a> •
@@ -48,11 +48,11 @@
 - **🔍 Smart File Search**: Use regex and glob patterns to find files with `FdFinder`.
 - **🖼️ File/Image Profiling**: Extract metadata and statistics from various file formats.
 - **🛡️ Dataset Integrity & Quality**: Unified integrity checking for snapshots, manifests, and automated quality scans (corruption, duplicates, leakage, class balance). [📖 **Data Integrity Guide →**](docs/guides/data-integrity.md)
-- **🧠 Agentic Analysis**: Natural language interface for file discovery, deduplication, and metadata inspection. [📖 **Brain Guide →**](docs/guides/brain.md)
+- **🧠 Agentic Analysis**: Natural language interface for file discovery, deduplication, and metadata inspection. [📖 **Filaraki Guide →**](docs/guides/filaraki.md)
 - **🖥️ Interactive CLI**: Beautiful terminal interface for filesystem exploration and DataFrame analysis. [📖 **CLI Documentation →**](docs/guides/cli.md)
-- **🌐 MCP Server**: Expose all 21 filesystem tools to any MCP-compatible AI assistant ([nanobot](https://github.com/HKUDS/nanobot) recommended). [📖 **MCP Configuration →**](docs/guides/brain.md#mcp-server-configuration)
+- **🌐 MCP Server**: Expose all 21 filesystem tools to any MCP-compatible AI assistant ([nanobot](https://github.com/HKUDS/nanobot) recommended). [📖 **MCP Configuration →**](docs/guides/filaraki.md#mcp-server-configuration)
 
-> **🎯 Local AI in 10 seconds:** `curl -sL https://raw.githubusercontent.com/kalfasyan/filoma/main/scripts/install.sh | sh` → Use with [nanobot](https://github.com/HKUDS/nanobot) + [Ollama](https://ollama.com) for fully local filesystem analysis. [Learn more →](docs/guides/brain.md#nanobot--ollama-setup)
+> **🎯 Local AI in 10 seconds:** `curl -sL https://raw.githubusercontent.com/kalfasyan/filoma/main/scripts/install.sh | sh` → Use with [nanobot](https://github.com/HKUDS/nanobot) + [Ollama](https://ollama.com) for fully local filesystem analysis. [Learn more →](docs/guides/filaraki.md#nanobot--ollama-setup)
 
 <p align="center">
     <img src="docs/assets/images/filoma_graph.jpg" alt="Filoma Package Overview" width="800">
@@ -318,7 +318,7 @@ df = ds.to_dataframe()
 print(df.extension_counts())
 
 # Agentic interaction with this specific dataset
-ds.get_brain().run("Is there any class imbalance in my dataset?")
+ds.get_filaraki().run("Is there any class imbalance in my dataset?")
 ```
 
 ### Dataset Integrity & Quality
@@ -343,10 +343,10 @@ filoma dedup train/ valid/ --cross-dir
 ```
 
 ### Agentic Analysis
-Connect a "brain" to your filesystem for natural language interaction:
+Connect "filaraki" (little leaf 🍃) to your filesystem for natural language interaction:
 
 ```python
-from filoma.brain import get_agent
+from filoma.filaraki import get_agent
 
 agent = get_agent()
 await agent.run("Create a dataframe from notebooks/Weeds-3 with enrichment")
@@ -358,7 +358,7 @@ await agent.run("Sort dataframe by size descending and show top 5")
 Or use the interactive chat CLI:
 
 ```bash
-filoma brain chat
+filoma filaraki chat
 # Then ask:
 # - create a dataframe from notebooks/Weeds-3
 # - filter by extension jpg,png
@@ -367,11 +367,11 @@ filoma brain chat
 ```
 
 #### Advanced Workflow Orchestration
-Filoma Brain now includes advanced orchestrator tools for enterprise-grade dataset analysis:
+Filoma Filaraki includes advanced orchestrator tools for enterprise-grade dataset analysis:
 
 ```bash
 # Run advanced workflow examples
-make brain-advanced
+make filaraki-advanced
 
 # Or in code:
 await agent.run("Run a corrupted file audit on /path/to/dataset")
@@ -383,7 +383,7 @@ These tools provide structured, deterministic reports with detailed findings, re
 
 ### Interactive CLI
 ```bash
-filoma brain chat
+filoma filaraki chat
 ```
 
 [📖 **Browse all guides →**](docs/guides/index.md)

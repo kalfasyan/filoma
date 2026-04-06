@@ -44,21 +44,21 @@ build:  ## Build package
 clean:  ## Clean build artifacts
 	rm -rf dist/ build/ *.egg-info/
 
-# Brain / AI tasks
-brain-install:  ## Install brain dependencies
-	uv sync --extra brain
+# Filaraki / AI tasks
+filaraki-install:  ## Install filaraki dependencies
+	uv sync --extra filaraki
 
-brain-poc: brain-install  ## Run the Brain POC
-	uv run poe brain-poc
+filaraki-poc: filaraki-install  ## Run the Filaraki POC
+	uv run poe filaraki-poc
 
-brain-chat: brain-install  ## Start an interactive chat with the Filoma Brain
-	uv run poe brain-chat
+filaraki-chat: filaraki-install  ## Start an interactive chat with Filoma Filaraki
+	uv run poe filaraki-chat
 
-brain-test: brain-install  ## Run the Brain tests
-	uv run poe brain-test
+filaraki-test: filaraki-install  ## Run the Filaraki tests
+	uv run poe filaraki-test
 
-brain-advanced: brain-install  ## Run the Brain advanced workflows example
-	uv run python examples/brain_advanced_workflows.py
+filaraki-advanced: filaraki-install  ## Run the Filaraki advanced workflows example
+	uv run python examples/filaraki_advanced_workflows.py
 
 # Quick development tasks
 dev-install:  ## Install package in development mode with dev dependencies

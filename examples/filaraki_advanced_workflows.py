@@ -1,4 +1,4 @@
-"""Examples of advanced Filoma Brain workflows using the new orchestrator tools."""
+"""Examples of advanced Filoma Filaraki workflows using the new orchestrator tools."""
 
 import asyncio
 import os
@@ -15,11 +15,11 @@ try:
 except ImportError:
     pass
 
-from filoma.brain import get_agent
+from filoma.filaraki import get_agent
 
 
 async def main():
-    """Run examples of the new Filoma Brain orchestrator tools."""
+    """Run examples of the new Filoma Filaraki orchestrator tools."""
     # Configure loguru for clean output
     logger.remove()
     logger.add(
@@ -30,17 +30,17 @@ async def main():
 
     # Check for configuration
     has_mistral = bool(os.getenv("MISTRAL_API_KEY"))
-    has_custom = bool(os.getenv("FILOMA_BRAIN_MODEL"))
+    has_custom = bool(os.getenv("FILOMA_FILARAKI_MODEL"))
 
     if not (has_mistral or has_custom):
-        logger.warning("--- Filoma Brain Advanced Workflows: Setup Required ---")
+        logger.warning("--- Filoma Filaraki Advanced Workflows: Setup Required ---")
         logger.info("To run this example, please create a .env file (see .env_example) or set one of the following environment variables:")
         logger.info("\n1. Cloud (Mistral - Recommended Default):")
         logger.info("   export MISTRAL_API_KEY='your-key'")
         logger.info("\n2. Local (Ollama):")
-        logger.info("   export FILOMA_BRAIN_MODEL='llama3.1:8b'")
-        logger.info("   export FILOMA_BRAIN_BASE_URL='http://localhost:11434/v1'")
-        logger.info("\nSee docs/guides/brain.md for more details.")
+        logger.info("   export FILOMA_FILARAKI_MODEL='llama3.1:8b'")
+        logger.info("   export FILOMA_FILARAKI_BASE_URL='http://localhost:11434/v1'")
+        logger.info("\nSee docs/guides/filaraki.md for more details.")
         return
 
     # Create a temporary test directory with some sample files
@@ -63,7 +63,7 @@ async def main():
         # Initialize the agent
         agent = get_agent()
 
-        logger.info("--- Filoma Brain Advanced Workflows ---")
+        logger.info("--- Filoma Filaraki Advanced Workflows ---")
         logger.info(f"Using model: {agent.model}")
         logger.info(f"Working with test directory: {temp_path}")
 

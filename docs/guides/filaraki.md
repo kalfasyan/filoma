@@ -1,6 +1,6 @@
-# Filoma Brain - AI Agent Integration
+# Filoma Filaraki - AI Agent Integration
 
-Filoma Brain provides an intelligent AI agent for filesystem analysis using [PydanticAI](https://ai.pydantic.dev/). It can be used both programmatically and as an MCP server for integration with AI assistants like [nanobot](https://github.com/HKUDS/nanobot).
+Filoma Filaraki provides an intelligent AI agent for filesystem analysis using [PydanticAI](https://ai.pydantic.dev/). It can be used both programmatically and as an MCP server for integration with AI assistants like [nanobot](https://github.com/HKUDS/nanobot).
 
 ## Features
 
@@ -17,16 +17,16 @@ Filoma Brain provides an intelligent AI agent for filesystem analysis using [Pyd
 
 ```bash
 # Start the chat interface
-filoma brain chat
+filoma filaraki chat
 
 # Or use uv
-uv run filoma brain chat
+uv run filoma filaraki chat
 ```
 
 ### Programmatic Usage
 
 ```python
-from filoma.brain import get_agent
+from filoma.filaraki import get_agent
 import asyncio
 
 async def analyze_directory():
@@ -45,7 +45,7 @@ asyncio.run(analyze_directory())
 
 ## MCP Server Configuration with Nanobot
 
-Filoma Brain can be exposed as an MCP (Model Context Protocol) server to [nanobot](https://github.com/HKUDS/nanobot), a Rust-based AI agent that runs locally with [Ollama](https://ollama.com).
+Filoma Filaraki can be exposed as an MCP (Model Context Protocol) server to [nanobot](https://github.com/HKUDS/nanobot), a Rust-based AI agent that runs locally with [Ollama](https://ollama.com).
 
 This setup keeps everything on your machine—no API keys, no cloud services.
 
@@ -169,30 +169,30 @@ uv run python -m filoma.mcp_server
 
 ## AI Model Configuration
 
-Filoma Brain supports multiple AI backends:
+Filoma Filaraki supports multiple AI backends:
 
 ### Mistral AI (Default)
 ```bash
 export MISTRAL_API_KEY="your-api-key"
-filoma brain chat
+filoma filaraki chat
 ```
 
 ### Ollama (Local)
 ```bash
-export FILOMA_BRAIN_BASE_URL="http://localhost:11434"
-export FILOMA_BRAIN_MODEL="llama3.1:8b"
-filoma brain chat
+export FILOMA_FILARAKI_BASE_URL="http://localhost:11434"
+export FILOMA_FILARAKI_MODEL="llama3.1:8b"
+filoma filaraki chat
 ```
 
 ### Google Gemini
 ```bash
 export GEMINI_API_KEY="your-api-key"
-filoma brain chat
+filoma filaraki chat
 ```
 
 ### Custom Model
 ```python
-from filoma.brain import get_agent
+from filoma.filaraki import get_agent
 
 # Using model name
 agent = get_agent(model="mistral:mistral-large-latest")
@@ -209,7 +209,7 @@ agent = get_agent(model=model)
 ### Dataset Audit
 ```
 User: Audit the /data/images directory for corrupted files
-Brain: Running audit_corrupted_files...
+Filaraki: Running audit_corrupted_files...
        Found 3 corrupted files: [list]
        Recommendation: Remove or repair these files before training.
 ```
@@ -217,31 +217,31 @@ Brain: Running audit_corrupted_files...
 ### File Analysis Pipeline
 ```
 User: Find all JPG files in ./photos
-Brain: search_files completed. Found 1,247 JPG files.
+Filaraki: search_files completed. Found 1,247 JPG files.
 
 User: Show me the 10 largest ones
-Brain: sort_dataframe_by_size completed. Here are the top 10:
+Filaraki: sort_dataframe_by_size completed. Here are the top 10:
        1. ./photos/vacation/dsc_001.jpg (15.2 MB)
        2. ...
 
 User: Export the list to photos.csv
-Brain: export_dataframe completed. Saved to photos.csv
+Filaraki: export_dataframe completed. Saved to photos.csv
 ```
 
 ### Codebase Exploration
 ```
 User: How many Python files are in this project?
-Brain: search_files completed. Found 42 Python files.
+Filaraki: search_files completed. Found 42 Python files.
 
 User: Show me the largest one
-Brain: [displays largest Python file with line numbers]
+Filaraki: [displays largest Python file with line numbers]
 ```
 
 ## Architecture
 
-Filoma Brain consists of:
+Filoma Filaraki consists of:
 
-- **`FilomaAgent`** (`agent.py`): PydanticAI agent with 21 registered tools
+- **`FilarakiAgent`** (`agent.py`): PydanticAI agent with 21 registered tools
 - **Tools** (`tools.py`): Individual tool implementations with `RunContext` support
 - **CLI** (`cli.py`): Rich-based interactive chat interface
 - **MCP Server** (`mcp_server.py`): MCP server exposing tools to external agents
@@ -273,5 +273,5 @@ Filoma Brain consists of:
 
 - [CLI Guide](../guides/cli.md) - Command-line interface documentation
 - [Data Quality Guide](../guides/data-integrity.md) - Data validation and quality checks
-- [PydanticAI Documentation](https://ai.pydantic.dev/) - Framework powering Filoma Brain
+- [PydanticAI Documentation](https://ai.pydantic.dev/) - Framework powering Filoma Filaraki
 - [MCP Documentation](https://modelcontextprotocol.io/) - Model Context Protocol specification

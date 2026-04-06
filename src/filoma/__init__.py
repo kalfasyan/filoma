@@ -24,6 +24,7 @@ __all__ = [
     "directories",
     "images",
     "files",
+    "filaraki",
     "DataFrame",
     "Dataset",
     "probe",
@@ -46,7 +47,7 @@ def __getattr__(name: str):
         "directories": "filoma.directories",
         "files": "filoma.files",
         "images": "filoma.images",
-        "brain": "filoma.brain",
+        "filaraki": "filoma.filaraki",
         # common classes placed in submodules (module:attr)
         "DataFrame": "filoma.dataframe:DataFrame",
         "DirectoryProfiler": "filoma.directories.directory_profiler:DirectoryProfiler",
@@ -76,7 +77,7 @@ def __getattr__(name: str):
 
 def __dir__():
     # Helpful for tab-completion in REPLs
-    return sorted(list(globals().keys()) + ["core", "directories", "files", "images", "DataFrame"])
+    return sorted(list(globals().keys()) + ["core", "directories", "files", "images", "filaraki", "DataFrame"])
 
 
 # Convenience wrappers for quick, one-off usage. These are thin helpers that

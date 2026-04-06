@@ -1,7 +1,7 @@
 """MCP Server for Filoma - exposes filesystem analysis tools to external agents.
 
 This module provides an MCP (Model Context Protocol) server that wraps filoma's
-brain tools, making them accessible to any MCP-compatible client (nanobot
+filaraki tools, making them accessible to any MCP-compatible client (nanobot
 recommended).
 
 Usage:
@@ -36,8 +36,8 @@ from typing import TYPE_CHECKING, Any, AsyncIterator, List
 
 from loguru import logger
 
-from filoma.brain.agent import FilomaDeps
-from filoma.brain.tools import (
+from filoma.filaraki.agent import FilarakiDeps
+from filoma.filaraki.tools import (
     analyze_image,
     assess_migration_readiness,
     audit_corrupted_files,
@@ -93,7 +93,7 @@ class SimpleRunContext:
     Tools only access ctx.deps.current_df, so this minimal wrapper suffices.
     """
 
-    def __init__(self, deps: FilomaDeps):
+    def __init__(self, deps: FilarakiDeps):
         """Initialize the context with dependencies."""
         self.deps = deps
 
@@ -149,9 +149,9 @@ def _get_app() -> Any:
         Server = mcp["Server"]
 
         @asynccontextmanager
-        async def app_lifespan(server: Any) -> AsyncIterator[FilomaDeps]:
+        async def app_lifespan(server: Any) -> AsyncIterator[FilarakiDeps]:
             """Manage application lifecycle with shared dependencies."""
-            deps = FilomaDeps(working_dir=os.getcwd())
+            deps = FilarakiDeps(working_dir=os.getcwd())
             logger.info(f"Filoma MCP Server started. Working directory: {deps.working_dir}")
             try:
                 yield deps
@@ -209,7 +209,7 @@ All tools support path expansion (~ for home directory) and validation.
     return _app
 
 
-def _get_context(deps: FilomaDeps) -> SimpleRunContext:
+def _get_context(deps: FilarakiDeps) -> SimpleRunContext:
     """Create a SimpleRunContext with current state."""
     # Restore DataFrame from state if exists
     if "current_df" in _dataframe_state:
@@ -225,7 +225,7 @@ def _save_context(ctx: SimpleRunContext) -> None:
 
 async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
     """Execute a tool with the provided arguments."""
-    deps = FilomaDeps(working_dir=os.getcwd())
+    deps = FilarakiDeps(working_dir=os.getcwd())
     ctx = _get_context(deps)
 
     mcp = _get_mcp_imports()

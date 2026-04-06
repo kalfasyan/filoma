@@ -20,14 +20,14 @@ from . import tools
 
 
 @dataclass
-class FilomaDeps:
-    """Dependencies for the FilomaAgent."""
+class FilarakiDeps:
+    """Dependencies for the FilarakiAgent."""
 
     working_dir: str = os.getcwd()
     current_df: Optional[Any] = None
 
 
-class FilomaAgent:
+class FilarakiAgent:
     """An intelligent agent for interacting with filoma."""
 
     API_REFERENCE = """
@@ -140,7 +140,7 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
 
         self.agent = Agent(
             self.model,
-            deps_type=FilomaDeps,
+            deps_type=FilarakiDeps,
             tools=[
                 tools.count_files,
                 tools.probe_directory,
@@ -169,7 +169,7 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
         )
 
         @self.agent.system_prompt
-        def add_context(ctx: RunContext[FilomaDeps]) -> str:
+        def add_context(ctx: RunContext[FilarakiDeps]) -> str:
             # Build Knowledge Base from docs/guides
             knowledge_base = (
                 "FILOMA KNOWLEDGE BASE:\n"
@@ -287,9 +287,9 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
             return model
 
         # Logic: Priority to explicit Base URL (Scenario B/D: Ollama/Local)
-        env_base_url = base_url or os.getenv("FILOMA_BRAIN_BASE_URL")
-        env_model = model or os.getenv("FILOMA_BRAIN_MODEL")
-        env_api_key = api_key or os.getenv("FILOMA_BRAIN_API_KEY")
+        env_base_url = base_url or os.getenv("FILOMA_FILARAKI_BASE_URL")
+        env_model = model or os.getenv("FILOMA_FILARAKI_MODEL")
+        env_api_key = api_key or os.getenv("FILOMA_FILARAKI_API_KEY")
 
         if env_base_url:
             from pydantic_ai.models.openai import OpenAIChatModel
@@ -313,7 +313,7 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
                 provider = OllamaProvider(base_url=env_base_url, api_key=env_api_key)
                 return OpenAIChatModel(model_name=m_name, provider=provider)
 
-            logger.error(f"Unsupported provider URL: {env_base_url}. Filoma Brain only supports Mistral Cloud and local Ollama.")
+            logger.error(f"Unsupported provider URL: {env_base_url}. Filaraki only supports Mistral Cloud and local Ollama.")
             raise ValueError(f"Unsupported AI provider: {env_base_url}")
 
         # Logic: Scenario A (Google Gemini)
@@ -348,7 +348,7 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
     async def run(
         self,
         prompt: str,
-        deps: Optional[FilomaDeps] = None,
+        deps: Optional[FilarakiDeps] = None,
         message_history: Optional[List[ModelMessage]] = None,
     ) -> Any:
         """Run the agent with a prompt.
@@ -356,7 +356,7 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
         Returns a result object from pydantic-ai.
         """
         if deps is None:
-            deps = FilomaDeps()
+            deps = FilarakiDeps()
 
         # Deterministic settings for tool usage
         settings = ModelSettings(temperature=0.1)

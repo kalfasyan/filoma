@@ -1,4 +1,4 @@
-"""Tools for the FilomaAgent."""
+"""Tools for the FilarakiAgent."""
 
 import json
 import time
@@ -894,9 +894,9 @@ def list_available_tools(ctx: RunContext[Any]) -> str:
     # which imports tools, we should be careful.
     # However, we can just hardcode or pass it.
     # For now, let's provide a clear manual list to be safe.
-    from .agent import FilomaAgent
+    from .agent import FilarakiAgent
 
-    return FilomaAgent.API_REFERENCE
+    return FilarakiAgent.API_REFERENCE
 
 
 def analyze_image(ctx: RunContext[Any], path: str) -> str:

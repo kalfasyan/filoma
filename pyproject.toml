@@ -115,9 +115,9 @@ test = "pytest -n auto tests/"
 lint = "ruff check ."
 lint-fix = "ruff check . --fix"
 precommit = "pre-commit run --all-files"
-brain-poc = { cmd = "python examples/brain_poc.py", env = { PYTHONPATH = "src" } }
-brain-chat = { cmd = "filoma brain chat", env = { PYTHONPATH = "src" } }
-brain-test = { cmd = "pytest tests/test_brain_poc_init.py", env = { PYTHONPATH = "src" } }
+filaraki-poc = { cmd = "python examples/filaraki_poc.py", env = { PYTHONPATH = "src" } }
+filaraki-chat = { cmd = "filoma filaraki chat", env = { PYTHONPATH = "src" } }
+filaraki-test = { cmd = "pytest tests/test_filaraki_poc_init.py", env = { PYTHONPATH = "src" } }
 benchmark = "python scripts/benchmark.py"
 
 [dependency-groups]
