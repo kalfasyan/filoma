@@ -300,7 +300,7 @@ shape: (3, 2)
 
 ## 🗂️ Advanced Topics
 
-### Dataset Convenience Class
+#### Dataset Convenience Class
 Use the `Dataset` class for orchestration of snapshotting, profiling, integrity checks, and AI interactions:
 
 ```python
@@ -321,7 +321,7 @@ print(df.extension_counts())
 ds.get_filaraki().run("Is there any class imbalance in my dataset?")
 ```
 
-### Dataset Integrity & Quality
+#### Dataset Integrity & Quality
 Filoma provides a comprehensive suite for dataset validation (corruption, leaks, balance) and manifest integrity:
 
 ```python
@@ -331,7 +331,7 @@ verifier.run_all()
 verifier.print_summary()
 ```
 
-### Deduplication
+#### Deduplication
 Find duplicate files, images (perceptual hash), or text files.
 
 ```bash
@@ -342,8 +342,45 @@ filoma dedup /path/to/dataset
 filoma dedup train/ valid/ --cross-dir
 ```
 
-### Agentic Analysis
-Connect "filaraki" (little leaf 🍃) to your filesystem for natural language interaction:
+## 🍃 Agentic Analysis
+  
+Filaraki (stands for "little leaf" or "little buddy" in Greek) is Filoma's agentic interface for natural language filesystem analysis. It provides an agentic, flexible way to interact with your data using plain language commands.  
+<p align="center">
+    <img src="docs/assets/images/filaraki.png" alt="Filaraki Chat Interface" width="400">
+</p>  
+Connect your "filaraki" agent to your filesystem for natural language interaction. Available as an interactive chat CLI, programmatic API, or MCP server for integration with AI assistants.
+  
+#### 🏠 Local AI Setup (Nanobot + Ollama)
+
+Run Filoma Filaraki **completely offline** with local models via the MCP server:
+
+```bash
+# One-command setup
+curl -sL https://raw.githubusercontent.com/kalfasyan/filoma/main/scripts/install.sh | sh
+```
+
+This installs [nanobot](https://github.com/HKUDS/nanobot) and configures it to use [Ollama](https://ollama.com) with Filoma's 21 filesystem tools. No API keys, no cloud services—everything stays on your machine.
+
+```bash
+# After setup, chat with your filesystem
+nanobot agent -m "How many images are in ./data?"
+nanobot agent -m "Find duplicate files and show me the largest ones"
+```
+
+[📖 Full MCP Configuration Guide →](docs/guides/filaraki.md#mcp-server-configuration-with-nanobot)
+
+#### Interactive Chat CLI
+
+Start a chat session directly from your terminal:
+
+```bash
+filoma filaraki chat
+```
+
+
+#### Programmatic Usage
+
+Use Python for scripted workflows:
 
 ```python
 from filoma.filaraki import get_agent
@@ -355,18 +392,9 @@ await agent.run("Summarize dataframe and show top directories")
 await agent.run("Sort dataframe by size descending and show top 5")
 ```
 
-Or use the interactive chat CLI:
-
-```bash
-filoma filaraki chat
-# Then ask:
-# - create a dataframe from notebooks/Weeds-3
-# - filter by extension jpg,png
-# - summarize dataframe
-# - export dataframe to weeds_images.csv
-```
 
 #### Advanced Workflow Orchestration
+
 Filoma Filaraki includes advanced orchestrator tools for enterprise-grade dataset analysis:
 
 ```bash
@@ -379,11 +407,14 @@ await agent.run("Generate a dataset hygiene report for /path/to/dataset")
 await agent.run("Assess the migration readiness of /path/to/dataset")
 ```
 
-These tools provide structured, deterministic reports with detailed findings, recommendations, and confidence scores.
+These provide structured, deterministic reports with detailed findings, recommendations, and confidence scores.
 
-### Interactive CLI
+#### MCP Server
+
+Expose all 21 filesystem tools to any MCP-compatible client:
+
 ```bash
-filoma filaraki chat
+filoma mcp serve
 ```
 
 [📖 **Browse all guides →**](docs/guides/index.md)
