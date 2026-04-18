@@ -54,9 +54,9 @@ Whether you're auditing a machine-learning dataset, tracking down duplicates acr
 - **🖥️ Interactive CLI**: Beautiful terminal interface for filesystem exploration and DataFrame analysis. [📖 **CLI Documentation →**](docs/guides/cli.md)
 - **🌐 MCP Server**: Expose all 21 filesystem tools to any MCP-compatible AI assistant ([nanobot](https://github.com/HKUDS/nanobot) recommended). [📖 **MCP Configuration →**](docs/guides/filaraki.md#mcp-server-configuration)
 
-> **� Talk to your filesystem:** `filoma filaraki chat` — ask questions about your data in plain English. Find duplicates, audit datasets, export HTML reports — all from one conversation. [Try it →](docs/guides/filaraki.md)
+> **🍃 Talk to your filesystem:** `filoma filaraki chat` — ask questions about your data in plain English. Find duplicates, audit datasets, export HTML reports — all from one conversation. [Try it →](docs/guides/filaraki.md)
 
-> **�🎯 Local AI in 10 seconds:** `curl -sL https://raw.githubusercontent.com/kalfasyan/filoma/main/scripts/install.sh | sh` → Use with [nanobot](https://github.com/HKUDS/nanobot) + [Ollama](https://ollama.com) for fully local filesystem analysis. [Learn more →](docs/guides/filaraki.md#nanobot--ollama-setup)
+> **🎯 Local AI in 10 seconds:** `curl -sL https://raw.githubusercontent.com/kalfasyan/filoma/main/scripts/install.sh | sh` → Use with [nanobot](https://github.com/HKUDS/nanobot) + [Ollama](https://ollama.com) for fully local filesystem analysis. [Learn more →](docs/guides/filaraki.md#nanobot--ollama-setup)
 
 <p align="center">
     <img src="docs/assets/images/filoma_graph.jpg" alt="Filoma Package Overview" width="800">
