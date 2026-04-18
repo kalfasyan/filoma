@@ -13,6 +13,17 @@ Filoma Filaraki provides an intelligent AI agent for filesystem analysis using [
 
 ## Quick Start
 
+> **Which AI service should I use?**
+>
+> | Provider | Requires | Privacy |
+> |---|---|---|
+> | **Ollama** (auto-detected, default) | `ollama serve` on `localhost:11434` | 🔒 100% local |
+> | **Mistral AI** | `MISTRAL_API_KEY` | Cloud |
+> | **Google Gemini** | `GEMINI_API_KEY` | Cloud |
+> | **OpenAI / OpenRouter / any OpenAI-compatible** | `FILOMA_FILARAKI_BASE_URL` + `OPENAI_API_KEY` | Cloud |
+>
+> All four are supported out-of-the-box. See [AI Model Configuration](#ai-model-configuration) for full details.
+
 ### Interactive Chat
 
 ```bash
@@ -22,6 +33,8 @@ filoma filaraki chat
 # Or use uv
 uvx filoma filaraki chat
 ```
+
+> ⚠️ **Using `.env`?** With `uvx` the `.env` file is **not** automatically loaded. Export variables in your shell first, or use `uv run --env-file .env filoma filaraki chat` instead.
 
 **Prerequisites for Ollama (if auto-detected):**
 ```bash
@@ -287,7 +300,27 @@ FILOMA_FILARAKI_MODEL=qwen2.5:14b
 
 ## Example Workflows
 
-### Dataset Audit
+### Full Dataset Audit with HTML Report
+
+The most powerful single workflow: one prompt runs corruption checks, hygiene scoring, and migration readiness all at once, then exports a **self-contained interactive HTML report**.
+
+```
+User: perform an audit on /data/images and export an html report called audit.html
+Filaraki: audit_dataset completed.
+       ✔ 4,208 files checked — 0 corrupted, 0 zero-byte
+       ✔ Hygiene score: 65/100 (2 duplicate groups found)
+       ✔ Migration readiness: 100/100 — no blockers
+       Report exported to: /abs/path/audit.html
+```
+
+The HTML report includes score gauges, KPI tiles, stage timing bars, priority-tagged next actions, duplicate evidence cards, and a collapsible full JSON payload. Export formats also include `json` and `md`:
+
+```
+User: perform an audit on /data/images and export a json report called audit.json
+User: perform an audit on /data/images and export a markdown report called audit.md
+```
+
+### Dataset Audit (Inline)
 ```
 User: Audit the /data/images directory for corrupted files
 Filaraki: Running audit_corrupted_files...

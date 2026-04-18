@@ -36,6 +36,8 @@
 
 `filoma` helps you analyze file directory trees, inspect file metadata, and prepare your data for exploration. It can achieve this blazingly fast using the best available backend (Rust, [`fd`](https://github.com/sharkdp/fd), or pure Python) ⚡🍃
 
+Whether you're auditing a machine-learning dataset, tracking down duplicates across terabytes, or just need a quick overview of what's in a directory — Filoma gives you the tools to go from raw folder structure to actionable insight in seconds.
+
 <p align="center">
     <img src="docs/assets/images/filoma_ad.png" alt="Filoma Package Overview" width="400">
 </p>
@@ -52,7 +54,9 @@
 - **🖥️ Interactive CLI**: Beautiful terminal interface for filesystem exploration and DataFrame analysis. [📖 **CLI Documentation →**](docs/guides/cli.md)
 - **🌐 MCP Server**: Expose all 21 filesystem tools to any MCP-compatible AI assistant ([nanobot](https://github.com/HKUDS/nanobot) recommended). [📖 **MCP Configuration →**](docs/guides/filaraki.md#mcp-server-configuration)
 
-> **🎯 Local AI in 10 seconds:** `curl -sL https://raw.githubusercontent.com/kalfasyan/filoma/main/scripts/install.sh | sh` → Use with [nanobot](https://github.com/HKUDS/nanobot) + [Ollama](https://ollama.com) for fully local filesystem analysis. [Learn more →](docs/guides/filaraki.md#nanobot--ollama-setup)
+> **� Talk to your filesystem:** `filoma filaraki chat` — ask questions about your data in plain English. Find duplicates, audit datasets, export HTML reports — all from one conversation. [Try it →](docs/guides/filaraki.md)
+
+> **�🎯 Local AI in 10 seconds:** `curl -sL https://raw.githubusercontent.com/kalfasyan/filoma/main/scripts/install.sh | sh` → Use with [nanobot](https://github.com/HKUDS/nanobot) + [Ollama](https://ollama.com) for fully local filesystem analysis. [Learn more →](docs/guides/filaraki.md#nanobot--ollama-setup)
 
 <p align="center">
     <img src="docs/assets/images/filoma_graph.jpg" alt="Filoma Package Overview" width="800">
@@ -198,14 +202,15 @@ analysis.print_report()
 
 ### 3. DataFrame Analysis
 
-Convert scan results to Polars DataFrames for advanced analysis.
+Convert scan results to Polars DataFrames with filesystem-specific operations for filtering, grouping, and summarization.
 
 ```python
 # Scan and get an enriched filoma.DataFrame (Polars)
 df = flm.probe_to_df('src', enrich=True)
 
-# Perform operations
+# Filter and analyze
 df.filter_by_extension([".py", ".rs"])
+df.extension_counts()
 df.directory_counts()
 ```
 
@@ -224,45 +229,14 @@ shape: (2, 18)
 │ src/filoma        ┆ 1     ┆ src    ┆ filoma        ┆ … ┆ 7603126 ┆ 8     ┆ null   ┆ {}     │
 └───────────────────┴───────┴────────┴───────────────┴───┴─────────┴───────┴────────┴────────┘
 
-✨ Enriched columns added: parent, name, stem, suffix, size_bytes, modified_time,
+✨ Enriched columns: parent, name, stem, suffix, size_bytes, modified_time,
    created_time, is_file, is_dir, owner, group, mode_str, inode, nlink, sha256, xattrs, depth
 ```
 
 </details>
 
-- **Seamless Pandas Integration**: Just use `df.pandas` for instant conversion.
-- **Lazy Loading**: `import filoma` is cheap; heavy dependencies load only when needed.
-
-### 4. Specialized DataFrame Operations
-
-Filoma's `DataFrame` extends Polars with filesystem-specific operations for quick filtering and summarization.
-
-```python
-# Filter by extensions
-df.filter_by_extension([".py", ".rs"])
-
-# Quick frequency analysis
-df.extension_counts()
-df.directory_counts()
-```
-
 <details>
 <summary><b>🔍 See Operation Examples</b></summary>
-
-**`filter_by_extension([".py", ".rs"])`**
-
-```text
-shape: (3, 1)
-┌─────────────────────┐
-│ path                │
-│ ---                 │
-│ str                 │
-╞═════════════════════╡
-│ src/async_scan.rs   │
-│ src/lib.rs          │
-│ src/filoma/dedup.py │
-└─────────────────────┘
-```
 
 **`extension_counts()`** — groups files by extension and returns counts.
 
@@ -296,11 +270,15 @@ shape: (3, 2)
 
 </details>
 
+- **Seamless Pandas Integration**: Just use `df.pandas` for instant conversion.
+- **Lazy Loading**: `import filoma` is cheap; heavy dependencies load only when needed.
+
 ---
 
 ## 🗂️ Advanced Topics
 
-#### Dataset Convenience Class
+### Dataset Convenience Class
+
 Use the `Dataset` class for orchestration of snapshotting, profiling, integrity checks, and AI interactions:
 
 ```python
@@ -321,7 +299,8 @@ print(df.extension_counts())
 ds.get_filaraki().run("Is there any class imbalance in my dataset?")
 ```
 
-#### Dataset Integrity & Quality
+### Dataset Integrity & Quality
+
 Filoma provides a comprehensive suite for dataset validation (corruption, leaks, balance) and manifest integrity:
 
 ```python
@@ -331,7 +310,8 @@ verifier.run_all()
 verifier.print_summary()
 ```
 
-#### Deduplication
+### Deduplication
+
 Find duplicate files, images (perceptual hash), or text files.
 
 ```bash
@@ -343,44 +323,20 @@ filoma dedup train/ valid/ --cross-dir
 ```
 
 ## 🍃 Agentic Analysis
-  
-Filaraki (stands for "little leaf" or "little buddy" in Greek) is Filoma's agentic interface for natural language filesystem analysis. It provides an agentic, flexible way to interact with your data using plain language commands.  
+
+Filaraki ("little leaf" / "little buddy" in Greek) is Filoma's agentic interface for natural language filesystem analysis. Available as an interactive chat CLI, programmatic API, or MCP server.
+
 <p align="center">
     <img src="docs/assets/images/filaraki.png" alt="Filaraki Chat Interface" width="400">
-</p>  
-Connect your "filaraki" agent to your filesystem for natural language interaction. Available as an interactive chat CLI, programmatic API, or MCP server for integration with AI assistants.
-  
-#### 🏠 Local AI Setup (Nanobot + Ollama)
+</p>
 
-Run Filoma Filaraki **completely offline** with local models via the MCP server:
-
-```bash
-# One-command setup
-curl -sL https://raw.githubusercontent.com/kalfasyan/filoma/main/scripts/install.sh | sh
-```
-
-This installs [nanobot](https://github.com/HKUDS/nanobot) and configures it to use [Ollama](https://ollama.com) with Filoma's 21 filesystem tools. No API keys, no cloud services—everything stays on your machine.
-
-```bash
-# After setup, chat with your filesystem
-nanobot agent -m "How many images are in ./data?"
-nanobot agent -m "Find duplicate files and show me the largest ones"
-```
-
-[📖 Full MCP Configuration Guide →](docs/guides/filaraki.md#mcp-server-configuration-with-nanobot)
-
-#### Interactive Chat CLI
-
-Start a chat session directly from your terminal:
+### Interactive Chat CLI
 
 ```bash
 filoma filaraki chat
 ```
 
-
-#### Programmatic Usage
-
-Use Python for scripted workflows:
+### Programmatic Usage
 
 ```python
 from filoma.filaraki import get_agent
@@ -388,28 +344,58 @@ from filoma.filaraki import get_agent
 agent = get_agent()
 await agent.run("Create a dataframe from notebooks/Weeds-3 with enrichment")
 await agent.run("Filter by extension: jpg, png")
-await agent.run("Summarize dataframe and show top directories")
 await agent.run("Sort dataframe by size descending and show top 5")
 ```
 
+### AI Service Options
 
-#### Advanced Workflow Orchestration
+Filaraki supports multiple providers — pick whatever fits your setup:
 
-Filoma Filaraki includes advanced orchestrator tools for enterprise-grade dataset analysis:
+| Provider | Requires | Privacy |
+|---|---|---|
+| **Ollama** (default) | `ollama serve` on `localhost:11434` | 🔒 100% local |
+| **Mistral AI** | `MISTRAL_API_KEY` | Cloud |
+| **Google Gemini** | `GEMINI_API_KEY` | Cloud |
+| **OpenAI / OpenRouter / compatible** | `FILOMA_FILARAKI_BASE_URL` + `OPENAI_API_KEY` | Cloud |
+
+[📖 Full AI configuration guide →](docs/guides/filaraki.md#ai-model-configuration)
+
+### 🏠 Local AI Setup (Nanobot + Ollama)
+
+Run Filoma Filaraki **completely offline** with local models via the MCP server:
 
 ```bash
-# Run advanced workflow examples
-make filaraki-advanced
-
-# Or in code:
-await agent.run("Run a corrupted file audit on /path/to/dataset")
-await agent.run("Generate a dataset hygiene report for /path/to/dataset")
-await agent.run("Assess the migration readiness of /path/to/dataset")
+curl -sL https://raw.githubusercontent.com/kalfasyan/filoma/main/scripts/install.sh | sh
 ```
 
-These provide structured, deterministic reports with detailed findings, recommendations, and confidence scores.
+This installs [nanobot](https://github.com/HKUDS/nanobot) + [Ollama](https://ollama.com) with Filoma's 21 filesystem tools. No API keys, no cloud — everything stays on your machine.
 
-#### MCP Server
+[📖 Full MCP Configuration Guide →](docs/guides/filaraki.md#mcp-server-configuration-with-nanobot)
+
+### 📊 One-Command Audit with HTML Report
+
+Run a **full audit** and export a self-contained **interactive HTML report** in one prompt:
+
+```
+filoma filaraki chat
+> perform an audit on /path/to/dataset and export an html report called audit.html
+```
+
+<details>
+<summary><b>📝 What's in the report?</b></summary>
+
+- **Score gauges** for Hygiene and Migration Readiness
+- **KPI strip** showing file counts, duplicate groups, and space waste
+- **Stage timing bars** (integrity / hygiene / readiness)
+- **Priority-tagged Next Actions** — colour-coded high / medium / low
+- **Duplicate evidence cards** with exact file paths
+- **Collapsible full JSON payload** for deeper inspection
+
+Export formats: `html`, `json`, `md`
+
+</details>
+
+### MCP Server
 
 Expose all 21 filesystem tools to any MCP-compatible client:
 
@@ -423,21 +409,17 @@ filoma mcp serve
 
 ## 📊 Performance & Benchmarks
 
-Need to compare backend performance? Check out the comprehensive [**Benchmarks Guide**](docs/reference/benchmarks.md)!
-
-**Local SSD** (1M files):
-- 🦀 **Rust**: 7.3s (136K files/sec)
-- ⚡ **Async**: 11.5s (87K files/sec)
-- 🐍 **Python**: 35.5s (28K files/sec)
-
-**Network Storage** (200K files, cold cache):
-- 🦀 **Rust**: 2.3s (86K files/sec)
-- ⚡ **Async**: 2.8s (70K files/sec)
-- 🐍 **Python**: 15.1s (13K files/sec)
+| Backend | Local SSD (1M files) | Network (200K files) |
+|---|---|---|
+| 🦀 **Rust** | 7.3s — 136K files/sec | 2.3s — 86K files/sec |
+| ⚡ **Async** | 11.5s — 87K files/sec | 2.8s — 70K files/sec |
+| 🐍 **Python** | 35.5s — 28K files/sec | 15.1s — 13K files/sec |
 
 ```bash
 python benchmarks/benchmark.py --path /your/directory -n 3 --backend profiling
 ```
+
+[📖 Full Benchmarks Guide →](docs/reference/benchmarks.md)
 
 ---
 
@@ -454,4 +436,4 @@ This work is licensed under a [Creative Commons Attribution 4.0 International Li
 
 ## Contributing
 
-Contributions welcome! Please check the [issues](https://github.com/filoma/filoma/issues) for planned features and bug reports.
+Contributions welcome! Please check the [issues](https://github.com/kalfasyan/filoma/issues) for planned features and bug reports.
