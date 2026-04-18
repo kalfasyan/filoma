@@ -821,45 +821,6 @@ def audit_dataset(
             out.write_text("\n".join(md), encoding="utf-8")
         else:
             # Self-contained HTML report for visual inspection and sharing.
-            summary_rows = "".join(
-                [
-                    f"<tr><th>{html.escape(str(k))}</th><td>{html.escape(str(v))}</td></tr>"
-                    for k, v in consolidated_report.get("summary", {}).items()
-                ]
-            )
-            profile_rows = "".join(
-                [
-                    f"<tr><th>{html.escape(str(k))}</th><td>{html.escape(str(v))}</td></tr>"
-                    for k, v in consolidated_report.get("dataset_profile", {}).items()
-                ]
-            )
-            recon_rows = "".join(
-                [
-                    f"<tr><th>{html.escape(str(k))}</th><td>{html.escape(str(v))}</td></tr>"
-                    for k, v in consolidated_report.get("reconciliation", {}).items()
-                ]
-            )
-            timing_rows = "".join(
-                [
-                    f"<tr><th>{html.escape(str(k))}</th><td>{html.escape(str(v))}</td></tr>"
-                    for k, v in consolidated_report.get("stage_timings", {}).items()
-                ]
-            )
-            actions_rows = "".join(
-                [
-                    "<tr>"
-                    f"<td>{html.escape(str(a.get('priority', '')))}</td>"
-                    f"<td>{html.escape(str(a.get('action', '')))}</td>"
-                    f"<td>{html.escape(str(a.get('estimated_effort', '')))}</td>"
-                    f"<td>{html.escape(str(a.get('auto_followup_prompt', '')))}</td>"
-                    "</tr>"
-                    for a in consolidated_report.get("next_actions", [])
-                ]
-            )
-            evidence_items = "".join(
-                [f"<li>{html.escape(str(item))}</li>" for item in consolidated_report.get("evidence", [])]
-            )
-
             version = consolidated_report.get("version", "unknown")
 
             # ── Extra variables for the enhanced HTML report ───────────────────────────
