@@ -134,9 +134,7 @@ class TestToolExecution:
     @pytest.mark.asyncio
     async def test_probe_directory(self, temp_dir):
         """Test probe_directory with safety limits."""
-        result = await call_tool(
-            "probe_directory", {"path": str(temp_dir), "max_depth": 1}
-        )
+        result = await call_tool("probe_directory", {"path": str(temp_dir), "max_depth": 1})
         assert len(result) == 1
         text = result[0].text
         assert "files" in text.lower() or "extensions" in text.lower()
@@ -205,9 +203,7 @@ class TestDataFrameState:
     @pytest.mark.asyncio
     async def test_create_dataset_dataframe_creates_state(self, temp_dir):
         """Test that create_dataset_dataframe stores state."""
-        result = await call_tool(
-            "create_dataset_dataframe", {"path": str(temp_dir), "enrich": False}
-        )
+        result = await call_tool("create_dataset_dataframe", {"path": str(temp_dir), "enrich": False})
         assert len(result) == 1
         # State should be saved
         assert "current_df" in _dataframe_state
@@ -216,9 +212,7 @@ class TestDataFrameState:
     async def test_dataframe_head_requires_state(self, temp_dir):
         """Test dataframe_head works after creating DataFrame."""
         # First create the DataFrame
-        await call_tool(
-            "create_dataset_dataframe", {"path": str(temp_dir), "enrich": False}
-        )
+        await call_tool("create_dataset_dataframe", {"path": str(temp_dir), "enrich": False})
 
         # Then query it
         result = await call_tool("dataframe_head", {"n": 5})
@@ -231,9 +225,7 @@ class TestDataFrameState:
     async def test_summarize_dataframe(self, temp_dir):
         """Test summarize_dataframe returns statistics."""
         # Create DataFrame first
-        await call_tool(
-            "create_dataset_dataframe", {"path": str(temp_dir), "enrich": False}
-        )
+        await call_tool("create_dataset_dataframe", {"path": str(temp_dir), "enrich": False})
 
         result = await call_tool("summarize_dataframe", {})
         assert len(result) == 1
@@ -244,9 +236,7 @@ class TestDataFrameState:
     @pytest.mark.asyncio
     async def test_search_files_creates_state(self, temp_dir):
         """Test search_files creates DataFrame state."""
-        result = await call_tool(
-            "search_files", {"path": str(temp_dir), "extension": "txt"}
-        )
+        result = await call_tool("search_files", {"path": str(temp_dir), "extension": "txt"})
         assert len(result) == 1
         # Should have created state
         assert "current_df" in _dataframe_state
@@ -255,14 +245,10 @@ class TestDataFrameState:
     async def test_filter_by_extension(self, temp_dir):
         """Test filter_by_extension applies to state."""
         # Create state first
-        await call_tool(
-            "create_dataset_dataframe", {"path": str(temp_dir), "enrich": False}
-        )
+        await call_tool("create_dataset_dataframe", {"path": str(temp_dir), "enrich": False})
 
         # Filter by extension
-        result = await call_tool(
-            "filter_by_extension", {"extensions": "txt"}
-        )
+        result = await call_tool("filter_by_extension", {"extensions": "txt"})
         assert len(result) == 1
         text = result[0].text
         assert "filtered" in text.lower() or "txt" in text.lower()
@@ -309,9 +295,7 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_invalid_path_handled(self):
         """Test that invalid paths are handled gracefully."""
-        result = await call_tool(
-            "count_files", {"path": "/nonexistent/path/xyz"}
-        )
+        result = await call_tool("count_files", {"path": "/nonexistent/path/xyz"})
         assert len(result) == 1
         # Should return an error message, not crash
         text = result[0].text
@@ -320,9 +304,7 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_probe_directory_invalid_path(self):
         """Test probe_directory with invalid path."""
-        result = await call_tool(
-            "probe_directory", {"path": "/this/path/does/not/exist"}
-        )
+        result = await call_tool("probe_directory", {"path": "/this/path/does/not/exist"})
         assert len(result) == 1
         text = result[0].text
         assert "error" in text.lower() or "not" in text.lower()

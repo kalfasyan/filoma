@@ -128,10 +128,7 @@ async def list_tools() -> List[Any]:
     """
     mcp = _get_mcp_imports()
     Tool = mcp["Tool"]
-    return [
-        Tool(name=name, description=spec["description"], inputSchema=spec["inputSchema"])
-        for name, spec in TOOL_SCHEMAS.items()
-    ]
+    return [Tool(name=name, description=spec["description"], inputSchema=spec["inputSchema"]) for name, spec in TOOL_SCHEMAS.items()]
 
 
 async def call_tool(name: str, arguments: dict) -> List[Any]:

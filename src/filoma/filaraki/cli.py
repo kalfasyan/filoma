@@ -92,9 +92,7 @@ async def run_chat_loop(model: Optional[str] = None):
                             tool_name = parsed["name"]
                             logger.warning(f"Agent generated tool call as text instead of executing: {tool_name}")
                             console.print("\n[bold magenta]Filaraki[/bold magenta]")
-                            console.print(
-                                f"[yellow]⚠️  The model tried to call '{tool_name}' but generated text instead of executing the tool.[/yellow]"
-                            )
+                            console.print(f"[yellow]⚠️  The model tried to call '{tool_name}' but generated text instead of executing the tool.[/yellow]")
                             console.print("[dim]This is a known issue with some models. Try rephrasing your question or being more specific.[/dim]")
                             continue
                     except (json.JSONDecodeError, ValueError, KeyError):
