@@ -1,6 +1,6 @@
 # Makefile for filoma package management
 
-.PHONY: help bump-patch bump-minor bump-major release-patch release-minor release-major build test lint clean benchmark
+.PHONY: help bump-patch bump-minor bump-major release-patch release-minor release-major build test lint lint-fix format-fix clean benchmark
 
 help:  ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -34,6 +34,9 @@ lint:  ## Run linting
 
 lint-fix:  ## Run linting and auto-fix issues
 	uv run poe lint-fix
+
+format-fix:  ## Run formatter and auto-fix issues
+	uv run poe format-fix
 
 precommit: ## Run pre-commit hooks on all files
 	uv run poe precommit

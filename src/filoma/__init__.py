@@ -57,6 +57,7 @@ def __getattr__(name: str):
 
     if name == "Dataset":
         from .dataset import Dataset
+
         globals()["Dataset"] = Dataset
         return Dataset
 

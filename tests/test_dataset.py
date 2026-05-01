@@ -1,4 +1,3 @@
-
 import tempfile
 from pathlib import Path
 
@@ -15,6 +14,7 @@ def temp_dataset():
         (root / "file1.txt").write_text("hello")
         (root / "subdir/file2.txt").write_text("world")
         yield str(root)  # Return as string to match existing FileProfiler/DirectoryProfiler expectations
+
 
 def test_dataset_basic_operations(temp_dataset):
     ds = Dataset(temp_dataset)
@@ -34,6 +34,7 @@ def test_dataset_basic_operations(temp_dataset):
     # Test dataframe
     df = ds.to_dataframe()
     assert df.df.height >= 2
+
 
 def test_dataset_invalid_path():
     with pytest.raises(FileNotFoundError):

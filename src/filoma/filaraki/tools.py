@@ -127,14 +127,14 @@ def audit_corrupted_files(ctx: RunContext[Any], path: str) -> str:
             recommendation = "Remove or repair the file" if reason == "corrupt_or_unsupported" else "Remove or restore the file"
 
             finding = AuditFinding(
-                id=f"corruption-{i+1}",
+                id=f"corruption-{i + 1}",
                 severity=severity,
                 category="integrity",
                 description=description,
                 evidence={"file_path": file_path, "issue_type": reason},
                 confidence=0.95,
                 recommendation=recommendation,
-                affected_paths=[file_path]
+                affected_paths=[file_path],
             )
             findings.append(finding)
 
@@ -159,7 +159,7 @@ def audit_corrupted_files(ctx: RunContext[Any], path: str) -> str:
             summary=summary,
             findings=findings,
             execution_time_seconds=time.time() - start_time,
-            tool_versions={"filoma": "1.11.11", "verifier": "1.0"}
+            tool_versions={"filoma": "1.11.11", "verifier": "1.0"},
         )
 
         return f"CORRUPTED FILE AUDIT REPORT:\n{report.model_dump_json(indent=2)}"
@@ -173,7 +173,7 @@ def audit_corrupted_files(ctx: RunContext[Any], path: str) -> str:
             summary={"error": str(e)},
             findings=[],
             execution_time_seconds=time.time() - start_time,
-            tool_versions={"filoma": "1.11.11"}
+            tool_versions={"filoma": "1.11.11"},
         )
         return f"CORRUPTED FILE AUDIT REPORT (FAILED):\n{report.model_dump_json(indent=2)}"
 
@@ -211,43 +211,38 @@ def generate_hygiene_report(ctx: RunContext[Any], path: str) -> str:
         dims = results.get("dimensions", {})
         if "outlier_percentage" in dims:
             outlier_pct = dims["outlier_percentage"]
-            metrics.append(HygieneMetric(
-                name="dimension_consistency",
-                value=100 - outlier_pct,
-                threshold=95.0,
-                status="pass" if (100 - outlier_pct) >= 95 else "warn" if (100 - outlier_pct) >= 90 else "fail",
-                description="Percentage of images with consistent dimensions"
-            ))
+            metrics.append(
+                HygieneMetric(
+                    name="dimension_consistency",
+                    value=100 - outlier_pct,
+                    threshold=95.0,
+                    status="pass" if (100 - outlier_pct) >= 95 else "warn" if (100 - outlier_pct) >= 90 else "fail",
+                    description="Percentage of images with consistent dimensions",
+                )
+            )
 
         # Duplicate detection metric
         dups = results.get("duplicates", {})
         dup_count = dups.get("duplicate_count", 0)
-        metrics.append(HygieneMetric(
-            name="duplicate_files",
-            value=float(dup_count),
-            threshold=0.0,
-            status="pass" if dup_count == 0 else "fail",
-            description="Number of duplicate file groups detected"
-        ))
+        metrics.append(HygieneMetric(name="duplicate_files", value=float(dup_count), threshold=0.0, status="pass" if dup_count == 0 else "fail", description="Number of duplicate file groups detected"))
 
         # Class balance metric
         balance = results.get("class_balance", {})
         class_dist = balance.get("class_distribution", {})
         if class_dist:
             import statistics
+
             counts = list(class_dist.values())
             if len(counts) > 1:
                 mean_count = statistics.mean(counts)
                 std_dev = statistics.stdev(counts) if len(counts) > 1 else 0
                 cv = (std_dev / mean_count * 100) if mean_count > 0 else 0  # Coefficient of variation
 
-                metrics.append(HygieneMetric(
-                    name="class_balance",
-                    value=cv,
-                    threshold=30.0,
-                    status="pass" if cv <= 30 else "warn" if cv <= 50 else "fail",
-                    description="Class distribution coefficient of variation (lower is better)"
-                ))
+                metrics.append(
+                    HygieneMetric(
+                        name="class_balance", value=cv, threshold=30.0, status="pass" if cv <= 30 else "warn" if cv <= 50 else "fail", description="Class distribution coefficient of variation (lower is better)"
+                    )
+                )
 
         # Process issues
         issues = []
@@ -262,7 +257,7 @@ def generate_hygiene_report(ctx: RunContext[Any], path: str) -> str:
                 evidence={"duplicate_count": dup_count, "duplicates": dups.get("duplicates", [])[:5]},  # Limit evidence
                 confidence=0.9,
                 recommendation="Remove duplicate files to improve dataset quality",
-                affected_paths=[]
+                affected_paths=[],
             )
             issues.append(issue)
 
@@ -295,7 +290,7 @@ def generate_hygiene_report(ctx: RunContext[Any], path: str) -> str:
             metrics=metrics,
             issues=issues,
             recommendations=recommendations,
-            execution_time_seconds=time.time() - start_time
+            execution_time_seconds=time.time() - start_time,
         )
 
         return f"DATASET HYGIENE REPORT:\n{report.model_dump_json(indent=2)}"
@@ -310,7 +305,7 @@ def generate_hygiene_report(ctx: RunContext[Any], path: str) -> str:
             metrics=[],
             issues=[],
             recommendations=[f"Failed to generate report: {str(e)}"],
-            execution_time_seconds=time.time() - start_time
+            execution_time_seconds=time.time() - start_time,
         )
         return f"DATASET HYGIENE REPORT (FAILED):\n{report.model_dump_json(indent=2)}"
 
@@ -360,19 +355,11 @@ def assess_migration_readiness(ctx: RunContext[Any], path: str) -> str:
                 description=f"Dataset contains {len(failed_files)} corrupted or zero-byte files",
                 priority="high",
                 dependencies=[],
-                estimated_effort_hours=len(failed_files) * 0.1
+                estimated_effort_hours=len(failed_files) * 0.1,
             )
             items.append(item)
         else:
-            item = MigrationReadinessItem(
-                id="integrity-ok",
-                category="data",
-                status="ready",
-                description="No corrupted or zero-byte files detected",
-                priority="low",
-                dependencies=[],
-                estimated_effort_hours=0.0
-            )
+            item = MigrationReadinessItem(id="integrity-ok", category="data", status="ready", description="No corrupted or zero-byte files detected", priority="low", dependencies=[], estimated_effort_hours=0.0)
             items.append(item)
 
         # Check file distribution (structure)
@@ -382,25 +369,11 @@ def assess_migration_readiness(ctx: RunContext[Any], path: str) -> str:
 
             if total_files == 0:
                 blockers.append("Dataset is empty")
-                item = MigrationReadinessItem(
-                    id="structure-empty",
-                    category="structure",
-                    status="blocked",
-                    description="Dataset is empty",
-                    priority="high",
-                    dependencies=[],
-                    estimated_effort_hours=0.0
-                )
+                item = MigrationReadinessItem(id="structure-empty", category="structure", status="blocked", description="Dataset is empty", priority="high", dependencies=[], estimated_effort_hours=0.0)
                 items.append(item)
             else:
                 item = MigrationReadinessItem(
-                    id="structure-populated",
-                    category="structure",
-                    status="ready",
-                    description=f"Dataset contains {total_files:,} files",
-                    priority="low",
-                    dependencies=[],
-                    estimated_effort_hours=0.0
+                    id="structure-populated", category="structure", status="ready", description=f"Dataset contains {total_files:,} files", priority="low", dependencies=[], estimated_effort_hours=0.0
                 )
                 items.append(item)
 
@@ -415,7 +388,7 @@ def assess_migration_readiness(ctx: RunContext[Any], path: str) -> str:
                         description=f"Dataset contains {unique_extensions} file types",
                         priority="medium",
                         dependencies=[],
-                        estimated_effort_hours=0.0
+                        estimated_effort_hours=0.0,
                     )
                     items.append(item)
                 except Exception:
@@ -425,7 +398,7 @@ def assess_migration_readiness(ctx: RunContext[Any], path: str) -> str:
             risks.append(f"Unable to analyze dataset structure: {str(e)}")
 
         # Estimate migration time (simplified model)
-        estimated_time = max(0.1, total_files * 0.0001) if 'total_files' in locals() else 1.0
+        estimated_time = max(0.1, total_files * 0.0001) if "total_files" in locals() else 1.0
 
         # Overall readiness calculation
         blocked_items = len([i for i in items if i.status == "blocked"])
@@ -459,7 +432,7 @@ def assess_migration_readiness(ctx: RunContext[Any], path: str) -> str:
             risks=risks,
             recommendations=recommendations,
             estimated_migration_time_hours=estimated_time,
-            execution_time_seconds=time.time() - start_time
+            execution_time_seconds=time.time() - start_time,
         )
 
         return f"MIGRATION READINESS REPORT:\n{report.model_dump_json(indent=2)}"
@@ -476,7 +449,7 @@ def assess_migration_readiness(ctx: RunContext[Any], path: str) -> str:
             risks=[],
             recommendations=["Fix the error and retry the assessment"],
             estimated_migration_time_hours=0.0,
-            execution_time_seconds=time.time() - start_time
+            execution_time_seconds=time.time() - start_time,
         )
         return f"MIGRATION READINESS REPORT (FAILED):\n{report.model_dump_json(indent=2)}"
 
@@ -670,18 +643,11 @@ def audit_dataset(
         "files_total_readiness_basis": readiness_total_files,
         "count_delta_profile_vs_integrity": profile_total_files - total_files_checked,
         "count_delta_profile_vs_readiness": profile_total_files - readiness_total_files,
-        "status": "ok"
-        if profile_total_files in {0, total_files_checked}
-        and readiness_total_files in {0, profile_total_files}
-        else "warn",
+        "status": "ok" if profile_total_files in {0, total_files_checked} and readiness_total_files in {0, profile_total_files} else "warn",
     }
 
     # Extension shares for quick format composition signal.
-    extension_share_pct = {
-        ext: round((cnt / profile_total_files) * 100.0, 2)
-        for ext, cnt in extension_counts.items()
-        if profile_total_files > 0
-    }
+    extension_share_pct = {ext: round((cnt / profile_total_files) * 100.0, 2) for ext, cnt in extension_counts.items() if profile_total_files > 0}
 
     duplicate_ratio_pct = round((duplicate_files_total / profile_total_files) * 100.0, 2) if profile_total_files > 0 else 0.0
 
@@ -699,33 +665,41 @@ def audit_dataset(
     # Structured continuation guidance.
     next_actions = []
     if duplicate_groups > 0:
-        next_actions.append({
-            "priority": "high",
-            "action": "Review and remove duplicate groups",
-            "estimated_effort": f"{duplicate_groups} groups",
-            "auto_followup_prompt": "Show all duplicate file paths and suggest deletions that preserve split integrity.",
-        })
+        next_actions.append(
+            {
+                "priority": "high",
+                "action": "Review and remove duplicate groups",
+                "estimated_effort": f"{duplicate_groups} groups",
+                "auto_followup_prompt": "Show all duplicate file paths and suggest deletions that preserve split integrity.",
+            }
+        )
     if corrupted_files > 0 or zero_byte_files > 0:
-        next_actions.append({
-            "priority": "critical",
-            "action": "Quarantine corrupted/zero-byte files",
-            "estimated_effort": f"{corrupted_files + zero_byte_files} files",
-            "auto_followup_prompt": "List corrupted and zero-byte files with exact paths.",
-        })
+        next_actions.append(
+            {
+                "priority": "critical",
+                "action": "Quarantine corrupted/zero-byte files",
+                "estimated_effort": f"{corrupted_files + zero_byte_files} files",
+                "auto_followup_prompt": "List corrupted and zero-byte files with exact paths.",
+            }
+        )
     if reconciliation["status"] == "warn":
-        next_actions.append({
-            "priority": "medium",
-            "action": "Investigate file-count mismatch across reports",
-            "estimated_effort": "10-20 minutes",
-            "auto_followup_prompt": "Explain why file totals differ across profile, integrity, and readiness checks.",
-        })
+        next_actions.append(
+            {
+                "priority": "medium",
+                "action": "Investigate file-count mismatch across reports",
+                "estimated_effort": "10-20 minutes",
+                "auto_followup_prompt": "Explain why file totals differ across profile, integrity, and readiness checks.",
+            }
+        )
     if not next_actions:
-        next_actions.append({
-            "priority": "low",
-            "action": "Export and archive this audit baseline",
-            "estimated_effort": "2 minutes",
-            "auto_followup_prompt": "Export this report as markdown and summarize key baseline metrics.",
-        })
+        next_actions.append(
+            {
+                "priority": "low",
+                "action": "Export and archive this audit baseline",
+                "estimated_effort": "2 minutes",
+                "auto_followup_prompt": "Export this report as markdown and summarize key baseline metrics.",
+            }
+        )
 
     limitations = []
     if not extension_counts:
@@ -801,23 +775,25 @@ def audit_dataset(
             md = ["# Dataset Audit Workflow Report", "", executive]
             if show_evidence and evidence_section:
                 md.extend(["", "## Evidence", *evidence_section])
-            md.extend([
-                "",
-                "## Corruption Report",
-                "```json",
-                json.dumps(corruption_data, indent=2, default=str),
-                "```",
-                "",
-                "## Hygiene Report",
-                "```json",
-                json.dumps(hygiene_data, indent=2, default=str),
-                "```",
-                "",
-                "## Readiness Report",
-                "```json",
-                json.dumps(readiness_data, indent=2, default=str),
-                "```",
-            ])
+            md.extend(
+                [
+                    "",
+                    "## Corruption Report",
+                    "```json",
+                    json.dumps(corruption_data, indent=2, default=str),
+                    "```",
+                    "",
+                    "## Hygiene Report",
+                    "```json",
+                    json.dumps(hygiene_data, indent=2, default=str),
+                    "```",
+                    "",
+                    "## Readiness Report",
+                    "```json",
+                    json.dumps(readiness_data, indent=2, default=str),
+                    "```",
+                ]
+            )
             out.write_text("\n".join(md), encoding="utf-8")
         else:
             # Self-contained HTML report for visual inspection and sharing.
@@ -831,11 +807,7 @@ def audit_dataset(
             _n_dups = _sum.get("duplicate_groups", 0)
             _n_corrupt = _sum.get("corrupted_files", 0)
             _space = _sum.get("estimated_space_waste_bytes", 0)
-            _space_fmt = (
-                f"{_space / 1048576:.1f} MB" if _space >= 1048576
-                else f"{_space / 1024:.1f} KB" if _space >= 1024
-                else f"{_space} B"
-            )
+            _space_fmt = f"{_space / 1048576:.1f} MB" if _space >= 1048576 else f"{_space / 1024:.1f} KB" if _space >= 1024 else f"{_space} B"
             _circ = 238.8  # 2*pi*38
             _hg_arc = round(_circ * _hg / 100, 1)
             _rd_arc = round(_circ * _rd / 100, 1)
@@ -855,34 +827,20 @@ def audit_dataset(
             # Split pills
             _split_dict = consolidated_report.get("dataset_profile", {}).get("split_counts", {})
             _split_pills_html = (
-                '<div class="split-pills">'
-                + "".join(
-                    f'<div class="split-pill">{html.escape(str(sk))}: <strong>{html.escape(str(sv))}</strong></div>'
-                    for sk, sv in _split_dict.items()
-                )
-                + "</div>"
-            ) if _split_dict else ""
+                ('<div class="split-pills">' + "".join(f'<div class="split-pill">{html.escape(str(sk))}: <strong>{html.escape(str(sv))}</strong></div>' for sk, sv in _split_dict.items()) + "</div>")
+                if _split_dict
+                else ""
+            )
 
             # Extension rows for profile card
             _ext_dict = consolidated_report.get("dataset_profile", {}).get("extension_counts", {})
-            _ext_rows = "".join(
-                f"<tr><td>{html.escape(str(k))}</td><td><strong>{html.escape(str(v))}</strong></td></tr>"
-                for k, v in _ext_dict.items()
-            )
+            _ext_rows = "".join(f"<tr><td>{html.escape(str(k))}</td><td><strong>{html.escape(str(v))}</strong></td></tr>" for k, v in _ext_dict.items())
 
             # Summary rows (skip hygiene_score/migration_readiness — shown as gauges)
-            _summary_rows = "".join(
-                f"<tr><th>{html.escape(str(k))}</th><td>{html.escape(str(v))}</td></tr>"
-                for k, v in _sum.items()
-                if k not in ("hygiene_score", "migration_readiness")
-            )
+            _summary_rows = "".join(f"<tr><th>{html.escape(str(k))}</th><td>{html.escape(str(v))}</td></tr>" for k, v in _sum.items() if k not in ("hygiene_score", "migration_readiness"))
 
             # Reconciliation rows
-            _recon_rows = "".join(
-                f"<tr><th>{html.escape(str(k))}</th><td>{html.escape(str(v))}</td></tr>"
-                for k, v in consolidated_report.get("reconciliation", {}).items()
-                if k != "status"
-            )
+            _recon_rows = "".join(f"<tr><th>{html.escape(str(k))}</th><td>{html.escape(str(v))}</td></tr>" for k, v in consolidated_report.get("reconciliation", {}).items() if k != "status")
 
             # Timing progress bars
             _timing_data = consolidated_report.get("stage_timings", {})
@@ -928,23 +886,13 @@ def audit_dataset(
             for _ev in consolidated_report.get("evidence", []):
                 _evs = str(_ev)
                 if _evs.startswith("- Group"):
-                    _parts = _evs[len("- "):].split(": ", 1)
+                    _parts = _evs[len("- ") :].split(": ", 1)
                     _glabel = html.escape(_parts[0]) if len(_parts) == 2 else "Group"
                     _gfiles = [html.escape(f.strip()) for f in (_parts[1] if len(_parts) == 2 else _evs).split(",")]
-                    _ev_html += (
-                        '<div class="dup-group">'
-                        f'<div class="dup-label">{_glabel}</div>'
-                        + "".join(f'<div class="dup-path">{f}</div>' for f in _gfiles)
-                        + "</div>"
-                    )
+                    _ev_html += f'<div class="dup-group"><div class="dup-label">{_glabel}</div>' + "".join(f'<div class="dup-path">{f}</div>' for f in _gfiles) + "</div>"
                 else:
                     _ev_html += f'<p class="c-muted ev-hdr">{html.escape(_evs)}</p>'
-            _evidence_section = (
-                '<div class="card-wide">'
-                '<div class="ctitle"><div class="cicon" style="background:#eff6ff">&#128257;</div>Duplicate Evidence</div>'
-                + _ev_html
-                + "</div>"
-            ) if _ev_html else ""
+            _evidence_section = ('<div class="card-wide"><div class="ctitle"><div class="cicon" style="background:#eff6ff">&#128257;</div>Duplicate Evidence</div>' + _ev_html + "</div>") if _ev_html else ""
 
             # Hygiene metric chips
             _metrics_html = ""
@@ -1190,6 +1138,7 @@ def audit_dataset(
         + export_note
     )
     return verbose_report
+
 
 def probe_directory(
     ctx: RunContext[Any],
@@ -1595,7 +1544,7 @@ def list_directory(ctx: RunContext[Any], path: str) -> str:
             return f"Error: '{path}' is not a directory."
 
         # Filter out hidden files (starting with .)
-        items = [item for item in p.iterdir() if not item.name.startswith('.')]
+        items = [item for item in p.iterdir() if not item.name.startswith(".")]
         # Sort: directories first, then files
         items.sort(key=lambda x: (not x.is_dir(), x.name.lower()))
 
@@ -1650,7 +1599,7 @@ def list_directory_all(ctx: RunContext[Any], path: str) -> str:
 
         for item in items:
             # Mark hidden files with a special indicator
-            is_hidden = item.name.startswith('.')
+            is_hidden = item.name.startswith(".")
             prefix = "📁" if item.is_dir() else "📄"
             hidden_marker = " [hidden]" if is_hidden else ""
 
@@ -1756,11 +1705,7 @@ def analyze_dataframe(ctx: RunContext[Any], operation: str, **kwargs) -> str:
     if operation in {"summary", "summarize_dataframe"}:
         return summarize_dataframe(ctx)
 
-    return (
-        f"Error: Unknown operation '{operation}'. "
-        "Supported: filter_by_extension, filter_by_pattern, sort_by_size, head, summary. "
-        "Prefer using dedicated dataframe tools directly."
-    )
+    return f"Error: Unknown operation '{operation}'. Supported: filter_by_extension, filter_by_pattern, sort_by_size, head, summary. Prefer using dedicated dataframe tools directly."
 
 
 def export_dataframe(ctx: RunContext[Any], path: str, format: str = "csv") -> str:

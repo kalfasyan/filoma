@@ -117,6 +117,7 @@ markers = [
 test = "pytest -n auto tests/ -m 'not integration'"
 lint = "ruff check ."
 lint-fix = "ruff check . --fix"
+format-fix = "ruff format ."
 precommit = "pre-commit run --all-files"
 filaraki-poc = { cmd = "python examples/filaraki_poc.py", env = { PYTHONPATH = "src" } }
 filaraki-chat = { cmd = "filoma filaraki chat", env = { PYTHONPATH = "src" } }
