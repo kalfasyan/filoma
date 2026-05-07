@@ -137,10 +137,7 @@ class Manifest:
             logger.success(f"Verification successful: All {total} files match.")
         else:
             logger.warning(
-                f"Verification incomplete: {matched}/{total} matched. "
-                f"{len(results['missing'])} missing, "
-                f"{len(results['size_mismatch'])} size mismatches, "
-                f"{len(results['hash_mismatch'])} hash mismatches."
+                f"Verification incomplete: {matched}/{total} matched. {len(results['missing'])} missing, {len(results['size_mismatch'])} size mismatches, {len(results['hash_mismatch'])} hash mismatches."
             )
 
         return results

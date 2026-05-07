@@ -731,9 +731,7 @@ class DataFrame:
 
         """
         # underlying `_df` is expected to be a Polars DataFrame
-        df_with_parent = self._df.with_columns(
-            [pl.col("path").map_elements(lambda x: str(Path(x).parent), return_dtype=pl.String).alias("parent_dir")]
-        )
+        df_with_parent = self._df.with_columns([pl.col("path").map_elements(lambda x: str(Path(x).parent), return_dtype=pl.String).alias("parent_dir")])
         result = df_with_parent.group_by("parent_dir").len().sort("len", descending=True)
         return DataFrame(result)
 

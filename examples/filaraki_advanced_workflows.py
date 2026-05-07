@@ -50,10 +50,10 @@ async def main():
         # Create some test files
         (temp_path / "document1.txt").write_text("This is a test document with some content.")
         (temp_path / "document2.txt").write_text("This is another test document with different content.")
-        (temp_path / "image1.jpg").write_bytes(b'\x00' * 100)  # Dummy JPEG-like file
-        (temp_path / "image2.png").write_bytes(b'\x00' * 50)   # Dummy PNG-like file
-        (temp_path / "empty_file.bin").write_bytes(b'')        # Zero-byte file
-        (temp_path / "large_file.dat").write_bytes(b'x' * 1000)  # Larger file
+        (temp_path / "image1.jpg").write_bytes(b"\x00" * 100)  # Dummy JPEG-like file
+        (temp_path / "image2.png").write_bytes(b"\x00" * 50)  # Dummy PNG-like file
+        (temp_path / "empty_file.bin").write_bytes(b"")  # Zero-byte file
+        (temp_path / "large_file.dat").write_bytes(b"x" * 1000)  # Larger file
 
         # Create a subdirectory
         subdir = temp_path / "subdir"

@@ -176,9 +176,7 @@ class TestScenarioB_Mistral:
 
         # Mock the OpenAIChatModel to avoid actual API calls
         # Must patch the source module where the class is imported from
-        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_model_class, patch(
-            "pydantic_ai.providers.openai.OpenAIProvider"
-        ) as mock_provider_class:
+        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_model_class, patch("pydantic_ai.providers.openai.OpenAIProvider") as mock_provider_class:
             mock_instance = MagicMock()
             mock_provider_class.return_value = MagicMock()
             mock_model_class.return_value = mock_instance
@@ -201,9 +199,7 @@ class TestScenarioB_Mistral:
         os.environ["MISTRAL_API_KEY"] = "test_key"
         os.environ["FILOMA_FILARAKI_MODEL"] = "mistral-small-latest"  # Without prefix
 
-        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_model_class, patch(
-            "pydantic_ai.providers.openai.OpenAIProvider"
-        ) as mock_provider_class:
+        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_model_class, patch("pydantic_ai.providers.openai.OpenAIProvider") as mock_provider_class:
             mock_provider_class.return_value = MagicMock()
             mock_model_class.return_value = MagicMock()
             FilarakiAgent()
@@ -224,9 +220,7 @@ class TestScenarioB_Mistral:
         os.environ["MISTRAL_API_KEY"] = "test_key"
         os.environ["FILOMA_FILARAKI_MODEL"] = "mistral:mistral-small-latest"
 
-        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_model_class, patch(
-            "pydantic_ai.providers.openai.OpenAIProvider"
-        ) as mock_provider_class:
+        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_model_class, patch("pydantic_ai.providers.openai.OpenAIProvider") as mock_provider_class:
             mock_provider_class.return_value = MagicMock()
             mock_model_class.return_value = MagicMock()
             agent = FilarakiAgent()
@@ -270,7 +264,7 @@ class TestScenarioC_Gemini:
         from filoma.filaraki.agent import FilarakiAgent
 
         os.environ["GEMINI_API_KEY"] = "test_key"
-        # Don't set FILOMA_FILARAKI_MODEL - should default to gemini-1.5-flash
+        # Don't set FILOMA_FILARAKI_MODEL - should default to gemini-3.1-flash-lite
 
         with patch("pydantic_ai.models.google.GoogleModel") as mock_model_class:
             mock_model_class.return_value = MagicMock()
@@ -278,7 +272,7 @@ class TestScenarioC_Gemini:
 
             # Check that the model was called with default model name
             call_kwargs = mock_model_class.call_args.kwargs
-            assert call_kwargs.get("model_name") == "gemini-1.5-flash"
+            assert call_kwargs.get("model_name") == "gemini-3.1-flash-lite"
 
 
 # ==============================================================================
@@ -290,32 +284,28 @@ class TestScenarioD_OpenAICompat:
     """Tests for Scenario D: OpenAI-Compatible APIs (OpenAI, OpenRouter, etc.)."""
 
     def test_openai_compatible_base_url_and_key(self, clean_env):
-        """Test that FILOMA_FILARAKI_BASE_URL and OPENAI_API_KEY are read."""
+        """Test that FILOMA_FILARAKI_BASE_URL and OPENAI_API_KEY are read for OpenRouter."""
         pytest.importorskip("pydantic_ai", reason="pydantic_ai not installed")
 
         from filoma.filaraki.agent import FilarakiAgent
 
-        # Set OpenAI-compatible environment like .env_example
+        # Set OpenRouter environment (uses OpenRouterProvider now)
         os.environ["FILOMA_FILARAKI_BASE_URL"] = "https://openrouter.ai/api/v1"
         os.environ["OPENAI_API_KEY"] = "test_openrouter_key_12345"
         os.environ["FILOMA_FILARAKI_MODEL"] = "anthropic/claude-3.5-sonnet"
 
-        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_model_class, patch(
-            "pydantic_ai.providers.openai.OpenAIProvider"
-        ) as mock_provider_class:
+        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_model_class, patch("pydantic_ai.providers.openrouter.OpenRouterProvider") as mock_provider_class:
             mock_provider_class.return_value = MagicMock()
             mock_model_class.return_value = MagicMock()
             agent = FilarakiAgent()
 
-            # Verify agent was created
+            # Verify agent was created and correct provider was used
             assert agent is not None
-            # Verify model was called
             assert mock_model_class.called
+            assert mock_provider_class.called
 
-            # Verify the model was called with correct args
             provider_kwargs = mock_provider_class.call_args.kwargs
             assert provider_kwargs.get("api_key") == "test_openrouter_key_12345"
-            assert provider_kwargs.get("base_url") == "https://openrouter.ai/api/v1"
 
     def test_openai_official_api(self, clean_env):
         """Test OpenAI official API configuration."""
@@ -327,9 +317,7 @@ class TestScenarioD_OpenAICompat:
         os.environ["OPENAI_API_KEY"] = "test_openai_key_12345"
         os.environ["FILOMA_FILARAKI_MODEL"] = "gpt-4o-mini"
 
-        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_model_class, patch(
-            "pydantic_ai.providers.openai.OpenAIProvider"
-        ) as mock_provider_class:
+        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_model_class, patch("pydantic_ai.providers.openai.OpenAIProvider") as mock_provider_class:
             mock_provider_class.return_value = MagicMock()
             mock_model_class.return_value = MagicMock()
             FilarakiAgent()
@@ -374,9 +362,7 @@ class TestGenericEnvVarAndResource:
         os.environ["FILOMA_FILARAKI_API_KEY"] = "generic_api_key_12345"
         os.environ["FILOMA_FILARAKI_MODEL"] = "custom-model"
 
-        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_model_class, patch(
-            "pydantic_ai.providers.openai.OpenAIProvider"
-        ) as mock_provider_class:
+        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_model_class, patch("pydantic_ai.providers.openai.OpenAIProvider") as mock_provider_class:
             mock_provider_class.return_value = MagicMock()
             mock_model_class.return_value = MagicMock()
             FilarakiAgent()
@@ -419,9 +405,7 @@ class TestConfigurationPriority:
         os.environ["MISTRAL_API_KEY"] = "mistral_key"
         os.environ["FILOMA_FILARAKI_BASE_URL"] = "http://localhost:11434/v1"
 
-        with patch("socket.socket") as mock_socket, patch(
-            "pydantic_ai.models.openai.OpenAIChatModel"
-        ) as mock_ollama_model:
+        with patch("socket.socket") as mock_socket, patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_ollama_model:
             # Simulate Ollama is running (socket connection succeeds)
             mock_conn = MagicMock()
             mock_conn.connect_ex.return_value = 0
@@ -444,9 +428,7 @@ class TestConfigurationPriority:
         os.environ["MISTRAL_API_KEY"] = "mistral_key"
         os.environ["GEMINI_API_KEY"] = "gemini_key"
 
-        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_mistral, patch(
-            "pydantic_ai.models.google.GoogleModel"
-        ) as mock_gemini:
+        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_mistral, patch("pydantic_ai.models.google.GoogleModel") as mock_gemini:
             mock_mistral.return_value = MagicMock()
             mock_gemini.return_value = MagicMock()
             FilarakiAgent()
@@ -465,9 +447,7 @@ class TestConfigurationPriority:
         os.environ["FILOMA_FILARAKI_BASE_URL"] = "https://api.openai.com/v1"
         os.environ["OPENAI_API_KEY"] = "openai_key"
 
-        with patch("pydantic_ai.models.google.GoogleModel") as mock_gemini, patch(
-            "pydantic_ai.models.openai.OpenAIChatModel"
-        ) as mock_openai:
+        with patch("pydantic_ai.models.google.GoogleModel") as mock_gemini, patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_openai:
             mock_gemini.return_value = MagicMock()
             mock_openai.return_value = MagicMock()
             FilarakiAgent()
@@ -500,9 +480,7 @@ class TestConfigurationPriority:
         os.environ["FILOMA_FILARAKI_BASE_URL"] = "https://env-base-url.com/v1"
         os.environ["OPENAI_API_KEY"] = "api_key"
 
-        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_model, patch(
-            "pydantic_ai.providers.openai.OpenAIProvider"
-        ) as mock_provider_class:
+        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_model, patch("pydantic_ai.providers.openai.OpenAIProvider") as mock_provider_class:
             mock_provider_class.return_value = MagicMock()
             mock_model.return_value = MagicMock()
 
@@ -521,9 +499,7 @@ class TestConfigurationPriority:
         os.environ["OPENAI_API_KEY"] = "env_api_key"
         os.environ["FILOMA_FILARAKI_BASE_URL"] = "https://api.openai.com/v1"
 
-        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_model, patch(
-            "pydantic_ai.providers.openai.OpenAIProvider"
-        ) as mock_provider_class:
+        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_model, patch("pydantic_ai.providers.openai.OpenAIProvider") as mock_provider_class:
             mock_provider_class.return_value = MagicMock()
             mock_model.return_value = MagicMock()
 
@@ -643,9 +619,7 @@ class TestRealAPIIntegration:
         if not os.getenv("OPENAI_API_KEY"):
             pytest.skip("OPENAI_API_KEY not set in environment")
 
-        if not os.getenv("FILOMA_FILARAKI_BASE_URL") or "openrouter" not in os.getenv(
-            "FILOMA_FILARAKI_BASE_URL", ""
-        ):
+        if not os.getenv("FILOMA_FILARAKI_BASE_URL") or "openrouter" not in os.getenv("FILOMA_FILARAKI_BASE_URL", ""):
             pytest.skip("FILOMA_FILARAKI_BASE_URL must be set to OpenRouter URL")
 
         agent = get_agent()
@@ -667,8 +641,6 @@ class TestErrorHandling:
     def test_no_config_warning_message(self, clean_env, caplog):
         """Test warning message when no AI configuration is found."""
         pytest.importorskip("pydantic_ai", reason="pydantic_ai not installed")
-
-
 
         from filoma.filaraki.agent import FilarakiAgent
 

@@ -55,7 +55,7 @@ Whether you're auditing a machine-learning dataset, tracking down duplicates acr
 - **🌐 MCP Server**: Expose all 21 filesystem tools to any MCP-compatible AI assistant ([nanobot](https://github.com/HKUDS/nanobot) recommended). [📖 **MCP Configuration →**](docs/guides/filaraki.md#mcp-server-configuration)
 
 > **🍃 Talk to your filesystem:** `filoma filaraki chat` — ask questions about your data in plain English. Find duplicates, audit datasets, export HTML reports — all from one conversation. [Try it →](docs/guides/filaraki.md)
-
+>
 > **🎯 Local AI in 10 seconds:** `curl -sL https://raw.githubusercontent.com/kalfasyan/filoma/main/scripts/install.sh | sh` → Use with [nanobot](https://github.com/HKUDS/nanobot) + [Ollama](https://ollama.com) for fully local filesystem analysis. [Learn more →](docs/guides/filaraki.md#nanobot--ollama-setup)
 
 <p align="center">
@@ -122,6 +122,7 @@ Filo(
     ...
 )
 ```
+
 </details>
 
 For images, `probe_image` automatically extracts shapes, types, and pixel statistics.
@@ -332,9 +333,19 @@ Filaraki ("little leaf" / "little buddy" in Greek) is Filoma's agentic interface
 
 ### Interactive Chat CLI
 
+The fastest way to get started is with the **setup wizard**, which configures your AI provider and writes a `.env` file:
+
+```bash
+bash scripts/setup_env.sh
+```
+
+Then start chatting:
+
 ```bash
 filoma filaraki chat
 ```
+
+> 💡 The `.env` file is automatically loaded — no need for `--env-file` or `export` commands.
 
 ### Programmatic Usage
 
@@ -351,12 +362,14 @@ await agent.run("Sort dataframe by size descending and show top 5")
 
 Filaraki supports multiple providers — pick whatever fits your setup:
 
-| Provider | Requires | Privacy |
-|---|---|---|
-| **Ollama** (default) | `ollama serve` on `localhost:11434` | 🔒 100% local |
-| **Mistral AI** | `MISTRAL_API_KEY` | Cloud |
-| **Google Gemini** | `GEMINI_API_KEY` | Cloud |
-| **OpenAI / OpenRouter / compatible** | `FILOMA_FILARAKI_BASE_URL` + `OPENAI_API_KEY` | Cloud |
+| Provider                             | Requires                                      | Privacy       |
+| ------------------------------------ | --------------------------------------------- | ------------- |
+| **Ollama** (default)                 | `ollama serve` on `localhost:11434`           | 🔒 100% local |
+| **Mistral AI**                       | `MISTRAL_API_KEY`                             | Cloud         |
+| **Google Gemini**                    | `GEMINI_API_KEY`                              | Cloud         |
+| **OpenAI / OpenRouter / compatible** | `FILOMA_FILARAKI_BASE_URL` + `OPENAI_API_KEY` | Cloud         |
+
+> 🎯 **Quick setup:** Run `bash scripts/setup_env.sh` to configure any provider interactively.
 
 [📖 Full AI configuration guide →](docs/guides/filaraki.md#ai-model-configuration)
 
@@ -409,10 +422,10 @@ filoma mcp serve
 
 ## 📊 Performance & Benchmarks
 
-| Backend | Local SSD (1M files) | Network (200K files) |
-|---|---|---|
-| 🦀 **Rust** | 7.3s — 136K files/sec | 2.3s — 86K files/sec |
-| ⚡ **Async** | 11.5s — 87K files/sec | 2.8s — 70K files/sec |
+| Backend       | Local SSD (1M files)  | Network (200K files)  |
+| ------------- | --------------------- | --------------------- |
+| 🦀 **Rust**   | 7.3s — 136K files/sec | 2.3s — 86K files/sec  |
+| ⚡ **Async**  | 11.5s — 87K files/sec | 2.8s — 70K files/sec  |
 | 🐍 **Python** | 35.5s — 28K files/sec | 15.1s — 13K files/sec |
 
 ```bash

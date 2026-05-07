@@ -34,6 +34,8 @@ def main_callback(
 ) -> None:
     """Filoma - Interactive filesystem profiling and analysis tool."""
     return
+
+
 filaraki_app = typer.Typer(
     name="filaraki",
     help="Intelligent filesystem analysis using AI",

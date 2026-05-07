@@ -59,7 +59,7 @@ async def test_new_orchestrator_tools():
         # Create a couple of test files
         (temp_path / "test1.txt").write_text("This is test file 1")
         (temp_path / "test2.txt").write_text("This is test file 2")
-        (temp_path / "corrupt.bin").write_bytes(b'\x00' * 10)  # Zero-byte-like file
+        (temp_path / "corrupt.bin").write_bytes(b"\x00" * 10)  # Zero-byte-like file
 
         from filoma.filaraki.tools import assess_migration_readiness, audit_corrupted_files, generate_hygiene_report
 

@@ -9,6 +9,20 @@ from pydantic_ai import Agent, ModelSettings, RunContext
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models import Model
 
+# Patch openai models to accept non-standard service_tier values (e.g. 'standard')
+# returned by providers like OpenRouter.  Without this, the openai library's Literal
+# validation rejects any value outside {'auto','default','flex','scale','priority'}.
+try:
+    from openai.types.chat.chat_completion import ChatCompletion
+    from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
+
+    ChatCompletion.model_fields["service_tier"].annotation = Optional[str]
+    ChatCompletion.model_rebuild()
+    ChatCompletionChunk.model_fields["service_tier"].annotation = Optional[str]
+    ChatCompletionChunk.model_rebuild()
+except Exception:
+    pass
+
 try:
     from dotenv import load_dotenv
 
@@ -302,7 +316,8 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
         env_api_key = api_key or os.getenv("FILOMA_FILARAKI_API_KEY")
 
         # SCENARIO 1: Ollama (Local - Priority 1)
-        # Check if Ollama is explicitly configured or auto-detect running on localhost
+        # Check if Ollama is explicitly configured or auto-detect running on localhost.
+        # Auto-detection is skipped when another cloud provider is explicitly configured.
         ollama_base_url = env_base_url
         is_ollama = False
 
@@ -310,28 +325,36 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
             # Explicit configuration provided
             is_ollama = "localhost:11434" in ollama_base_url or "ollama" in ollama_base_url
         else:
-            # Auto-detect: Check if Ollama is running on default port
-            try:
-                import socket
+            # Only auto-detect Ollama if no cloud provider API key is configured
+            has_cloud_key = any(
+                [
+                    os.getenv("MISTRAL_API_KEY"),
+                    os.getenv("GEMINI_API_KEY"),
+                    os.getenv("OPENAI_API_KEY"),
+                    os.getenv("OPENROUTER_API_KEY"),
+                ]
+            )
+            if not has_cloud_key:
+                try:
+                    import socket
 
-                # Quick check if Ollama is listening on localhost:11434
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.settimeout(0.5)
-                result = sock.connect_ex(("localhost", 11434))
-                sock.close()
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.settimeout(0.5)
+                    result = sock.connect_ex(("localhost", 11434))
+                    sock.close()
 
-                if result == 0:
-                    ollama_base_url = "http://localhost:11434/v1"
-                    is_ollama = True
-                    logger.debug("Auto-detected Ollama running on localhost:11434")
-            except Exception:
-                pass
+                    if result == 0:
+                        ollama_base_url = "http://localhost:11434/v1"
+                        is_ollama = True
+                        logger.debug("Auto-detected Ollama running on localhost:11434")
+                except Exception:
+                    pass
 
         if is_ollama:
             from pydantic_ai.models.openai import OpenAIChatModel
             from pydantic_ai.providers.ollama import OllamaProvider
 
-            m_name = env_model or "qwen2.5:14b"
+            m_name = env_model or "gemma4:e4b"
 
             # Strip 'ollama:' prefix if present
             if m_name.startswith("ollama:"):
@@ -360,7 +383,7 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
         # SCENARIO 3: Google Gemini (Cloud - Priority 3)
         gemini_key = os.getenv("GEMINI_API_KEY")
         if gemini_key:
-            m_name = env_model or "gemini-1.5-flash"
+            m_name = env_model or "gemini-3.1-flash-lite"
             logger.info(f"Using Google Gemini with model '{m_name}' (GEMINI_API_KEY found).")
 
             from pydantic_ai.models.google import GoogleModel
@@ -370,19 +393,26 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
         # SCENARIO 4: OpenAI-compatible / Custom Base URL (Priority 4)
         if env_base_url:
             from pydantic_ai.models.openai import OpenAIChatModel
-            from pydantic_ai.providers.openai import OpenAIProvider
 
             m_name = env_model or "gpt-4o-mini"
             openai_key = env_api_key or os.getenv("OPENAI_API_KEY")
 
-            logger.info(f"Using OpenAI-compatible API at {env_base_url} with model: {m_name}")
-            provider = OpenAIProvider(base_url=env_base_url, api_key=openai_key)
+            if "openrouter.ai" in env_base_url:
+                from pydantic_ai.providers.openrouter import OpenRouterProvider
+
+                provider = OpenRouterProvider(api_key=openai_key)
+                logger.info(f"Using OpenRouter with model: {m_name}")
+            else:
+                from pydantic_ai.providers.openai import OpenAIProvider
+
+                provider = OpenAIProvider(base_url=env_base_url, api_key=openai_key)
+                logger.info(f"Using OpenAI-compatible API at {env_base_url} with model: {m_name}")
             return OpenAIChatModel(model_name=m_name, provider=provider)
 
-        # Default Fallback: Ollama with qwen2.5:14b
-        logger.warning("No AI configuration found. Defaulting to local Ollama with 'qwen2.5:14b'.")
-        logger.warning("Make sure Ollama is running: ollama serve && ollama pull qwen2.5:14b")
-        return "qwen2.5:14b"
+        # Default Fallback: Ollama with gemma4:e4b
+        logger.warning("No AI configuration found. Defaulting to local Ollama with 'gemma4:e4b'.")
+        logger.warning("Make sure Ollama is running: ollama serve && ollama pull gemma4:e4b")
+        return "gemma4:e4b"
 
     async def run(
         self,

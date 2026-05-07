@@ -29,6 +29,7 @@ class Dataset:
         """Perform a directory profile."""
         if self._cached_probe_result is None:
             from . import probe
+
             self._cached_probe_result = probe(str(self.root_path), **kwargs)
         return self._cached_probe_result
 
@@ -36,6 +37,7 @@ class Dataset:
         """Convert the dataset scan into a polars DataFrame."""
         if self._df is None:
             from . import probe_to_df
+
             self._df = probe_to_df(str(self.root_path), **kwargs)
         return self._df
 
@@ -57,16 +59,14 @@ class Dataset:
         import os
 
         from .dedup import find_duplicates
-        paths = [
-            os.path.join(root, fname)
-            for root, _, files in os.walk(str(self.root_path))
-            for fname in files
-        ]
+
+        paths = [os.path.join(root, fname) for root, _, files in os.walk(str(self.root_path)) for fname in files]
         return find_duplicates(paths, **kwargs)
 
     def get_brain(self) -> Any:
         """Access the agentic AI tool for this dataset."""
         from .brain.agent import get_agent
+
         return get_agent()
 
     def invalidate_cache(self) -> None:
