@@ -12,11 +12,11 @@ Deliver advanced agentic features through a reliability-first rollout: stabilize
 
 3. Phase 2: Deterministic workflow orchestration (depends on 2)
    Implement high-level orchestrator tools for:
-   - Corrupted file audit
-   - Dataset hygiene report
-   - Migration readiness report
 
-   All outputs must be typed/structured with status, evidence, confidence, and recommended actions.
+- Corrupted file audit
+- Dataset hygiene report
+- Migration readiness report
+  All outputs must be typed/structured with status, evidence, confidence, and recommended actions.
 
 4. Phase 3: Lightweight statistical intelligence (depends on 3)
    Add core statistical detection without heavy dependencies first (z-score/MAD outliers, imbalance metrics, numeric correlation where available). Expose this through one stable entrypoint to reduce prompt/tool fragility.
@@ -37,9 +37,11 @@ Deliver advanced agentic features through a reliability-first rollout: stabilize
 
 1. Sequential critical path: Phase 1 -> Phase 2 -> Phase 3.
 2. Parallelizable after Phase 2 interfaces settle:
-   - Phase 4 (optional advanced stats)
-   - Phase 5 (lifecycle intelligence)
-   - Phase 6 (docs/UX updates)
+
+- Phase 4 (optional advanced stats)
+- Phase 5 (lifecycle intelligence)
+- Phase 6 (docs/UX updates)
+
 3. Phase 7 starts only after all in-scope phases complete.
 
 **Relevant files**
