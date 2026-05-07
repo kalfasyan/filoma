@@ -264,7 +264,7 @@ class TestScenarioC_Gemini:
         from filoma.filaraki.agent import FilarakiAgent
 
         os.environ["GEMINI_API_KEY"] = "test_key"
-        # Don't set FILOMA_FILARAKI_MODEL - should default to gemini-1.5-flash
+        # Don't set FILOMA_FILARAKI_MODEL - should default to gemini-3.1-flash-lite
 
         with patch("pydantic_ai.models.google.GoogleModel") as mock_model_class:
             mock_model_class.return_value = MagicMock()
@@ -272,7 +272,7 @@ class TestScenarioC_Gemini:
 
             # Check that the model was called with default model name
             call_kwargs = mock_model_class.call_args.kwargs
-            assert call_kwargs.get("model_name") == "gemini-1.5-flash"
+            assert call_kwargs.get("model_name") == "gemini-3.1-flash-lite"
 
 
 # ==============================================================================
@@ -284,30 +284,28 @@ class TestScenarioD_OpenAICompat:
     """Tests for Scenario D: OpenAI-Compatible APIs (OpenAI, OpenRouter, etc.)."""
 
     def test_openai_compatible_base_url_and_key(self, clean_env):
-        """Test that FILOMA_FILARAKI_BASE_URL and OPENAI_API_KEY are read."""
+        """Test that FILOMA_FILARAKI_BASE_URL and OPENAI_API_KEY are read for OpenRouter."""
         pytest.importorskip("pydantic_ai", reason="pydantic_ai not installed")
 
         from filoma.filaraki.agent import FilarakiAgent
 
-        # Set OpenAI-compatible environment like .env_example
+        # Set OpenRouter environment (uses OpenRouterProvider now)
         os.environ["FILOMA_FILARAKI_BASE_URL"] = "https://openrouter.ai/api/v1"
         os.environ["OPENAI_API_KEY"] = "test_openrouter_key_12345"
         os.environ["FILOMA_FILARAKI_MODEL"] = "anthropic/claude-3.5-sonnet"
 
-        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_model_class, patch("pydantic_ai.providers.openai.OpenAIProvider") as mock_provider_class:
+        with patch("pydantic_ai.models.openai.OpenAIChatModel") as mock_model_class, patch("pydantic_ai.providers.openrouter.OpenRouterProvider") as mock_provider_class:
             mock_provider_class.return_value = MagicMock()
             mock_model_class.return_value = MagicMock()
             agent = FilarakiAgent()
 
-            # Verify agent was created
+            # Verify agent was created and correct provider was used
             assert agent is not None
-            # Verify model was called
             assert mock_model_class.called
+            assert mock_provider_class.called
 
-            # Verify the model was called with correct args
             provider_kwargs = mock_provider_class.call_args.kwargs
             assert provider_kwargs.get("api_key") == "test_openrouter_key_12345"
-            assert provider_kwargs.get("base_url") == "https://openrouter.ai/api/v1"
 
     def test_openai_official_api(self, clean_env):
         """Test OpenAI official API configuration."""

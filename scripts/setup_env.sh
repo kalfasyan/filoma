@@ -120,7 +120,7 @@ setup_ollama() {
     print_info "Make sure Ollama is running: ollama serve"
     echo ""
 
-    prompt_input "Model name" "qwen2.5:14b" "MODEL"
+    prompt_input "Model name" "gemma4:e4b" "MODEL"
     prompt_input "Base URL (leave empty for auto-detection)" "" "BASE_URL"
 
     # Write .env
@@ -129,12 +129,12 @@ setup_ollama() {
     if [ -n "$BASE_URL" ]; then
         write_env "FILOMA_FILARAKI_BASE_URL=${BASE_URL}"
     else
-        write_env "# FILOMA_FILARAKI_BASE_URL=http://localhost:11434/v1  # Auto-detected"
+        write_env "FILOMA_FILARAKI_BASE_URL=http://localhost:11434/v1"
     fi
 
     echo ""
     print_success "Ollama configured with model: ${MODEL}"
-    print_info "Recommended models: qwen2.5:14b, dolphincoder, codellama, deepseek-coder"
+    print_info "Recommended models: gemma4:e4b, qwen2.5:14b, deepseek-coder, codellama"
     print_info "Pull your model: ollama pull ${MODEL}"
 }
 
@@ -171,7 +171,7 @@ setup_gemini() {
     if [ -z "$API_KEY" ]; then
         print_warning "No API key provided. You'll need to set GEMINI_API_KEY before using filoma."
     fi
-    prompt_input "Model name" "gemini-1.5-flash" "MODEL"
+    prompt_input "Model name" "gemini-3.1-flash-lite" "MODEL"
 
     # Write .env
     write_env "# Filoma Filaraki - Google Gemini"
@@ -270,11 +270,10 @@ print_final() {
     echo -e "  ${BOLD}Next steps:${NC}"
     echo ""
     echo -e "  1. Start chatting:"
-    echo -e "     ${BLUE}uv run --env-file .env filoma filaraki chat${NC}"
+    echo -e "     ${BLUE}uv run filoma filaraki chat${NC}"
     echo ""
-    echo -e "  2. Or export variables to your shell:"
-    echo -e "     ${BLUE}export \$(cat .env | grep -v '^#' | xargs)${NC}"
-    echo -e "     ${BLUE}uvx filoma filaraki chat${NC}"
+    echo -e "  2. Or if filoma is already installed in your active environment:"
+    echo -e "     ${BLUE}filoma filaraki chat${NC}"
     echo ""
     echo -e "  3. For persistent configuration, add exports to your shell profile"
     echo -e "     (e.g. ~/.bashrc, ~/.zshrc)."

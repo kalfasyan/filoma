@@ -15,30 +15,41 @@ Filoma Filaraki provides an intelligent AI agent for filesystem analysis using [
 
 > **Which AI service should I use?**
 >
-> | Provider | Requires | Privacy |
-> |---|---|---|
-> | **Ollama** (auto-detected, default) | `ollama serve` on `localhost:11434` | 🔒 100% local |
-> | **Mistral AI** | `MISTRAL_API_KEY` | Cloud |
-> | **Google Gemini** | `GEMINI_API_KEY` | Cloud |
-> | **OpenAI / OpenRouter / any OpenAI-compatible** | `FILOMA_FILARAKI_BASE_URL` + `OPENAI_API_KEY` | Cloud |
+> | Provider                                        | Requires                                      | Privacy       |
+> | ----------------------------------------------- | --------------------------------------------- | ------------- |
+> | **Ollama** (auto-detected, default)             | `ollama serve` on `localhost:11434`           | 🔒 100% local |
+> | **Mistral AI**                                  | `MISTRAL_API_KEY`                             | Cloud         |
+> | **Google Gemini**                               | `GEMINI_API_KEY`                              | Cloud         |
+> | **OpenAI / OpenRouter / any OpenAI-compatible** | `FILOMA_FILARAKI_BASE_URL` + `OPENAI_API_KEY` | Cloud         |
 >
 > All four are supported out-of-the-box. See [AI Model Configuration](#ai-model-configuration) for full details.
+
+### Setup Wizard (Recommended)
+
+The easiest way to configure your AI provider is with the interactive setup wizard:
+
+```bash
+bash scripts/setup_env.sh
+```
+
+It walks you through selecting a provider, entering your API key, and choosing a model. The result is a `.env` file that is automatically loaded when you start the chat.
 
 ### Interactive Chat
 
 ```bash
-# Start the chat interface (auto-detects Ollama on localhost:11434)
+# Start the chat interface
 filoma filaraki chat
 
-# Or use uv
-uvx filoma filaraki chat
+# Or with uv
+uv run filoma filaraki chat
 ```
 
-> ⚠️ **Using `.env`?** With `uvx` the `.env` file is **not** automatically loaded. Export variables in your shell first, or use `uv run --env-file .env filoma filaraki chat` instead.
+> 💡 The `.env` file is automatically loaded by filoma — no need for `--env-file` flags or manual `export` commands.
 
-**Prerequisites for Ollama (if auto-detected):**
+**Prerequisites for Ollama (if using local models):**
+
 ```bash
-ollama pull qwen2.5:14b
+ollama pull gemma4:e4b
 ollama serve
 ```
 
@@ -84,7 +95,7 @@ Edit `~/.nanobot/config.json` and set the following:
   "agents": {
     "defaults": {
       "provider": "ollama",
-      "model": "qwen2.5:14b"
+      "model": "gemma4:e4b"
     }
   },
   "providers": {
@@ -100,11 +111,11 @@ Edit `~/.nanobot/config.json` and set the following:
 Make sure Ollama is running and the model is pulled before starting nanobot:
 
 ```bash
-ollama pull qwen2.5:14b
+ollama pull gemma4:e4b
 ollama serve
 ```
 
-> ⚠️ **Model recommendation:** Avoid Llama 3 for tool-calling. Qwen 2.5 is significantly better at it.
+> ⚠️ **Model recommendation:** Avoid Llama 3 for tool-calling. Gemma 4 and Qwen 2.5 are significantly better at it.
 
 ### 3. Connect Filoma as an MCP Tool Server
 
@@ -129,6 +140,7 @@ nanobot agent -m "probe directory ~/my/folder"
 Use `--logs` when troubleshooting — it shows tool calls and any errors clearly.
 
 **Example queries:**
+
 - "How many files are in ~/my_project?"
 - "Find all duplicate images in ./data"
 - "Create a dataframe from this directory and show me the largest files"
@@ -154,18 +166,21 @@ uv run python -m filoma.mcp_server
 ## Available Tools (21 Total)
 
 ### Directory Analysis
+
 - **`count_files`** - Full recursive scan counting all files/folders
 - **`probe_directory`** - Scan directory for summary statistics with top extensions
 - **`get_directory_tree`** - List immediate directory contents (non-recursive)
 - **`find_duplicates`** - Find duplicate files in a directory
 
 ### File Operations
+
 - **`get_file_info`** - Detailed file metadata (JSON)
 - **`search_files`** - Search by pattern, extension, or size (loads DataFrame)
 - **`open_file`** - Display file to user's terminal (bat/cat)
 - **`read_file`** - Read file content for analysis (with line numbers)
 
 ### Dataset & DataFrame
+
 - **`create_dataset_dataframe`** - Create metadata DataFrame from directory
 - **`filter_by_extension`** - Filter DataFrame by file extension(s)
 - **`filter_by_pattern`** - Filter DataFrame by regex pattern
@@ -175,15 +190,18 @@ uv run python -m filoma.mcp_server
 - **`export_dataframe`** - Export to CSV/JSON/Parquet (only write operation)
 
 ### Image Analysis
+
 - **`analyze_image`** - Get image shape, dtype, statistics
 - **`preview_image`** - Generate visual preview (ANSI color blocks or ASCII)
 
 ### Data Quality
+
 - **`audit_corrupted_files`** - Find corrupted/zero-byte files
 - **`generate_hygiene_report`** - Quality metrics and issues
 - **`assess_migration_readiness`** - Dataset migration assessment
 
 ### Utilities
+
 - **`list_available_tools`** - Show all available tools with descriptions
 
 ## AI Model Configuration
@@ -199,7 +217,7 @@ Filoma Filaraki supports multiple AI backends with **Ollama as the default**, pr
 
 ### Ollama (Local - Default, Recommended)
 
-**Auto-detection:** Filoma will automatically detect Ollama running on `localhost:11434` and use `qwen2.5:14b` as the default model.
+**Auto-detection:** Filoma will automatically detect Ollama running on `localhost:11434` and use `gemma4:e4b` as the default model. Auto-detection is skipped if a cloud provider API key is already configured.
 
 ```bash
 # Just start filoma - it will auto-detect Ollama
@@ -207,19 +225,21 @@ filoma filaraki chat
 ```
 
 **If Ollama runs on a different host/port:**
+
 ```bash
 export FILOMA_FILARAKI_BASE_URL="http://localhost:11434/v1"
-export FILOMA_FILARAKI_MODEL="qwen2.5:14b"
+export FILOMA_FILARAKI_MODEL="gemma4:e4b"
 filoma filaraki chat
 ```
 
 **Setup:**
+
 ```bash
-ollama pull qwen2.5:14b
+ollama pull gemma4:e4b
 ollama serve
 ```
 
-> 💡 **Why qwen2.5:14b?** It has excellent tool-calling capabilities, runs well on consumer hardware, and respects your privacy.
+> 💡 **Why gemma4:e4b?** It has excellent tool-calling capabilities, runs well on consumer hardware, and respects your privacy.
 
 ### Mistral AI (Cloud)
 
@@ -238,7 +258,7 @@ export GEMINI_API_KEY="your-api-key"
 filoma filaraki chat
 
 # Optional: override default model
-export FILOMA_FILARAKI_MODEL="gemini-1.5-flash"
+export FILOMA_FILARAKI_MODEL="gemini-3.1-flash-lite"
 ```
 
 ### OpenAI-Compatible (Generic)
@@ -246,6 +266,7 @@ export FILOMA_FILARAKI_MODEL="gemini-1.5-flash"
 Use any OpenAI-compatible API endpoint including OpenAI, OpenRouter, Together AI, Azure OpenAI, etc.
 
 **OpenAI:**
+
 ```bash
 export FILOMA_FILARAKI_BASE_URL="https://api.openai.com/v1"
 export OPENAI_API_KEY="your-api-key"
@@ -253,6 +274,7 @@ filoma filaraki chat
 ```
 
 **OpenRouter (access to multiple models):**
+
 ```bash
 export FILOMA_FILARAKI_BASE_URL="https://openrouter.ai/api/v1"
 export OPENAI_API_KEY="your-openrouter-key"
@@ -277,7 +299,13 @@ agent = get_agent(model=model)
 
 ## Environment Configuration File
 
-For local development, copy `.env_example` to `.env`:
+The recommended way to create your `.env` is with the setup wizard:
+
+```bash
+bash scripts/setup_env.sh
+```
+
+Alternatively, copy `.env_example` to `.env` manually:
 
 ```bash
 cp .env_example .env
@@ -287,7 +315,7 @@ Then edit `.env` and uncomment only ONE scenario:
 
 ```bash
 # Ollama (Default - recommended)
-FILOMA_FILARAKI_MODEL=qwen2.5:14b
+FILOMA_FILARAKI_MODEL=gemma4:e4b
 
 # Or for cloud providers, set the API key:
 # MISTRAL_API_KEY=your_key_here
@@ -296,7 +324,7 @@ FILOMA_FILARAKI_MODEL=qwen2.5:14b
 # FILOMA_FILARAKI_BASE_URL=https://api.openai.com/v1
 ```
 
-> ⚠️ **Note:** When using `uvx`, environment variables from `.env` are not automatically loaded. Export them in your shell or use `uv run` with `--env-file .env`.
+> ⚠️ **Note:** When using `uvx`, environment variables from `.env` are not automatically loaded. Use `uv run filoma filaraki chat` instead, or export them in your shell.
 
 ## Example Workflows
 
@@ -321,6 +349,7 @@ User: perform an audit on /data/images and export a markdown report called audit
 ```
 
 ### Dataset Audit (Inline)
+
 ```
 User: Audit the /data/images directory for corrupted files
 Filaraki: Running audit_corrupted_files...
@@ -329,6 +358,7 @@ Filaraki: Running audit_corrupted_files...
 ```
 
 ### File Analysis Pipeline
+
 ```
 User: Find all JPG files in ./photos
 Filaraki: search_files completed. Found 1,247 JPG files.
@@ -343,6 +373,7 @@ Filaraki: export_dataframe completed. Saved to photos.csv
 ```
 
 ### Codebase Exploration
+
 ```
 User: How many Python files are in this project?
 Filaraki: search_files completed. Found 42 Python files.
@@ -374,21 +405,27 @@ Filoma Filaraki consists of:
 ## Troubleshooting
 
 **Issue**: Agent can't find files
+
 - **Solution**: Check the working directory with `get_directory_tree(".")`
 
 **Issue**: "No DataFrame loaded" error
+
 - **Solution**: Run `search_files` or `create_dataset_dataframe` first
 
 **Issue**: "Make sure Ollama is running" error
+
 - **Solution**: Ensure Ollama is running: `ollama serve` and you have the model: `ollama pull qwen2.5:14b`
 
 **Issue**: Model not responding correctly
+
 - **Solution**: Check API keys are set: `MISTRAL_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, etc.
 
 **Issue**: MCP server not connecting
+
 - **Solution**: Verify the path in your MCP config and ensure uv/pip is available
 
 **Issue**: Tool-calling not working
+
 - **Solution**: Switch to a model with better tool-calling support (qwen2.5:14b, mistral-small)
 
 ## See Also
