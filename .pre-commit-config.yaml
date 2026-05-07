@@ -66,4 +66,4 @@ repos:
     rev: v0.17.2
     hooks:
       - id: markdownlint-cli2
-        exclude: "^notebooks/.*\\.ipynb$"
+        exclude: "^(notebooks/.*\\.ipynb|\\.github/prompts/.*)$"

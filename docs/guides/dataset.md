@@ -18,6 +18,7 @@ ds = flm.Dataset("./path/to/my_dataset")
 The `Dataset` class allows for a fluent API, meaning you can chain operations to build comprehensive workflows.
 
 ### 1. Snapshotting
+
 Capture the state of your dataset with configurable integrity checks.
 
 ```python
@@ -26,6 +27,7 @@ ds.snap(mode="deep")
 ```
 
 ### 2. Quality and Integrity
+
 Perform deep content checks, such as corruption detection and file integrity audits.
 
 ```python
@@ -38,6 +40,7 @@ results = ds.verify(snapshot_path="./manifest.json")
 ```
 
 ### 3. Data Analysis
+
 Convert your dataset into a queryable tabular format.
 
 ```python
@@ -49,6 +52,7 @@ print(df.extension_counts())
 ```
 
 ### 4. Deduplication
+
 Find and handle redundant files across your dataset.
 
 ```python
@@ -57,6 +61,7 @@ duplicates = ds.dedup()
 ```
 
 ### 5. Agentic Exploration
+
 Use the `brain` agent to ask natural language questions about your dataset.
 
 ```python
@@ -65,6 +70,7 @@ ds.get_brain().run("Analyze the file distribution and identify potential data qu
 ```
 
 ## Caching
+
 To improve performance, `Dataset` caches results for `probe()` and `to_dataframe()` calls.
 
 ```python
