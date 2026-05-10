@@ -300,10 +300,10 @@ print(df.extension_counts())
 
 # Agentic interaction with this specific dataset
 result = await ds.get_filaraki().arun("Is there any class imbalance in my dataset?")
-print(result.data)
+print(result.output)
 # Or use the synchronous version (works in Jupyter, IPython, or regular scripts):
 # result = ds.get_filaraki().run("Is there any class imbalance in my dataset?")
-# print(result.data)
+# print(result.output)
 ```
 
 ### Dataset Integrity & Quality
@@ -360,11 +360,11 @@ from filoma.filaraki import get_agent
 
 agent = get_agent()
 result = agent.run("Create a dataframe from notebooks/Weeds-3 with enrichment")
-print(result.data)
+print(result.output)
 result = agent.run("Filter by extension: jpg, png")
-print(result.data)
+print(result.output)
 result = agent.run("Sort dataframe by size descending and show top 5")
-print(result.data)
+print(result.output)
 ```
 
 ### AI Service Options
