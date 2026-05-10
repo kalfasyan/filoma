@@ -139,6 +139,7 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
         model: Optional[Union[str, Model]] = None,
         base_url: Optional[str] = None,
         api_key: Optional[str] = None,
+        working_dir: Optional[str] = None,
     ):
         """Initialize the FilomaAgent.
 
@@ -148,9 +149,11 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
                    or a Model instance.
             base_url: Optional base URL for Ollama.
             api_key: Optional API key (required for Mistral).
+            working_dir: Default working directory for the agent's tools. Defaults to current working directory.
 
         """
         self.model = self._resolve_model(model, base_url, api_key)
+        self.default_working_dir = working_dir or os.getcwd()
 
         self.agent = Agent(
             self.model,
@@ -414,18 +417,61 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
         logger.warning("Make sure Ollama is running: ollama serve && ollama pull gemma4:e4b")
         return "gemma4:e4b"
 
-    async def run(
+    def run(
         self,
         prompt: str,
         deps: Optional[FilarakiDeps] = None,
         message_history: Optional[List[ModelMessage]] = None,
     ) -> Any:
-        """Run the agent with a prompt.
+        """Run the agent synchronously.
 
-        Returns a result object from pydantic-ai.
+        This is a convenience wrapper around :meth:`arun` that uses ``asyncio.run()``
+        internally, or uses the existing event loop when already in an async context
+        (e.g., Jupyter/IPython). Use :meth:`arun` directly if you want to await it
+        explicitly in an async context.
+
+        Args:
+            prompt: The user's prompt/question.
+            deps: Optional dependencies (uses default_working_dir if None).
+            message_history: Optional conversation history for multi-turn dialogues.
+
+        Returns:
+            A result object from pydantic-ai.
+
+        """
+        import asyncio
+        import concurrent.futures
+
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            # No running loop — safe to use asyncio.run()
+            return asyncio.run(self.arun(prompt=prompt, deps=deps, message_history=message_history))
+        else:
+            # Already in an async context (e.g., Jupyter) — run in a thread
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                future = pool.submit(asyncio.run, self.arun(prompt=prompt, deps=deps, message_history=message_history))
+                return future.result()
+
+    async def arun(
+        self,
+        prompt: str,
+        deps: Optional[FilarakiDeps] = None,
+        message_history: Optional[List[ModelMessage]] = None,
+    ) -> Any:
+        """Run the agent asynchronously.
+
+        Args:
+            prompt: The user's prompt/question.
+            deps: Optional dependencies (uses default_working_dir if None).
+            message_history: Optional conversation history for multi-turn dialogues.
+
+        Returns:
+            A result object from pydantic-ai.
+
         """
         if deps is None:
-            deps = FilarakiDeps()
+            deps = FilarakiDeps(working_dir=self.default_working_dir)
 
         # Deterministic settings for tool usage
         settings = ModelSettings(temperature=0.1)

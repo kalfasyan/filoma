@@ -63,11 +63,23 @@ class Dataset:
         paths = [os.path.join(root, fname) for root, _, files in os.walk(str(self.root_path)) for fname in files]
         return find_duplicates(paths, **kwargs)
 
-    def get_brain(self) -> Any:
-        """Access the agentic AI tool for this dataset."""
-        from .brain.agent import get_agent
+    def get_filaraki(self) -> Any:
+        """Access the Filaraki agentic AI tool for this dataset.
 
-        return get_agent()
+        Returns a FilarakiAgent instance configured with this dataset's root path
+        as the default working directory, so all agent tool calls operate on the dataset.
+        """
+        from .filaraki import get_agent
+
+        return get_agent(working_dir=str(self.root_path))
+
+    def get_brain(self) -> Any:
+        """Access the agentic AI tool for this dataset.
+
+        .. deprecated::
+            Use :meth:`get_filaraki` instead.
+        """
+        return self.get_filaraki()
 
     def invalidate_cache(self) -> None:
         """Clear all cached internal states."""

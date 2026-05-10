@@ -48,7 +48,7 @@ async def run_chat_loop(model: Optional[str] = None):
                 continue
 
             with console.status("[bold green]Filaraki is thinking...[/bold green]"):
-                result = await agent.run(user_input, deps=deps, message_history=message_history)
+                result = await agent.arun(user_input, deps=deps, message_history=message_history)
                 message_history = result.new_messages()
 
                 # Extract the final text response from pydantic-ai v1.58.0 AgentRunResult

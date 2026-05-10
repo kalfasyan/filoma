@@ -6,7 +6,7 @@ Integrates PydanticAI to provide an intelligent interface for filesystem analysi
 from typing import Any, Optional
 
 
-def get_agent(model: Optional[Any] = None) -> Any:
+def get_agent(model: Optional[Any] = None, working_dir: Optional[str] = None) -> Any:
     """Get a FilarakiAgent instance.
 
     Args:
@@ -16,8 +16,9 @@ def get_agent(model: Optional[Any] = None) -> Any:
                (2) Mistral AI if MISTRAL_API_KEY is set,
                (3) Google Gemini if GEMINI_API_KEY is set,
                (4) any OpenAI-compatible endpoint if FILOMA_FILARAKI_BASE_URL + OPENAI_API_KEY are set.
+        working_dir: Default working directory for the agent's tools. Defaults to current working directory.
 
     """
     from .agent import FilarakiAgent
 
-    return FilarakiAgent(model=model)
+    return FilarakiAgent(model=model, working_dir=working_dir)

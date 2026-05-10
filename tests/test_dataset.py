@@ -4,6 +4,8 @@ from pathlib import Path
 import pytest
 
 from filoma import Dataset
+from filoma.filaraki import get_agent
+from filoma.filaraki.agent import FilarakiAgent
 
 
 @pytest.fixture
@@ -39,3 +41,19 @@ def test_dataset_basic_operations(temp_dataset):
 def test_dataset_invalid_path():
     with pytest.raises(FileNotFoundError):
         Dataset("/non/existent/path")
+
+
+def test_dataset_get_filaraki(temp_dataset):
+    ds = Dataset(temp_dataset)
+
+    agent = ds.get_filaraki()
+    assert isinstance(agent, FilarakiAgent)
+    # Check resolved paths to handle macOS symlink (/var/folders -> /private/var/folders)
+    assert Path(agent.default_working_dir).resolve() == Path(temp_dataset).resolve()
+
+
+def test_get_agent_working_dir(temp_dataset):
+    agent = get_agent(working_dir=temp_dataset)
+    assert isinstance(agent, FilarakiAgent)
+    # Check resolved paths to handle macOS symlink (/var/folders -> /private/var/folders)
+    assert Path(agent.default_working_dir).resolve() == Path(temp_dataset).resolve()

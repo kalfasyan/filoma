@@ -289,15 +289,21 @@ ds = flm.Dataset("./my_data")
 
 # Snapshot, Quality Scan, and Deduplication
 ds.snap(mode="deep")
-ds.run_quality_scan()
-ds.dedup()
+verifier = ds.run_quality_scan()
+verifier.print_summary()
+dupes = ds.dedup()
+print(dupes)  # {"exact": [...], "text": [...], "image": [...]}
 
 # Get an enriched DataFrame of the dataset
 df = ds.to_dataframe()
 print(df.extension_counts())
 
 # Agentic interaction with this specific dataset
-ds.get_filaraki().run("Is there any class imbalance in my dataset?")
+result = await ds.get_filaraki().arun("Is there any class imbalance in my dataset?")
+print(result.data)
+# Or use the synchronous version (works in Jupyter, IPython, or regular scripts):
+# result = ds.get_filaraki().run("Is there any class imbalance in my dataset?")
+# print(result.data)
 ```
 
 ### Dataset Integrity & Quality
@@ -353,9 +359,12 @@ filoma filaraki chat
 from filoma.filaraki import get_agent
 
 agent = get_agent()
-await agent.run("Create a dataframe from notebooks/Weeds-3 with enrichment")
-await agent.run("Filter by extension: jpg, png")
-await agent.run("Sort dataframe by size descending and show top 5")
+result = agent.run("Create a dataframe from notebooks/Weeds-3 with enrichment")
+print(result.data)
+result = agent.run("Filter by extension: jpg, png")
+print(result.data)
+result = agent.run("Sort dataframe by size descending and show top 5")
+print(result.data)
 ```
 
 ### AI Service Options
