@@ -63,6 +63,85 @@ def filaraki_chat(
     start_chat(model=model)
 
 
+@app.command("chat")
+def chat(
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="AI model to use"),
+) -> None:
+    """Start an interactive Filaraki chat (shorthand for ``filoma filaraki chat``)."""
+    from filoma.filaraki.cli import chat as start_chat
+
+    start_chat(model=model)
+
+
+@app.command("ask")
+def ask_command(
+    prompt: List[str] = typer.Argument(..., help="Your question, e.g. 'how many .py files are here?'"),
+    path: Optional[str] = typer.Option(None, "--path", "-p", help="Directory the agent works against (defaults to cwd)."),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="AI model to use."),
+) -> None:
+    """One-shot Filaraki question — prints the answer and exits.
+
+    Mirrors the Python helper ``filoma.ask(...)``. Useful for scripts and
+    quick one-liners; for back-and-forth use ``filoma chat`` instead.
+
+    Example:
+        filoma ask how many python files are here?
+        filoma ask "audit this dataset" --path ./images
+    """
+    import filoma as flm
+
+    question = " ".join(prompt).strip()
+    if not question:
+        console.print("[red]No question provided.[/red]")
+        raise typer.Exit(code=1)
+
+    result = flm.ask(question, path=path, model=model)
+    output = getattr(result, "output", result)
+    console.print(output)
+
+
+@app.command("setup")
+def setup_command() -> None:
+    """Launch the interactive Filaraki setup wizard.
+
+    Configures provider (Ollama / Mistral / Gemini / OpenAI-compatible) and
+    writes a ``.env`` file in the current directory. Equivalent to running
+    the bundled ``setup_env.sh`` script directly.
+    """
+    import os
+    import shutil
+    import subprocess
+    import sys
+    from importlib.resources import as_file, files
+
+    bash = shutil.which("bash")
+    if bash is None:
+        console.print(
+            "[red]This wizard requires `bash`.[/red] On Windows, run it from "
+            "WSL or Git Bash, or open the file manually:"
+        )
+        console.print("    src/filoma/scripts/setup_env.sh")
+        raise typer.Exit(code=1)
+
+    try:
+        script_resource = files("filoma.scripts").joinpath("setup_env.sh")
+    except (ModuleNotFoundError, FileNotFoundError) as exc:  # pragma: no cover - defensive
+        console.print(f"[red]Could not locate setup script: {exc}[/red]")
+        raise typer.Exit(code=1) from exc
+
+    with as_file(script_resource) as script_path:
+        if not script_path.exists():
+            console.print(f"[red]Setup script not found at {script_path}[/red]")
+            raise typer.Exit(code=1)
+        result = subprocess.run(
+            [bash, str(script_path)],
+            cwd=os.getcwd(),
+            check=False,
+        )
+    if result.returncode != 0:
+        sys.exit(result.returncode)
+
+
 @mcp_app.command("serve")
 def mcp_serve() -> None:
     r"""Start the MCP server for external agent integration.

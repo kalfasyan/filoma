@@ -99,6 +99,7 @@ indent-style = "space"
 python-source = "src"
 module-name = "filoma.filoma_core"
 features = ["pyo3/extension-module"]
+include = ["src/filoma/scripts/setup_env.sh"]
 # to build with maturin, run: maturin develop --bindings pyo3 --release --manifest-path Cargo.toml -v
 
 [tool.pytest.ini_options]

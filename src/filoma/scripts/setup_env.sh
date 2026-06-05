@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Filoma Environment Setup Script
 # Interactive wizard to configure provider and environment variables for filoma filaraki.
-# Usage: bash scripts/setup_env.sh
+# Usage: filoma setup   (preferred)
+#        bash src/filoma/scripts/setup_env.sh   (from a repo checkout)
 
 set -e
 
@@ -113,15 +114,188 @@ select_provider() {
 }
 
 # Setup Ollama
+#
+# Probes likely Ollama hosts (localhost; on WSL2 also the Windows-host
+# default gateway), queries /api/tags to surface models the user has
+# actually pulled, and pre-fills the URL field accordingly. Falls back
+# cleanly when curl is missing or no daemon answers.
 setup_ollama() {
     print_step "Configuring Ollama (local provider)"
     echo ""
     print_info "Ollama runs locally — no API key needed."
-    print_info "Make sure Ollama is running: ollama serve"
-    echo ""
 
-    prompt_input "Model name" "gemma4:e4b" "MODEL"
-    prompt_input "Base URL (leave empty for auto-detection)" "" "BASE_URL"
+    local detected_url=""
+    local detected_models=""
+    local default_model="qwen2.5:7b"   # safe public default with tool calling
+    local candidate
+    local candidates=("http://localhost:11434")
+
+    # On WSL2, also try the Windows host (Ollama frequently runs there).
+    if grep -qiE "microsoft|wsl" /proc/version 2>/dev/null; then
+        local gw
+        gw=$(ip route show default 2>/dev/null | awk '{print $3; exit}')
+        if [ -n "$gw" ] && [ "$gw" != "127.0.0.1" ]; then
+            candidates+=("http://${gw}:11434")
+            print_info "WSL2 detected — also probing Windows host at ${gw}:11434."
+        fi
+    fi
+
+    # Pick the JSON parser: prefer python3 (filoma already requires it),
+    # fall back to a tolerant grep+sed pipeline.
+    parse_models() {
+        local body="$1"
+        if command -v python3 >/dev/null 2>&1; then
+            printf '%s' "$body" | python3 -c "import json,sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+for m in data.get('models', [])[:10]:
+    name = m.get('name') or m.get('model')
+    if name:
+        print(name)"
+        else
+            printf '%s' "$body" \
+                | grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]+"' \
+                | sed -E 's/"name"[[:space:]]*:[[:space:]]*"([^"]+)"/\1/' \
+                | head -10
+        fi
+    }
+
+    # Embedding-only models can't drive chat / tool calls — skip them when
+    # picking the default but still mention them in the visible list.
+    pick_default_model() {
+        local first_chat
+        first_chat=$(printf '%s' "$1" | grep -viE 'embed|embedding' | head -1)
+        if [ -n "$first_chat" ]; then
+            printf '%s' "$first_chat"
+        else
+            printf '%s' "$1" | head -1
+        fi
+    }
+
+    # Validate an Ollama model name. Real names are like "name" or
+    # "namespace/name:tag" — letters/digits with ., _, -, /, : only. No
+    # spaces. Catches the classic typo of pasting a CLI command into the
+    # model prompt.
+    is_valid_model_name() {
+        local name="$1"
+        [ -n "$name" ] && [[ "$name" =~ ^[A-Za-z0-9._/-]+(:[A-Za-z0-9._-]+)?$ ]]
+    }
+
+    # Interactive picker: when we have a list of pulled models, show a
+    # numbered menu (with chat / embedding labels) so users select by
+    # index instead of retyping. Free-text input is still allowed for
+    # models the user plans to ``ollama pull`` next.
+    #
+    # Writes the chosen model name into the variable named by the third
+    # argument via ``printf -v``. Doing this (instead of returning the
+    # value on stdout) keeps the UI prints from being captured by
+    # command substitution at the call site.
+    pick_model_interactive() {
+        local list_csv="$1"     # comma-space separated
+        local default="$2"
+        local outvar="$3"
+        local input
+
+        if [ -z "$list_csv" ]; then
+            # No daemon / no list — fall back to the simple prompt with
+            # validation.
+            while true; do
+                prompt_input "Model name" "$default" "input"
+                if is_valid_model_name "$input"; then
+                    printf -v "$outvar" '%s' "$input"
+                    return
+                fi
+                print_warning "Invalid Ollama model name: '${input}' (no spaces; use name[:tag])."
+            done
+        fi
+
+        # Convert "a, b, c" → indexed array.
+        local IFS_BAK="$IFS"
+        IFS=',' read -ra MODELS <<<"$list_csv"
+        IFS="$IFS_BAK"
+        local i=0
+        local default_index=1
+        local model_trimmed
+        echo ""
+        echo -e "  ${BOLD}Pulled models:${NC}"
+        for raw in "${MODELS[@]}"; do
+            i=$((i + 1))
+            model_trimmed="${raw#"${raw%%[![:space:]]*}"}"
+            MODELS[$((i - 1))]="$model_trimmed"
+            local label=""
+            if [[ "$model_trimmed" =~ embed|embedding ]]; then
+                label=" ${YELLOW}(embedding-only — not suitable for chat)${NC}"
+            fi
+            if [ "$model_trimmed" = "$default" ]; then
+                default_index=$i
+                echo -e "    ${BOLD}${i})${NC} ${model_trimmed}${label} ${CYAN}← default${NC}"
+            else
+                echo -e "    ${BOLD}${i})${NC} ${model_trimmed}${label}"
+            fi
+        done
+        echo -e "    ${BOLD}o)${NC} other (type a different model name to pull later)"
+        echo ""
+
+        while true; do
+            echo -ne "  Pick a model (number or full name) ${YELLOW}[${default_index}: ${default}]${NC}: "
+            read -r input
+            if [ -z "$input" ]; then
+                printf -v "$outvar" '%s' "$default"
+                return
+            fi
+            if [[ "$input" =~ ^[0-9]+$ ]] && [ "$input" -ge 1 ] && [ "$input" -le "${#MODELS[@]}" ]; then
+                printf -v "$outvar" '%s' "${MODELS[$((input - 1))]}"
+                return
+            fi
+            if [[ "$input" =~ ^[oO]$ ]] || [[ "$input" =~ ^[oO]ther$ ]]; then
+                while true; do
+                    echo -ne "  Custom model name (e.g. qwen2.5:7b): "
+                    read -r input
+                    if is_valid_model_name "$input"; then
+                        printf -v "$outvar" '%s' "$input"
+                        return
+                    fi
+                    print_warning "Invalid Ollama model name: '${input}' (no spaces; use name[:tag])."
+                done
+            fi
+            if is_valid_model_name "$input"; then
+                printf -v "$outvar" '%s' "$input"
+                return
+            fi
+            print_warning "Pick a number 1–${#MODELS[@]}, type 'o' for other, or enter a valid model name."
+        done
+    }
+
+    if command -v curl >/dev/null 2>&1; then
+        for candidate in "${candidates[@]}"; do
+            local body
+            body=$(curl -sS --max-time 1.5 "${candidate}/api/tags" 2>/dev/null || true)
+            if [ -n "$body" ] && [[ "$body" == *'"models"'* ]]; then
+                local models_raw
+                models_raw=$(parse_models "$body")
+                if [ -n "$models_raw" ]; then
+                    detected_url="${candidate}/v1"
+                    default_model=$(pick_default_model "$models_raw")
+                    detected_models=$(printf '%s' "$models_raw" | tr '\n' ',' | sed 's/,$//; s/,/, /g')
+                    break
+                fi
+            fi
+        done
+    fi
+
+    echo ""
+    if [ -n "$detected_url" ]; then
+        print_success "Found Ollama at ${detected_url}"
+    else
+        print_info "No Ollama daemon detected. Make sure it's running: ollama serve"
+    fi
+
+    MODEL=""
+    pick_model_interactive "$detected_models" "$default_model" "MODEL"
+    echo ""
+    prompt_input "Base URL (leave empty for auto-detected / localhost)" "$detected_url" "BASE_URL"
 
     # Write .env
     write_env "# Filoma Filaraki - Ollama (Local)"
@@ -134,8 +308,10 @@ setup_ollama() {
 
     echo ""
     print_success "Ollama configured with model: ${MODEL}"
-    print_info "Recommended models: gemma4:e4b, qwen2.5:14b, deepseek-coder, codellama"
-    print_info "Pull your model: ollama pull ${MODEL}"
+    if [ -z "$detected_models" ]; then
+        print_info "Recommended models: qwen2.5:7b, qwen3:8b, llama3.2:3b, deepseek-coder"
+    fi
+    print_info "Pull your model if you haven't already: ollama pull ${MODEL}"
 }
 
 # Setup Mistral
@@ -270,12 +446,15 @@ print_final() {
     echo -e "  ${BOLD}Next steps:${NC}"
     echo ""
     echo -e "  1. Start chatting:"
-    echo -e "     ${BLUE}uv run filoma filaraki chat${NC}"
+    echo -e "     ${BLUE}uv run filoma chat${NC}"
     echo ""
-    echo -e "  2. Or if filoma is already installed in your active environment:"
-    echo -e "     ${BLUE}filoma filaraki chat${NC}"
+    echo -e "  2. Or one-shot from the command line:"
+    echo -e "     ${BLUE}filoma ask \"how many python files are here?\"${NC}"
     echo ""
-    echo -e "  3. For persistent configuration, add exports to your shell profile"
+    echo -e "  3. Or if filoma is already installed in your active environment:"
+    echo -e "     ${BLUE}filoma chat${NC}"
+    echo ""
+    echo -e "  4. For persistent configuration, add exports to your shell profile"
     echo -e "     (e.g. ~/.bashrc, ~/.zshrc)."
     echo ""
     echo -e "  ${CYAN}ℹ${NC} Run this script again anytime to reconfigure."

@@ -59,7 +59,7 @@ Whether you're auditing a machine-learning dataset, tracking down duplicates acr
 - **🖥️ Interactive CLI**: Beautiful terminal interface for filesystem exploration and DataFrame analysis. [📖 **CLI Documentation →**](docs/guides/cli.md)
 - **🌐 MCP Server**: Expose all 21 filesystem tools to any MCP-compatible AI assistant ([nanobot](https://github.com/HKUDS/nanobot) recommended). [📖 **MCP Configuration →**](docs/guides/filaraki.md#mcp-server-configuration)
 
-> **🍃 Talk to your filesystem:** `filoma filaraki chat` — ask questions about your data in plain English. Find duplicates, audit datasets, export HTML reports — all from one conversation. [Try it →](docs/guides/filaraki.md)
+> **🍃 Talk to your filesystem:** `filoma chat` — ask questions about your data in plain English. Find duplicates, audit datasets, export HTML reports — all from one conversation. [Try it →](docs/guides/filaraki.md)
 >
 > **🎯 Local AI in 10 seconds:** `curl -sL https://raw.githubusercontent.com/kalfasyan/filoma/main/scripts/install.sh | sh` → Use with [nanobot](https://github.com/HKUDS/nanobot) + [Ollama](https://ollama.com) for fully local filesystem analysis. [Learn more →](docs/guides/filaraki.md#nanobot--ollama-setup)
 
@@ -95,7 +95,7 @@ writes a self-contained HTML audit report, and opens it in your browser.
 | --- | --- | --- |
 | [`fd`](https://github.com/sharkdp/fd) binary | Faster scans on huge trees | `apt install fd-find` / `brew install fd` |
 | Rust backend | Maximum scan speed | Pre-built wheels on PyPI; rebuild from source if missing |
-| [Ollama](https://ollama.com) | Local `flm.ask(...)` / `filoma filaraki chat` | `curl -fsSL https://ollama.com/install.sh \| sh` |
+| [Ollama](https://ollama.com) | Local `flm.ask(...)` / `filoma chat` | `curl -fsSL https://ollama.com/install.sh \| sh` |
 | Hosted LLM | Cloud-hosted Filaraki | Set `MISTRAL_API_KEY` / `GEMINI_API_KEY` / `OPENAI_API_KEY` |
 
 > 🤖 **Configuring the AI provider?** Don't hand-edit `.env`. Run the
@@ -103,7 +103,7 @@ writes a self-contained HTML audit report, and opens it in your browser.
 > (silent input), and writes a clean `.env` for you:
 >
 > ```bash
-> bash scripts/setup_env.sh
+> filoma setup
 > ```
 >
 > Supports Ollama (local), Mistral, Gemini, OpenAI, OpenRouter, and any
@@ -420,16 +420,18 @@ Filaraki ("little leaf" / "little buddy" in Greek) is Filoma's agentic interface
 The fastest way to get started is with the **setup wizard**, which configures your AI provider and writes a `.env` file:
 
 ```bash
-bash scripts/setup_env.sh
+filoma setup
 ```
 
 Then start chatting:
 
 ```bash
-filoma filaraki chat
+filoma chat                # interactive REPL
+filoma ask "how many .py files are here?"   # one-shot
 ```
 
 > 💡 The `.env` file is automatically loaded — no need for `--env-file` or `export` commands.
+> `filoma filaraki chat` still works as the long form.
 
 ### Programmatic Usage
 
@@ -456,7 +458,7 @@ Filaraki supports multiple providers — pick whatever fits your setup:
 | **Google Gemini**                    | `GEMINI_API_KEY`                              | Cloud         |
 | **OpenAI / OpenRouter / compatible** | `FILOMA_FILARAKI_BASE_URL` + `OPENAI_API_KEY` | Cloud         |
 
-> 🎯 **Quick setup:** Run `bash scripts/setup_env.sh` to configure any provider interactively.
+> 🎯 **Quick setup:** Run `filoma setup` to configure any provider interactively.
 
 [📖 Full AI configuration guide →](docs/guides/filaraki.md#ai-model-configuration)
 
@@ -477,7 +479,7 @@ This installs [nanobot](https://github.com/HKUDS/nanobot) + [Ollama](https://oll
 Run a **full audit** and export a self-contained **interactive HTML report** in one prompt:
 
 ```
-filoma filaraki chat
+filoma chat
 > perform an audit on /path/to/dataset and export an html report called audit.html
 ```
 

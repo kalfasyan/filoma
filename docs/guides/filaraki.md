@@ -29,7 +29,7 @@ Filoma Filaraki provides an intelligent AI agent for filesystem analysis using [
 The easiest way to configure your AI provider is with the interactive setup wizard:
 
 ```bash
-bash scripts/setup_env.sh
+filoma setup
 ```
 
 It walks you through selecting a provider, entering your API key, and choosing a model. The result is a `.env` file that is automatically loaded when you start the chat.
@@ -302,7 +302,7 @@ agent = get_agent(model=model)
 The recommended way to create your `.env` is with the setup wizard:
 
 ```bash
-bash scripts/setup_env.sh
+filoma setup
 ```
 
 Alternatively, copy `.env_example` to `.env` manually:
