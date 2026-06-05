@@ -65,3 +65,4 @@ manifest.json
 # Secret scanning
 .secrets.baseline
 tmp/audit_weeds3_v2.json
+.claude/
