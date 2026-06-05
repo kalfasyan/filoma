@@ -166,6 +166,11 @@ should require editing exactly one file.
 - [ ] **Stage-based `Pipeline`** (see §2.2). `Dataset` becomes a façade.
 - [ ] **Document the backend-selection pattern** as the canonical
       extension point in `docs/reference/architecture.md`.
+- [ ] **Drift guard for bundled skills.** Add a `check-skills` task
+      (poe / Make) that greps each `src/filoma/skills/*/SKILL.md` for
+      the CLI commands and Python helpers it references and asserts
+      they exist. Cleanest once the `ToolRegistry` lands so missing
+      references fail via a single registry lookup. Ref §2.1.
 
 ### Phase 3 — *Dataset CI as a product* (L)  **[ML]**
 
@@ -225,11 +230,23 @@ listed so design discussion has somewhere to live.
 
 ### Phase 6 — *Distribution & community* (M, runs in parallel)
 
+- [x] **Bundled agent skills.** Ship `filoma skills install` plus
+      `SKILL.md` bundles (`filoma-dataset-ci`, `filoma-dedup`,
+      `filoma-explore`) that drop into Claude Code, Claude Desktop, or
+      VS Code chat. Generators for `AGENTS.md` (`filoma skills
+      agents-md`) and Cursor rules (`filoma skills cursor-rules`)
+      cover the rest of the agent ecosystem. See
+      `src/filoma/skills/`.
 - [ ] **One-line installer** already exists for nanobot+Ollama; promote
       it to a top-of-README install option for the agentic flow.
 - [ ] **A dedicated `examples/` notebook per persona** (ML audit, data
       eng exploration, researcher chat) — each runnable end-to-end on a
       tiny sample dataset shipped with the repo.
+- [ ] **Upstream `filoma-dataset-ci` to [anthropics/skills](https://github.com/anthropics/skills).**
+      Pure marketing PR — surfaces filoma to anyone browsing
+      Anthropic's open-source skills repo. No code change.
+- [ ] **List the MCP server in [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-servers).**
+      Add filoma under the "data / files" category. One-line PR.
 - [ ] **Show up where the personas already are**: a short post on a
       relevant ML/data-eng community, focused on the "Dataset CI for ML"
       hook (not on benchmarks).
