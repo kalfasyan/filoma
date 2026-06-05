@@ -126,7 +126,7 @@ files that exist today.
 Goal: a newcomer goes from `pip install filoma` to a working agentic audit
 in under 60 seconds, with no decisions to make.
 
-- [ ] **`filoma demo` CLI command.** Downloads (or ships) a tiny sample
+- [x] **`filoma demo` CLI command.** Downloads (or ships) a tiny sample
       dataset, runs `probe → enrich → verify → dedup → HTML report`, and
       opens the report. One command, no flags.
 - [ ] **Top-level `flm.ask("…")`** convenience that auto-instantiates a
