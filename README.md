@@ -57,11 +57,11 @@ Whether you're auditing a machine-learning dataset, tracking down duplicates acr
 - **🛡️ Dataset Integrity & Quality**: Unified integrity checking for snapshots, manifests, and automated quality scans (corruption, duplicates, leakage, class balance). [📖 **Data Integrity Guide →**](docs/guides/data-integrity.md)
 - **🧠 Agentic Analysis**: Natural language interface for file discovery, deduplication, and metadata inspection. [📖 **Filaraki Guide →**](docs/guides/filaraki.md)
 - **🖥️ Interactive CLI**: Beautiful terminal interface for filesystem exploration and DataFrame analysis. [📖 **CLI Documentation →**](docs/guides/cli.md)
-- **🌐 MCP Server**: Expose all 21 filesystem tools to any MCP-compatible AI assistant ([nanobot](https://github.com/HKUDS/nanobot) recommended). [📖 **MCP Configuration →**](docs/guides/filaraki.md#mcp-server-configuration)
+- **🌐 MCP Server**: Expose all 22 filesystem tools to any MCP-compatible AI assistant ([nanobot](https://github.com/HKUDS/nanobot) recommended). [📖 **MCP Configuration →**](docs/guides/filaraki.md#mcp-server-configuration-with-nanobot)
 
 > **🍃 Talk to your filesystem:** `filoma chat` — ask questions about your data in plain English. Find duplicates, audit datasets, export HTML reports — all from one conversation. [Try it →](docs/guides/filaraki.md)
 >
-> **🎯 Local AI in 10 seconds:** `curl -sL https://raw.githubusercontent.com/kalfasyan/filoma/main/scripts/install.sh | sh` → Use with [nanobot](https://github.com/HKUDS/nanobot) + [Ollama](https://ollama.com) for fully local filesystem analysis. [Learn more →](docs/guides/filaraki.md#nanobot--ollama-setup)
+> **🎯 Local AI in 10 seconds:** `curl -sL https://raw.githubusercontent.com/kalfasyan/filoma/main/scripts/install.sh | sh` → Use with [nanobot](https://github.com/HKUDS/nanobot) + [Ollama](https://ollama.com) for fully local filesystem analysis. [Learn more →](docs/guides/filaraki.md#mcp-server-configuration-with-nanobot)
 
 <p align="center">
     <img src="docs/assets/images/filoma_graph.jpg" alt="Filoma Package Overview" width="800">
@@ -470,7 +470,7 @@ Run Filoma Filaraki **completely offline** with local models via the MCP server:
 curl -sL https://raw.githubusercontent.com/kalfasyan/filoma/main/scripts/install.sh | sh
 ```
 
-This installs [nanobot](https://github.com/HKUDS/nanobot) + [Ollama](https://ollama.com) with Filoma's 21 filesystem tools. No API keys, no cloud — everything stays on your machine.
+This installs [nanobot](https://github.com/HKUDS/nanobot) + [Ollama](https://ollama.com) with Filoma's 22 filesystem tools. No API keys, no cloud — everything stays on your machine.
 
 [📖 Full MCP Configuration Guide →](docs/guides/filaraki.md#mcp-server-configuration-with-nanobot)
 
@@ -499,11 +499,41 @@ Export formats: `html`, `json`, `md`
 
 ### MCP Server
 
-Expose all 21 filesystem tools to any MCP-compatible client:
+Expose all 22 filesystem tools to any MCP-compatible client:
 
 ```bash
 filoma mcp serve
 ```
+
+### Agent Skills
+
+Filoma also ships as **agent skills** — drop-in workflow recipes that
+teach Claude Code, Claude Desktop, VS Code Chat, Cursor, Codex, Aider,
+Copilot's coding agent, and any tool that reads `AGENTS.md` how to use
+filoma effectively. The skills are tiny markdown files; the heavy
+lifting still happens via the existing CLI / Python / MCP surfaces.
+
+```bash
+# See what's bundled
+filoma skills list
+
+# Install into your project (Claude Code / Claude Desktop)
+filoma skills install                 # → .claude/skills/
+filoma skills install --scope user    # → ~/.claude/skills/
+filoma skills install --scope vscode  # → .github/skills/
+
+# Add a filoma block to AGENTS.md (Codex, Cursor, Aider, Copilot, …)
+filoma skills agents-md --write
+
+# Drop a Cursor rule
+filoma skills cursor-rules --write
+```
+
+Three skills ship today: `filoma-dataset-ci` (audit + HTML report),
+`filoma-dedup` (duplicates and train/test leakage), and
+`filoma-explore` (directory questions and metadata DataFrames). Each
+one is auto-discovered by its YAML frontmatter — agents pull the body
+into context only when the user's request matches.
 
 [📖 **Browse all guides →**](docs/guides/index.md)
 

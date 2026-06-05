@@ -5,7 +5,7 @@ Filoma Filaraki provides an intelligent AI agent for filesystem analysis using [
 ## Features
 
 - **Interactive Chat**: Have natural conversations about your filesystem
-- **21 Powerful Tools**: Directory analysis, file operations, data quality checks, image analysis, and more
+- **22 Powerful Tools**: Directory analysis, file operations, data quality checks, image analysis, and more
 - **Smart DataFrames**: Automatically build and manipulate file metadata DataFrames
 - **Read-Only Safety**: Safe analysis that never modifies your files (except export)
 - **Multiple Backends**: Uses Rust (fastest), `fd`, or Python (fallback) for operations
@@ -163,7 +163,7 @@ uv run python -m filoma.mcp_server
 - `FILOMA_MCP_TRANSPORT`: Transport type - `stdio` (default) or `sse`
 - `FILOMA_MCP_PORT`: Port for SSE transport (default: 8000)
 
-## Available Tools (21 Total)
+## Available Tools (22 Total)
 
 ### Directory Analysis
 
@@ -199,6 +199,7 @@ uv run python -m filoma.mcp_server
 - **`audit_corrupted_files`** - Find corrupted/zero-byte files
 - **`generate_hygiene_report`** - Quality metrics and issues
 - **`assess_migration_readiness`** - Dataset migration assessment
+- **`audit_dataset`** - One-call audit workflow (corruption + hygiene + readiness, optional HTML/JSON/MD report)
 
 ### Utilities
 

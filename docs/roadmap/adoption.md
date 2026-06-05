@@ -152,10 +152,6 @@ in under 60 seconds, with no decisions to make.
       (`Pipeline` is currently a fluent alias of `Dataset`; the proper
       stage-protocol refactor lands in Phase 3.)
 - [x] **Lazy-import regression test** (see §2.5).
-- [ ] **Asciinema (or animated SVG) of `filoma demo`** embedded in the
-      README, replacing or complementing the static screenshots.
-      *Deferred to a follow-up issue — format TBD (animated SVG vs.
-      hosted asciinema cast).*
 
 ### Phase 2 — *SOLID consolidation* (L)  **[contributors / maintainers]**
 
