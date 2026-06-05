@@ -324,19 +324,30 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
         ollama_base_url = env_base_url
         is_ollama = False
 
+        # Detect cloud configuration up-front so we can use it both to skip
+        # Ollama auto-detection AND to decide whether ``FILOMA_FILARAKI_MODEL``
+        # by itself signals Ollama intent.
+        has_cloud_key = any(
+            [
+                os.getenv("MISTRAL_API_KEY"),
+                os.getenv("GEMINI_API_KEY"),
+                os.getenv("OPENAI_API_KEY"),
+                os.getenv("OPENROUTER_API_KEY"),
+            ]
+        )
+
         if ollama_base_url:
-            # Explicit configuration provided
-            is_ollama = "localhost:11434" in ollama_base_url or "ollama" in ollama_base_url
+            # Explicit configuration provided. Match common Ollama URL shapes:
+            # - localhost:11434 (default)
+            # - "ollama" anywhere in the URL (e.g. http://ollama:11434)
+            # - any host on the default Ollama port :11434 (e.g. WSL host IP)
+            is_ollama = (
+                "localhost:11434" in ollama_base_url
+                or "ollama" in ollama_base_url
+                or ":11434" in ollama_base_url
+            )
         else:
             # Only auto-detect Ollama if no cloud provider API key is configured
-            has_cloud_key = any(
-                [
-                    os.getenv("MISTRAL_API_KEY"),
-                    os.getenv("GEMINI_API_KEY"),
-                    os.getenv("OPENAI_API_KEY"),
-                    os.getenv("OPENROUTER_API_KEY"),
-                ]
-            )
             if not has_cloud_key:
                 try:
                     import socket
@@ -352,6 +363,19 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
                         logger.debug("Auto-detected Ollama running on localhost:11434")
                 except Exception:
                     pass
+
+            # If FILOMA_FILARAKI_MODEL is set but auto-detection didn't find an
+            # Ollama daemon on localhost (common in WSL where the daemon runs
+            # on the Windows host), still treat the model as Ollama intent
+            # provided no cloud key is configured. Users on non-default hosts
+            # should set FILOMA_FILARAKI_BASE_URL explicitly.
+            if not is_ollama and env_model and not has_cloud_key and not env_base_url:
+                ollama_base_url = "http://localhost:11434/v1"
+                is_ollama = True
+                logger.debug(
+                    f"FILOMA_FILARAKI_MODEL='{env_model}' set with no cloud config; "
+                    f"assuming Ollama at {ollama_base_url} (override with FILOMA_FILARAKI_BASE_URL)."
+                )
 
         if is_ollama:
             from pydantic_ai.models.openai import OpenAIChatModel
@@ -413,9 +437,20 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
             return OpenAIChatModel(model_name=m_name, provider=provider)
 
         # Default Fallback: Ollama with gemma4:e4b
-        logger.warning("No AI configuration found. Defaulting to local Ollama with 'gemma4:e4b'.")
-        logger.warning("Make sure Ollama is running: ollama serve && ollama pull gemma4:e4b")
-        return "gemma4:e4b"
+        # Wrap in OllamaProvider so pydantic-ai doesn't try to parse the model
+        # string as ``provider:model`` (which crashed older versions with
+        # ``ValueError: Unknown provider: gemma4``).
+        from pydantic_ai.models.openai import OpenAIChatModel
+        from pydantic_ai.providers.ollama import OllamaProvider
+
+        fallback_url = "http://localhost:11434/v1"
+        fallback_model = "gemma4:e4b"
+        logger.warning(
+            f"No AI configuration found. Defaulting to local Ollama at {fallback_url} with '{fallback_model}'."
+        )
+        logger.warning(f"Make sure Ollama is running: ollama serve && ollama pull {fallback_model}")
+        provider = OllamaProvider(base_url=fallback_url, api_key=None)
+        return OpenAIChatModel(model_name=fallback_model, provider=provider)
 
     def run(
         self,

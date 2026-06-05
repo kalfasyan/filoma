@@ -81,10 +81,25 @@ files that exist today.
   agent acquisition.
 - As we add CI-style stages (validate → audit → report → publish), this
   class will become a god-object.
+- **Concrete hot path that proves the point:** running the headline chain
+  `Pipeline(p).scan().enrich().verify().report()` walks the directory tree
+  **~5 times**. `enrich()` builds a Polars dataframe (1 walk), `verify()`
+  re-snapshots to compare (1 walk, unavoidable), and then `report()`
+  delegates to `audit_dataset` whose three sub-tools
+  (`audit_corrupted_files`, `generate_hygiene_report`,
+  `assess_migration_readiness`) each probe the tree independently and a
+  fourth internal `probe_to_df` rebuilds the same dataframe `enrich()`
+  already cached. On a 44 k-item tree this is ~3 s of redundant scanning
+  per audit — the single biggest speedup on the table.
 - **Fix (Phase 3):** factor into a `Pipeline` of single-purpose stages
   (`Scan`, `Enrich`, `Verify`, `Dedup`, `Report`) that each implement a
   small `Stage` protocol. `Dataset` becomes a façade that composes the
-  default stages — the LSP-friendly version of what we have now.
+  default stages — the LSP-friendly version of what we have now. Critical
+  side benefit: stages share state (the enriched dataframe, the in-memory
+  snapshot) so `Report` consumes what `Enrich` produced instead of
+  re-walking the filesystem. We should also consider further caching of
+  the enriched dataframe on disk (e.g. `dataset.pq`) so that subsequent
+  runs are faster, but that's a separate design question.
 
 ### 2.3 `cli.py` (907 LOC) — **SRP, ISP**
 
@@ -129,14 +144,18 @@ in under 60 seconds, with no decisions to make.
 - [x] **`filoma demo` CLI command.** Downloads (or ships) a tiny sample
       dataset, runs `probe → enrich → verify → dedup → HTML report`, and
       opens the report. One command, no flags.
-- [ ] **Top-level `flm.ask("…")`** convenience that auto-instantiates a
+- [x] **Top-level `flm.ask("…")`** convenience that auto-instantiates a
       Filaraki agent against the current working directory. Zero ceremony
       for the "talk to your filesystem" pitch.
-- [ ] **Pipeline-as-object** — `flm.Pipeline(path).scan().enrich().verify().report()`
+- [x] **Pipeline-as-object** — `flm.Pipeline(path).scan().enrich().verify().report()`
       fluent builder. The README's headline example becomes one line.
-- [ ] **Lazy-import regression test** (see §2.5).
+      (`Pipeline` is currently a fluent alias of `Dataset`; the proper
+      stage-protocol refactor lands in Phase 3.)
+- [x] **Lazy-import regression test** (see §2.5).
 - [ ] **Asciinema (or animated SVG) of `filoma demo`** embedded in the
       README, replacing or complementing the static screenshots.
+      *Deferred to a follow-up issue — format TBD (animated SVG vs.
+      hosted asciinema cast).*
 
 ### Phase 2 — *SOLID consolidation* (L)  **[contributors / maintainers]**
 

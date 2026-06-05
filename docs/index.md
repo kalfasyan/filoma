@@ -66,7 +66,8 @@ Best place to begin is the Demo notebook (see the [`Demo` page](tutorials/demo.m
 ## Installation
 
 ```bash
-pip install filoma
+uv add filoma          # recommended
+pip install filoma     # classic pip works too
 ```
 
 Want performance? Install Rust (for fastest backend) or fd.

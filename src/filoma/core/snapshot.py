@@ -223,14 +223,16 @@ def snapshot(
 
 
 def verify(
-    snapshot_path: Union[str, Path],
+    snapshot_path: Union[str, Path, "DatasetSnapshot"],
     target_path: Optional[Union[str, Path]] = None,
     mode: Optional[Literal["fast", "deep", "full"]] = None,
 ) -> Dict[str, Any]:
     """Verify a directory against a saved snapshot.
 
     Args:
-        snapshot_path: Path to the saved snapshot JSON file
+        snapshot_path: Path to a saved snapshot JSON file, *or* an in-memory
+            :class:`DatasetSnapshot` (avoids a temp-file roundtrip when the
+            snapshot already lives in process memory).
         target_path: Optional path to verify (defaults to snapshot's root_path)
         mode: Verification mode (defaults to snapshot's mode)
 
@@ -242,9 +244,27 @@ def verify(
         - "added": List of files in directory but not in snapshot
 
     """
-    # Load snapshot
-    snap = DatasetSnapshot.load(snapshot_path)
+    # Accept either a path-like or an already-loaded snapshot. The in-memory
+    # path is used by ``Dataset.verify()`` to skip a temp-JSON roundtrip.
+    if isinstance(snapshot_path, DatasetSnapshot):
+        snap = snapshot_path
+    else:
+        snap = DatasetSnapshot.load(snapshot_path)
 
+    return _verify_against_snapshot(snap, target_path=target_path, mode=mode)
+
+
+def _verify_against_snapshot(
+    snap: "DatasetSnapshot",
+    target_path: Optional[Union[str, Path]] = None,
+    mode: Optional[Literal["fast", "deep", "full"]] = None,
+) -> Dict[str, Any]:
+    """Compare ``snap`` against the live filesystem at ``target_path``.
+
+    Internal helper for :func:`verify`; takes an already-materialized
+    :class:`DatasetSnapshot` so callers that already hold one (e.g.
+    ``filoma.Dataset``) don't have to round-trip through JSON.
+    """
     # Determine target path
     if target_path is None:
         target_path = Path(snap.root_path)
@@ -265,7 +285,7 @@ def verify(
     snap_files = {e.path: e for e in snap.entries}
     current_files = {e.path: e for e in current.entries}
 
-    results = {
+    results: Dict[str, Any] = {
         "matched": [],
         "modified": [],
         "missing": [],

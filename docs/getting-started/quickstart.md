@@ -5,7 +5,8 @@
 ## Installation
 
 ```bash
-pip install filoma
+uv add filoma          # recommended
+pip install filoma     # classic pip works too
 ```
 
 ## Two Ways to Get Started

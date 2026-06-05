@@ -27,6 +27,8 @@ __all__ = [
     "filaraki",
     "DataFrame",
     "Dataset",
+    "Pipeline",
+    "ask",
     "probe",
     "probe_to_df",
     "probe_file",
@@ -59,6 +61,16 @@ def __getattr__(name: str):
         from .dataset import Dataset
 
         globals()["Dataset"] = Dataset
+        return Dataset
+
+    if name == "Pipeline":
+        # ``Pipeline`` is a fluent alias for ``Dataset``. Keeping them as the
+        # same class lets ``Dataset(p).scan().enrich().verify().report()`` and
+        # ``Pipeline(p).scan()...`` share one implementation. A proper
+        # stage-based ``Pipeline`` is scheduled for Phase 3 of the roadmap.
+        from .dataset import Dataset
+
+        globals()["Pipeline"] = Dataset
         return Dataset
 
     if name in mapping:
@@ -302,3 +314,43 @@ def probe_to_df(path: str, to_pandas: bool = False, enrich: bool = True, **kwarg
             raise RuntimeError(f"Failed to convert Polars DataFrame to pandas: {e}")
 
     return df_enriched
+
+
+def ask(
+    prompt: str,
+    *,
+    path: Optional[str] = None,
+    model: Any = None,
+    message_history: Any = None,
+) -> Any:
+    """Ask Filaraki a one-shot question against a directory.
+
+    Auto-instantiates a :class:`~filoma.filaraki.agent.FilarakiAgent` rooted at
+    ``path`` (defaults to the current working directory) and runs ``prompt``
+    against it synchronously.
+
+    Args:
+        prompt: The natural-language question or instruction.
+        path: Working directory the agent's filesystem tools operate against.
+              Defaults to ``os.getcwd()``.
+        model: Optional model string or pydantic-ai ``Model`` instance. When
+               ``None``, the agent auto-detects a provider (Ollama → Mistral
+               → Gemini → OpenAI-compatible).
+        message_history: Optional pydantic-ai message history for multi-turn
+                         conversations.
+
+    Returns:
+        The pydantic-ai ``AgentRunResult``. Use ``.output`` to get the text.
+
+    Example:
+        >>> import filoma as flm
+        >>> flm.ask("how many python files are here?").output  # doctest: +SKIP
+        'There are 42 .py files...'
+
+    """
+    import os as _os
+
+    from .filaraki import get_agent
+
+    agent = get_agent(model=model, working_dir=path or _os.getcwd())
+    return agent.run(prompt, message_history=message_history)

@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <code>pip install filoma</code>
+  <code>uv add filoma</code>&nbsp;&nbsp;·&nbsp;&nbsp;<code>pip install filoma</code>
 </p>
 
 <p align="center">
@@ -69,18 +69,91 @@ Whether you're auditing a machine-learning dataset, tracking down duplicates acr
 
 ---
 
+## 🛠️ Setup
+
+`filoma` is one command away — no compilers, no API keys, no extra
+services required for the core workflow.
+
+```bash
+uv add filoma          # recommended — drops it into your project
+pip install filoma     # classic pip works too
+```
+
+That's it. To see the full pipeline run end-to-end against a tiny
+built-in fixture (no download, no flags), run:
+
+```bash
+filoma demo
+```
+
+It generates a synthetic dataset, runs `scan → enrich → verify → dedup`,
+writes a self-contained HTML audit report, and opens it in your browser.
+
+### Optional add-ons (all opt-in)
+
+| Add-on | When you want it | How |
+| --- | --- | --- |
+| [`fd`](https://github.com/sharkdp/fd) binary | Faster scans on huge trees | `apt install fd-find` / `brew install fd` |
+| Rust backend | Maximum scan speed | Pre-built wheels on PyPI; rebuild from source if missing |
+| [Ollama](https://ollama.com) | Local `flm.ask(...)` / `filoma filaraki chat` | `curl -fsSL https://ollama.com/install.sh \| sh` |
+| Hosted LLM | Cloud-hosted Filaraki | Set `MISTRAL_API_KEY` / `GEMINI_API_KEY` / `OPENAI_API_KEY` |
+
+> 🤖 **Configuring the AI provider?** Don't hand-edit `.env`. Run the
+> interactive wizard — it picks the provider, prompts for an API key
+> (silent input), and writes a clean `.env` for you:
+>
+> ```bash
+> bash scripts/setup_env.sh
+> ```
+>
+> Supports Ollama (local), Mistral, Gemini, OpenAI, OpenRouter, and any
+> OpenAI-compatible endpoint. The `.env` is auto-loaded — no `--env-file`
+> or shell exports needed.
+
+See [Installation](docs/getting-started/installation.md) for the full
+backend matrix and troubleshooting tips.
+
+---
+
 ## ⚡ Quick Start
 
 `filoma` provides a unified API for filesystem analysis.
 
 ### End-to-End Example: Folder → DataFrame → Insights
 
-This is the core Filoma workflow in one place: scan a folder, build a rich dataframe, filter it, and extract quick insights.
+The headline workflow is one fluent line: scan, enrich, verify, and produce
+a self-contained HTML audit report. Point it at *any* folder you have —
+this snippet uses your current directory so you can run it as-is.
 
 ```python
 import filoma as flm
 
-dataset = "notebooks/Weeds-3"
+# One-line dataset CI: scan → enrich → integrity check → HTML audit report.
+# Replace "." with any folder you want to inspect.
+pipeline = flm.Pipeline(".").scan().enrich().verify().report()
+
+print(pipeline.report_path)                       # → /tmp/<folder>_audit.html
+print("matched:", len(pipeline.verification["matched"]))
+print("rows:   ", pipeline.dataframe.df.height)
+```
+
+> 💡 **Don't have a sample folder handy?** `filoma demo` ships its own
+> tiny synthetic dataset and runs the same pipeline — no Python required.
+
+Need to ask questions in plain English instead? `flm.ask("…")` auto-spins
+up a Filaraki agent rooted at your current directory (requires Ollama
+running, or any of the supported API keys — see Setup above):
+
+```python
+flm.ask("how many python files are here, and what's the largest?").output
+```
+
+#### Long form: same pipeline, exposed stage by stage
+
+```python
+import filoma as flm
+
+dataset = "."  # swap for any folder you'd like to profile
 
 # 1) Fast scan + high-level summary
 analysis = flm.probe(dataset)
@@ -89,13 +162,13 @@ analysis.print_summary()
 # 2) Build an enriched dataframe (paths, extension, sizes, ownership, timestamps, etc.)
 df = flm.probe_to_df(dataset, enrich=True)
 
-# 3) Narrow to image files and inspect distribution
-images = df.filter_by_extension(["jpg", "png"])
-print(images.extension_counts())
-print(images.directory_counts().head(3))
+# 3) Narrow to a file type and inspect distribution
+py_files = df.filter_by_extension(["py"])
+print(py_files.extension_counts())
+print(py_files.directory_counts().head(3))
 
 # 4) Get the largest files quickly
-largest = images.sort("size_bytes", descending=True).head(5)
+largest = py_files.sort("size_bytes", descending=True).head(5)
 print(largest.select(["path", "size_bytes"]))
 ```
 
