@@ -94,6 +94,7 @@ def ask_command(
     Example:
         filoma ask how many python files are here?
         filoma ask "audit this dataset" --path ./images
+
     """
     import filoma as flm
 
@@ -303,11 +304,11 @@ def skills_install(
     """Install bundled filoma skills into the chosen agent's skill directory.
 
     Examples:
-
         filoma skills install                   # → ./.claude/skills/
         filoma skills install --scope user      # → ~/.claude/skills/
         filoma skills install --scope vscode    # → ./.github/skills/
         filoma skills install -n filoma-dedup   # only install one skill
+
     """
     import shutil
 
@@ -371,7 +372,8 @@ def skills_agents_md(
     snippet = get_template_path("AGENTS.md.tpl").read_text(encoding="utf-8")
 
     if not write:
-        console.print(snippet)
+        # Print raw to avoid Rich consuming the [text](url) markdown syntax.
+        console.print(snippet, markup=False, highlight=False)
         return
 
     target = Path("AGENTS.md")
@@ -409,7 +411,8 @@ def skills_cursor_rules(
     rule = get_template_path("cursor-rules.mdc.tpl").read_text(encoding="utf-8")
 
     if not write:
-        console.print(rule)
+        # Print raw to avoid Rich consuming markdown link / frontmatter syntax.
+        console.print(rule, markup=False, highlight=False)
         return
 
     rules_dir = Path(".cursor/rules")

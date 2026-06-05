@@ -57,6 +57,7 @@ def get_template_path(template_name: str) -> Path:
     template_name:
         Filename inside ``filoma/skills/templates/`` (for example
         ``"AGENTS.md.tpl"`` or ``"cursor-rules.mdc.tpl"``).
+
     """
     template_resource = files("filoma.skills").joinpath("templates").joinpath(template_name)
     with as_file(template_resource) as template_path:
