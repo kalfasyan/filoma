@@ -28,6 +28,8 @@ nav:
       - Performance: reference/benchmarks.md
       - Data Quality: reference/data-quality.md
       - Life after filoma: reference/life-after-filoma.md
+  - Roadmap:
+      - Adoption Roadmap: roadmap/adoption.md
 
 plugins:
   - search

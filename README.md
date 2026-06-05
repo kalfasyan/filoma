@@ -12,7 +12,11 @@
 </p>
 
 <p align="center">
-  <strong>Fast, multi-backend file/directory profiling and data preparation.</strong>
+  <strong>Dataset CI for ML — go from a folder to a verified, deduplicated dataset and <em>talk to it</em>, in one pipeline.</strong>
+</p>
+
+<p align="center">
+  <em>Fast, multi-backend file/directory profiling and data preparation, with a local-first agentic interface.</em>
 </p>
 
 <p align="center">
@@ -22,6 +26,7 @@
 <p align="center">
   <a href="docs/getting-started/installation.md">Installation</a> •
   <a href="https://filoma.readthedocs.io/en/latest/">Documentation</a> •
+  <a href="docs/roadmap/adoption.md">Roadmap</a> •
   <a href="docs/guides/filaraki.md">Agentic Analysis</a> •
   <a href="docs/guides/cli.md">Interactive CLI</a> •
   <a href="docs/getting-started/quickstart.md">Quickstart</a> •
