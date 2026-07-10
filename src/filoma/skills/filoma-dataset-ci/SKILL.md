@@ -62,12 +62,12 @@ print("rows:", pipeline.dataframe.df.height)
 
 The four stages produce, in order:
 
-| Stage | What it checks | Output |
-|---|---|---|
-| `scan` | Walks the tree (Rust → fd → Python) | counts + file list |
-| `enrich` | Adds size / mtime / owner / sha256 / etc. | enriched Polars DataFrame |
-| `verify` | Snapshot + manifest integrity | matched / missing / extra lists |
-| `report` | Hygiene + readiness + corruption | HTML / JSON / Markdown |
+| Stage    | What it checks                            | Output                          |
+| -------- | ----------------------------------------- | ------------------------------- |
+| `scan`   | Walks the tree (Rust → fd → Python)       | counts + file list              |
+| `enrich` | Adds size / mtime / owner / sha256 / etc. | enriched Polars DataFrame       |
+| `verify` | Snapshot + manifest integrity             | matched / missing / extra lists |
+| `report` | Hygiene + readiness + corruption          | HTML / JSON / Markdown          |
 
 ## Reading the HTML report
 
@@ -118,4 +118,4 @@ into GitHub Actions, GitLab CI, or any shell pipeline. Pair with
 - When the dataset is on a slow network share, the whole pipeline
   re-walks the tree multiple times today — that's a known speedup
   on the roadmap, not a bug. Warn the user if the report is slow on
-  >1M files.
+  > 1M files.

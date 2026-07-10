@@ -35,11 +35,11 @@ filoma dedup <path>
 
 Returns three groups:
 
-| Category | Detector | Best for |
-|---|---|---|
-| `exact` | sha256 byte match | identical files (any type) |
-| `text` | MinHash similarity | duplicate text/code/JSON |
-| `image` | perceptual hash | visually identical/near images |
+| Category | Detector           | Best for                       |
+| -------- | ------------------ | ------------------------------ |
+| `exact`  | sha256 byte match  | identical files (any type)     |
+| `text`   | MinHash similarity | duplicate text/code/JSON       |
+| `image`  | perceptual hash    | visually identical/near images |
 
 Each group is a list of paths that match each other. The user picks
 which to keep.

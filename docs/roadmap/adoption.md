@@ -7,8 +7,8 @@
 This document is the plan for raising `filoma`'s adoption among newcomers. It
 was written in response to the prompt:
 
-> *"Make a plan for improving the adoption rate of this library to newcomers,
-> focusing more on agentic features and ease of use."*
+> _"Make a plan for improving the adoption rate of this library to newcomers,
+> focusing more on agentic features and ease of use."_
 
 It is intentionally a **phased roadmap**, not an implementation. New agentic
 capabilities (RAG, schema-proposing agents, etc.) are scoped here as **future
@@ -18,13 +18,13 @@ work only** — no code is changed by this document.
 
 ## 1. Positioning: the novelty hook
 
-Today, `filoma` advertises itself primarily as *"fast, multi-backend file and
-directory profiling"*. That is true, but it is **not the novelty** — `fd`,
+Today, `filoma` advertises itself primarily as _"fast, multi-backend file and
+directory profiling"_. That is true, but it is **not the novelty** — `fd`,
 `du`, `tree`, and Polars already cover that ground individually. The novelty
 that no other library packages together is:
 
 > **Dataset CI for ML — go from a folder to a verified, deduplicated,
-> profiled dataset, and then *talk to it*, in one pipeline.**
+> profiled dataset, and then _talk to it_, in one pipeline.**
 
 This is the hook the roadmap is built around. Every other improvement
 (API ergonomics, docs, agentic features, SOLID refactors) serves this story.
@@ -37,17 +37,17 @@ This is the hook the roadmap is built around. Every other improvement
   enrichment, integrity/manifest checks, dedup, class-balance audits, the
   HTML audit report, and Filaraki's natural-language interface.
 - **It positions the agentic layer as load-bearing**, not decorative — the
-  agent is the *interface* to the CI pipeline, the way `gh` is to GitHub.
+  agent is the _interface_ to the CI pipeline, the way `gh` is to GitHub.
 - **It is differentiated**. There is no widely-adopted equivalent in the
   Python data-prep ecosystem.
 
 ### Personas (all three are first-class)
 
-| Persona              | Pain                                       | Filoma's promise                                                      |
-| -------------------- | ------------------------------------------ | --------------------------------------------------------------------- |
-| **ML engineer**      | "Is this dataset safe to train on?"        | One-line audit + HTML report + dedup + leakage check.                 |
-| **Data engineer**    | "What's actually in this 2 TB folder?"     | Rust-fast scan → enriched dataframe → quick aggregations.             |
-| **Researcher**       | "I just want to ask my filesystem things." | `filoma filaraki chat` → local LLM via Ollama, no API keys, no setup. |
+| Persona           | Pain                                       | Filoma's promise                                                      |
+| ----------------- | ------------------------------------------ | --------------------------------------------------------------------- |
+| **ML engineer**   | "Is this dataset safe to train on?"        | One-line audit + HTML report + dedup + leakage check.                 |
+| **Data engineer** | "What's actually in this 2 TB folder?"     | Rust-fast scan → enriched dataframe → quick aggregations.             |
+| **Researcher**    | "I just want to ask my filesystem things." | `filoma filaraki chat` → local LLM via Ollama, no API keys, no setup. |
 
 The roadmap items below are tagged **[ML] / [DE] / [R]** where they are
 persona-specific; untagged items help everyone.
@@ -71,7 +71,7 @@ files that exist today.
 - **Fix (Phase 2):** introduce a single `ToolRegistry` (`@filoma.tool`
   decorator) that both Filaraki and the MCP server consume. Each tool
   becomes a small object with a `name`, `description`, `schema`, and a pure
-  callable — the agent and the MCP server are then *adapters* over the
+  callable — the agent and the MCP server are then _adapters_ over the
   same registry.
 
 ### 2.2 `Dataset` orchestrator — **SRP drift**
@@ -113,7 +113,7 @@ files that exist today.
 - The Rust → `fd` → Python fallback is the model citizen of the codebase:
   callers depend on a `Probe`/`Scanner` abstraction, not on a backend.
 - **Action:** document this pattern in `docs/reference/architecture.md` as
-  the *canonical* extension point, so future contributors copy it instead
+  the _canonical_ extension point, so future contributors copy it instead
   of inventing new ones.
 
 ### 2.5 Lazy imports — **keep, formalize**
@@ -128,7 +128,7 @@ files that exist today.
 
 ## 3. Phased roadmap
 
-### Phase 0 — *Quick wins, ship now* (S, in this PR)
+### Phase 0 — _Quick wins, ship now_ (S, in this PR)
 
 - [x] **Lead with the novelty hook in `README.md`.** One sentence at the
       top: "Dataset CI for ML — folder → verified dataset → insights →
@@ -136,7 +136,7 @@ files that exist today.
 - [x] **Link this roadmap from the docs nav** so contributors and curious
       users can see where the project is going.
 
-### Phase 1 — *First-impression cohesion* (M)  **[all personas]**
+### Phase 1 — _First-impression cohesion_ (M) **[all personas]**
 
 Goal: a newcomer goes from `pip install filoma` to a working agentic audit
 in under 60 seconds, with no decisions to make.
@@ -153,7 +153,7 @@ in under 60 seconds, with no decisions to make.
       stage-protocol refactor lands in Phase 3.)
 - [x] **Lazy-import regression test** (see §2.5).
 
-### Phase 2 — *SOLID consolidation* (L)  **[contributors / maintainers]**
+### Phase 2 — _SOLID consolidation_ (L) **[contributors / maintainers]**
 
 Goal: make the codebase boring to extend. Every new agentic capability
 should require editing exactly one file.
@@ -172,7 +172,7 @@ should require editing exactly one file.
       they exist. Cleanest once the `ToolRegistry` lands so missing
       references fail via a single registry lookup. Ref §2.1.
 
-### Phase 3 — *Dataset CI as a product* (L)  **[ML]**
+### Phase 3 — _Dataset CI as a product_ (L) **[ML]**
 
 Goal: deliver on the headline. Dataset CI should be runnable from the CLI,
 from CI/CD, and from a notebook.
@@ -189,13 +189,13 @@ from CI/CD, and from a notebook.
       "fail if duplicate ratio > 1%, fail if any class < 50 samples",
       consumed by `filoma audit`.
 
-### Phase 4 — *Documentation as the funnel* (M)
+### Phase 4 — _Documentation as the funnel_ (M)
 
 Docs are the second-best adoption lever after the README. Today they are
 comprehensive but oriented around features, not jobs.
 
-- [ ] **Restructure docs around the four jobs**: *audit*, *explore*,
-      *dedup*, *talk*. Each gets a single-page tutorial that reads like a
+- [ ] **Restructure docs around the four jobs**: _audit_, _explore_,
+      _dedup_, _talk_. Each gets a single-page tutorial that reads like a
       story, not a feature list.
 - [ ] **Persona-tagged quickstarts** (ML / data eng / researcher) — three
       copies of the quickstart, each one optimized for that persona's
@@ -206,9 +206,9 @@ comprehensive but oriented around features, not jobs.
 - [ ] **Roadmap visible from docs index** so contributors see the
       direction.
 
-### Phase 5 — *Agentic depth* (XL, **future work, design only here**)
+### Phase 5 — _Agentic depth_ (XL, **future work, design only here**)
 
-These are explicitly *not* implemented as part of this roadmap. They are
+These are explicitly _not_ implemented as part of this roadmap. They are
 listed so design discussion has somewhere to live.
 
 - [ ] **RAG over the dataset itself.** Ingest text/markdown/json files
@@ -228,15 +228,15 @@ listed so design discussion has somewhere to live.
       register tools via the `ToolRegistry` from Phase 2, and Filaraki
       / MCP pick them up automatically.
 
-### Phase 6 — *Distribution & community* (M, runs in parallel)
+### Phase 6 — _Distribution & community_ (M, runs in parallel)
 
 - [x] **Bundled agent skills.** Ship `filoma skills install` plus
       `SKILL.md` bundles (`filoma-dataset-ci`, `filoma-dedup`,
       `filoma-explore`) that drop into Claude Code, Claude Desktop, or
-      VS Code chat. Generators for `AGENTS.md` (`filoma skills
-      agents-md`) and Cursor rules (`filoma skills cursor-rules`)
-      cover the rest of the agent ecosystem. See
-      `src/filoma/skills/`.
+      VS Code chat. Generators for `AGENTS.md`
+      (`filoma skills agents-md`) and Cursor rules
+      (`filoma skills cursor-rules`) cover the rest of the agent
+      ecosystem. See `src/filoma/skills/`.
 - [ ] **One-line installer** already exists for nanobot+Ollama; promote
       it to a top-of-README install option for the agentic flow.
 - [ ] **A dedicated `examples/` notebook per persona** (ML audit, data

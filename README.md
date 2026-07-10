@@ -91,12 +91,12 @@ writes a self-contained HTML audit report, and opens it in your browser.
 
 ### Optional add-ons (all opt-in)
 
-| Add-on | When you want it | How |
-| --- | --- | --- |
-| [`fd`](https://github.com/sharkdp/fd) binary | Faster scans on huge trees | `apt install fd-find` / `brew install fd` |
-| Rust backend | Maximum scan speed | Pre-built wheels on PyPI; rebuild from source if missing |
-| [Ollama](https://ollama.com) | Local `flm.ask(...)` / `filoma chat` | `curl -fsSL https://ollama.com/install.sh \| sh` |
-| Hosted LLM | Cloud-hosted Filaraki | Set `MISTRAL_API_KEY` / `GEMINI_API_KEY` / `OPENAI_API_KEY` |
+| Add-on                                       | When you want it                     | How                                                         |
+| -------------------------------------------- | ------------------------------------ | ----------------------------------------------------------- |
+| [`fd`](https://github.com/sharkdp/fd) binary | Faster scans on huge trees           | `apt install fd-find` / `brew install fd`                   |
+| Rust backend                                 | Maximum scan speed                   | Pre-built wheels on PyPI; rebuild from source if missing    |
+| [Ollama](https://ollama.com)                 | Local `flm.ask(...)` / `filoma chat` | `curl -fsSL https://ollama.com/install.sh \| sh`            |
+| Hosted LLM                                   | Cloud-hosted Filaraki                | Set `MISTRAL_API_KEY` / `GEMINI_API_KEY` / `OPENAI_API_KEY` |
 
 > 🤖 **Configuring the AI provider?** Don't hand-edit `.env`. Run the
 > interactive wizard — it picks the provider, prompts for an API key
@@ -122,7 +122,7 @@ backend matrix and troubleshooting tips.
 ### End-to-End Example: Folder → DataFrame → Insights
 
 The headline workflow is one fluent line: scan, enrich, verify, and produce
-a self-contained HTML audit report. Point it at *any* folder you have —
+a self-contained HTML audit report. Point it at _any_ folder you have —
 this snippet uses your current directory so you can run it as-is.
 
 ```python

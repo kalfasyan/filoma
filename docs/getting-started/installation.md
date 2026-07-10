@@ -18,7 +18,8 @@ pip install filoma
 > 💡 New to `uv`? Install it once with
 > `curl -LsSf https://astral.sh/uv/install.sh | sh`. After that,
 > `uv add filoma` and `uv run filoma demo` give you the whole package
-> + a working dev shell with no virtualenv juggling.
+>
+> - a working dev shell with no virtualenv juggling.
 
 ## Performance Tiers
 

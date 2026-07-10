@@ -11,17 +11,17 @@ agent-facing surface: see [`src/filoma/skills/`](src/filoma/skills/).
 
 ## Project layout
 
-| Path | Purpose |
-|---|---|
-| `src/filoma/` | Python source. `import filoma` is intentionally cheap (lazy imports). |
-| `src/*.rs`, `Cargo.toml` | Rust backend, built via maturin. |
-| `src/filoma/filaraki/` | pydantic-ai agent + the 22 filesystem tools. |
-| `src/filoma/mcp_server.py` | MCP server exposing the same 22 tools. |
-| `src/filoma/skills/` | Bundled SKILL.md directories shipped to other agents. |
-| `tests/` | pytest suite (`-m integration` for tests needing API keys). |
-| `docs/` | mkdocs site published to filoma.readthedocs.io. |
-| `docs/roadmap/adoption.md` | North-star roadmap. New work should map to a phase here. |
-| `benchmarks/` | Backend performance comparisons. |
+| Path                       | Purpose                                                               |
+| -------------------------- | --------------------------------------------------------------------- |
+| `src/filoma/`              | Python source. `import filoma` is intentionally cheap (lazy imports). |
+| `src/*.rs`, `Cargo.toml`   | Rust backend, built via maturin.                                      |
+| `src/filoma/filaraki/`     | pydantic-ai agent + the 22 filesystem tools.                          |
+| `src/filoma/mcp_server.py` | MCP server exposing the same 22 tools.                                |
+| `src/filoma/skills/`       | Bundled SKILL.md directories shipped to other agents.                 |
+| `tests/`                   | pytest suite (`-m integration` for tests needing API keys).           |
+| `docs/`                    | mkdocs site published to filoma.readthedocs.io.                       |
+| `docs/roadmap/adoption.md` | North-star roadmap. New work should map to a phase here.              |
+| `benchmarks/`              | Backend performance comparisons.                                      |
 
 ## Build and test
 
