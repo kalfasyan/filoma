@@ -124,10 +124,7 @@ def setup_command() -> None:
 
     bash = shutil.which("bash")
     if bash is None:
-        console.print(
-            "[red]This wizard requires `bash`.[/red] On Windows, run it from "
-            "WSL or Git Bash, or open the file manually:"
-        )
+        console.print("[red]This wizard requires `bash`.[/red] On Windows, run it from WSL or Git Bash, or open the file manually:")
         console.print("    src/filoma/scripts/setup_env.sh")
         raise typer.Exit(code=1)
 
@@ -604,11 +601,12 @@ def demo() -> None:
     try:
         with tempfile.TemporaryDirectory(prefix="filoma_demo_") as tmpdir:
             root = Path(tmpdir)
-            console.print(Panel.fit(
-                "[bold green]🍃 Filoma demo[/bold green]\n"
-                "[dim]Generating a tiny dataset and running the full pipeline...[/dim]",
-                border_style="green",
-            ))
+            console.print(
+                Panel.fit(
+                    "[bold green]🍃 Filoma demo[/bold green]\n[dim]Generating a tiny dataset and running the full pipeline...[/dim]",
+                    border_style="green",
+                )
+            )
 
             _make_demo_fixture(root)
             console.print(f"[dim]Sample dataset:[/dim] {root}")
@@ -657,10 +655,12 @@ def demo() -> None:
             shutil.copyfile(tmp_report, report_dest)
 
         console.print()
-        console.print(Panel.fit(
-            f"[bold green]✅ Audit report ready[/bold green]\n[bold]{report_url}[/bold]",
-            border_style="green",
-        ))
+        console.print(
+            Panel.fit(
+                f"[bold green]✅ Audit report ready[/bold green]\n[bold]{report_url}[/bold]",
+                border_style="green",
+            )
+        )
 
         if _can_open_browser():
             try:

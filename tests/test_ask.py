@@ -72,9 +72,7 @@ def test_ask_forwards_model_and_message_history(monkeypatch):
     filoma.ask("follow-up", model="ollama:qwen2.5:14b", message_history=history)
 
     assert captured_get["model"] == "ollama:qwen2.5:14b"
-    assert stub_holder["agent"].run_calls == [
-        {"prompt": "follow-up", "message_history": history}
-    ]
+    assert stub_holder["agent"].run_calls == [{"prompt": "follow-up", "message_history": history}]
 
 
 def test_ask_is_in_public_surface():

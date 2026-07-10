@@ -73,11 +73,7 @@ class FdFinder:
         self.fd = FdIntegration()
 
         if not self.fd.is_available():
-            logger.warning(
-                "fd command not found. Falling back to a pure-Python scanner. "
-                "Install fd for faster, gitignore-aware search: "
-                "https://github.com/sharkdp/fd#installation"
-            )
+            logger.warning("fd command not found. Falling back to a pure-Python scanner. Install fd for faster, gitignore-aware search: https://github.com/sharkdp/fd#installation")
 
     def is_available(self) -> bool:
         """Check if fd is available for use."""
@@ -205,10 +201,7 @@ class FdFinder:
             if match(name):
                 results.append(entry)
         elapsed = time.time() - start
-        logger.debug(
-            f"Python fallback scan of '{path}' returned {len(results)} entries "
-            f"in {elapsed:.2f}s (pattern='{pattern}', types={sorted(types)})"
-        )
+        logger.debug(f"Python fallback scan of '{path}' returned {len(results)} entries in {elapsed:.2f}s (pattern='{pattern}', types={sorted(types)})")
         return results
 
     def find_files(
@@ -452,9 +445,7 @@ class FdFinder:
             try:
                 window_seconds = _parse_duration_string(changed_within)
             except ValueError as exc:
-                logger.warning(
-                    f"FdFinder.find_recent_files: invalid changed_within '{changed_within}': {exc}"
-                )
+                logger.warning(f"FdFinder.find_recent_files: invalid changed_within '{changed_within}': {exc}")
                 return []
             cutoff = time.time() - window_seconds
             hidden = bool(fd_options.get("hidden", False))

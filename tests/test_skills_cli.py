@@ -169,9 +169,7 @@ def test_skills_agents_md_appends_to_existing(runner: CliRunner, tmp_path: Path,
     assert "filoma" in body.lower()
 
 
-def test_skills_agents_md_idempotent_when_already_mentions_filoma(
-    runner: CliRunner, tmp_path: Path, monkeypatch
-):
+def test_skills_agents_md_idempotent_when_already_mentions_filoma(runner: CliRunner, tmp_path: Path, monkeypatch):
     """Re-running --write is a no-op once the snippet is in place."""
     monkeypatch.chdir(tmp_path)
     runner.invoke(app, ["skills", "agents-md", "--write"])

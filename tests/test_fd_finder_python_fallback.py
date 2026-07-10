@@ -63,9 +63,7 @@ def test_find_files_glob_fallback(fake_unavailable_fd, sample_tree):
 
 def test_find_files_case_insensitive_fallback(fake_unavailable_fd, sample_tree):
     finder = FdFinder()
-    files = finder.find_files(
-        pattern="README", path=sample_tree, case_sensitive=False
-    )
+    files = finder.find_files(pattern="README", path=sample_tree, case_sensitive=False)
     assert any(Path(p).name == "readme.md" for p in files)
 
 

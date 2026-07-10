@@ -2,7 +2,6 @@ import json
 import subprocess
 import sys
 
-
 # Heavy / agentic dependencies that must NOT be loaded just by ``import filoma``.
 # Roadmap reference: docs/roadmap/adoption.md §2.5 ("Lazy imports").
 _AGENTIC_HEAVY_DEPS = (

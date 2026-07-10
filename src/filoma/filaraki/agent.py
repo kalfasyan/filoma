@@ -341,11 +341,7 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
             # - localhost:11434 (default)
             # - "ollama" anywhere in the URL (e.g. http://ollama:11434)
             # - any host on the default Ollama port :11434 (e.g. WSL host IP)
-            is_ollama = (
-                "localhost:11434" in ollama_base_url
-                or "ollama" in ollama_base_url
-                or ":11434" in ollama_base_url
-            )
+            is_ollama = "localhost:11434" in ollama_base_url or "ollama" in ollama_base_url or ":11434" in ollama_base_url
         else:
             # Only auto-detect Ollama if no cloud provider API key is configured
             if not has_cloud_key:
@@ -372,10 +368,7 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
             if not is_ollama and env_model and not has_cloud_key and not env_base_url:
                 ollama_base_url = "http://localhost:11434/v1"
                 is_ollama = True
-                logger.debug(
-                    f"FILOMA_FILARAKI_MODEL='{env_model}' set with no cloud config; "
-                    f"assuming Ollama at {ollama_base_url} (override with FILOMA_FILARAKI_BASE_URL)."
-                )
+                logger.debug(f"FILOMA_FILARAKI_MODEL='{env_model}' set with no cloud config; assuming Ollama at {ollama_base_url} (override with FILOMA_FILARAKI_BASE_URL).")
 
         if is_ollama:
             from pydantic_ai.models.openai import OpenAIChatModel
@@ -445,9 +438,7 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
 
         fallback_url = "http://localhost:11434/v1"
         fallback_model = "gemma4:e4b"
-        logger.warning(
-            f"No AI configuration found. Defaulting to local Ollama at {fallback_url} with '{fallback_model}'."
-        )
+        logger.warning(f"No AI configuration found. Defaulting to local Ollama at {fallback_url} with '{fallback_model}'.")
         logger.warning(f"Make sure Ollama is running: ollama serve && ollama pull {fallback_model}")
         provider = OllamaProvider(base_url=fallback_url, api_key=None)
         return OpenAIChatModel(model_name=fallback_model, provider=provider)
