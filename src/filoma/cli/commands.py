@@ -250,6 +250,203 @@ def demo() -> None:
 # ---------------------------------------------------------------------------
 
 
+@app.command("audit")
+def audit_command(
+    path: str = typer.Argument(".", help="Dataset directory to audit"),
+    gates: Optional[str] = typer.Option(None, "--gates", "-g", help="Path to filoma-gates.yml quality policy"),
+    export: Optional[str] = typer.Option(None, "--export", "-e", help="Export report to this path"),
+    format: str = typer.Option("json", "--format", "-f", help="Report format: json, md, or html"),
+    mode: str = typer.Option("concise", "--mode", "-m", help="Audit mode: concise or verbose"),
+    show_evidence: bool = typer.Option(False, "--show-evidence", help="Include detailed evidence in report"),
+) -> None:
+    """Audit a dataset for corruption, hygiene, and migration readiness.
+
+    Runs a three-stage audit (corruption, hygiene, migration readiness)
+    and optionally checks quality gates from a YAML policy file.
+
+    Exit codes: 0=pass, 1=gate failure, 2=error.
+    """
+    import json
+    import tempfile
+
+    from rich.table import Table
+
+    from filoma.filaraki.tools import audit_dataset
+
+    target = Path(path).expanduser().resolve()
+    if not target.exists():
+        console.print(f"[red]Error: Path '{path}' does not exist.[/red]")
+        raise typer.Exit(2)
+    if not target.is_dir():
+        console.print(f"[red]Error: '{path}' is not a directory.[/red]")
+        raise typer.Exit(2)
+
+    export_fmt = (format or "json").lower()
+    if export_fmt not in {"json", "md", "html"}:
+        console.print(f"[red]Error: format must be json, md, or html (got '{format}').[/red]")
+        raise typer.Exit(2)
+
+    if export:
+        export_path = Path(export).expanduser().resolve()
+    else:
+        ext = {"json": "json", "md": "md", "html": "html"}[export_fmt]
+        export_path = Path(tempfile.gettempdir()) / f"{target.name}_audit.{ext}"
+
+    audit_mode = (mode or "concise").lower()
+    if audit_mode not in {"concise", "verbose"}:
+        console.print(f"[red]Error: mode must be concise or verbose (got '{mode}').[/red]")
+        raise typer.Exit(2)
+
+    console.print(f"[bold blue]Auditing {target}...[/bold blue]")
+
+    # Always audit to JSON first for structured data (gates need it)
+    json_path = Path(tempfile.gettempdir()) / f"filoma_audit_{target.name}_{id(target)}.json"
+    try:
+        audit_dataset(
+            None,  # type: ignore[arg-type]
+            str(target),
+            mode=audit_mode,
+            show_evidence=show_evidence,
+            export_path=str(json_path),
+            export_format="json",
+        )
+    except Exception as e:
+        console.print(f"[red]Audit execution failed: {e}[/red]")
+        raise typer.Exit(2)
+
+    audit_data = json.loads(json_path.read_text(encoding="utf-8"))
+
+    summary = audit_data.get("summary", {})
+    profile = audit_data.get("dataset_profile", {})
+
+    table = Table(title=f"Dataset Audit — {target.name}")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="white")
+
+    table.add_row("Files checked", str(summary.get("total_files_checked", "?")))
+    table.add_row("Corrupted files", str(summary.get("corrupted_files", "?")))
+    table.add_row("Zero-byte files", str(summary.get("zero_byte_files", "?")))
+    table.add_row("Duplicate groups", str(summary.get("duplicate_groups", "?")))
+    table.add_row("Duplicate ratio", f"{summary.get('duplicate_ratio_pct', '?')}%")
+    table.add_row("Hygiene score", str(summary.get("hygiene_score", "?")))
+    table.add_row("Migration readiness", str(summary.get("migration_readiness", "?")))
+    table.add_row("Migration blockers", str(summary.get("migration_blockers", "?")))
+    table.add_row("Extension types", str(len(profile.get("extension_counts", {}))))
+    console.print(table)
+
+    gate_failures = 0
+    if gates:
+        gates_path = Path(gates).expanduser().resolve()
+        if gates_path.exists():
+            from filoma.core.gates import check_gates
+
+            gate_results = check_gates(gates_path, audit_data)
+
+            gate_table = Table(title="Quality Gates")
+            gate_table.add_column("Gate", style="cyan")
+            gate_table.add_column("Threshold", style="yellow")
+            gate_table.add_column("Actual", style="white")
+            gate_table.add_column("Result", style="white")
+
+            for gr in gate_results:
+                status = "[green]PASS[/green]" if gr.passed else "[red]FAIL[/red]"
+                gate_table.add_row(gr.name, str(gr.threshold), str(gr.actual), status)
+                if not gr.passed:
+                    gate_failures += 1
+
+            console.print()
+            console.print(gate_table)
+
+            if gate_failures:
+                console.print(f"\n[red]{gate_failures} gate(s) failed.[/red]")
+            else:
+                console.print("\n[green]All quality gates passed.[/green]")
+        else:
+            console.print(f"[yellow]Warning: gates file not found at '{gates}' — proceeding without gates.[/yellow]")
+
+    if export:
+        if export_fmt == "json":
+            import shutil
+
+            shutil.copyfile(json_path, export_path)
+        else:
+            _export_report(audit_data, export_path, export_fmt, show_evidence)
+        console.print(f"[dim]Report exported to {export_path}[/dim]")
+
+    try:
+        json_path.unlink()
+    except OSError:
+        pass
+
+    if gate_failures > 0:
+        raise typer.Exit(1)
+    raise typer.Exit(0)
+
+
+def _export_report(audit_data: dict, dest: Path, fmt: str, show_evidence: bool) -> None:
+    """Write *audit_data* to *dest* in markdown or HTML format.
+
+    Avoids a second ``audit_dataset`` call for non-JSON export.
+    """
+    summary = audit_data.get("summary", {})
+    profile = audit_data.get("dataset_profile", {})
+    reconciliation = audit_data.get("reconciliation", {})
+    evidence = audit_data.get("evidence", [])
+
+    if fmt == "md":
+        lines = [
+            "# Dataset Audit Report",
+            "",
+            f"**Target:** {audit_data.get('target', '?')}",
+            "",
+            "## Summary",
+            f"- Files checked: {summary.get('total_files_checked', '?')}",
+            f"- Corrupted files: {summary.get('corrupted_files', '?')}",
+            f"- Zero-byte files: {summary.get('zero_byte_files', '?')}",
+            f"- Duplicate groups: {summary.get('duplicate_groups', '?')}",
+            f"- Duplicate ratio: {summary.get('duplicate_ratio_pct', '?')}%",
+            f"- Hygiene score: {summary.get('hygiene_score', '?')}",
+            f"- Migration readiness: {summary.get('migration_readiness', '?')}",
+            f"- Migration blockers: {summary.get('migration_blockers', '?')}",
+            f"- Extension types: {len(profile.get('extension_counts', {}))}",
+            f"- Reconciliation: {reconciliation.get('status', '?')}",
+        ]
+        if show_evidence and evidence:
+            lines.extend(["", "## Evidence", *[f"- {e}" for e in evidence]])
+        dest.write_text("\n".join(lines), encoding="utf-8")
+    elif fmt == "html":
+        _sum = summary
+        _hg = float(_sum.get("hygiene_score") or 0)
+        _rd = float(_sum.get("migration_readiness") or 0)
+        _space = _sum.get("estimated_space_waste_bytes", 0)
+        _space_fmt = f"{_space / 1048576:.1f} MB" if _space >= 1048576 else f"{_space / 1024:.1f} KB"
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Dataset Audit — {audit_data.get("target", "?")}</title>
+<style>
+body{{font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:800px;margin:2rem auto;padding:0 1rem;color:#1a1a2e;background:#f8fafc}}
+h1{{border-bottom:2px solid #3b82f6;padding-bottom:.5rem}}.card{{background:#fff;border-radius:8px;padding:1.5rem;margin:1rem 0;box-shadow:0 1px 3px rgba(0,0,0,.1)}}
+.metric{{display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid #e2e8f0}}
+.metric:last-child{{border-bottom:none}}.label{{color:#64748b}}.value{{font-weight:600}}
+.score{{font-size:2rem;font-weight:700}}.ok{{color:#10b981}}.warn{{color:#f59e0b}}.fail{{color:#ef4444}}
+</style></head><body>
+<h1>Dataset Audit &mdash; {audit_data.get("target", "?")}</h1>
+<div class="card"><h2>Summary</h2>
+<div class="metric"><span class="label">Files checked</span><span class="value">{_sum.get("total_files_checked", "?")}</span></div>
+<div class="metric"><span class="label">Corrupted files</span><span class="value">{_sum.get("corrupted_files", "?")}</span></div>
+<div class="metric"><span class="label">Zero-byte files</span><span class="value">{_sum.get("zero_byte_files", "?")}</span></div>
+<div class="metric"><span class="label">Duplicate groups</span><span class="value">{_sum.get("duplicate_groups", "?")}</span></div>
+<div class="metric"><span class="label">Duplicate ratio</span><span class="value">{_sum.get("duplicate_ratio_pct", "?")}%</span></div>
+<div class="metric"><span class="label">Hygiene score</span><span class="value score {"ok" if _hg >= 80 else "warn" if _hg >= 50 else "fail"}">{_hg:.0f}</span></div>
+<div class="metric"><span class="label">Migration readiness</span><span class="value score {"ok" if _rd >= 80 else "warn" if _rd >= 50 else "fail"}">{_rd:.0f}</span></div>
+<div class="metric"><span class="label">Migration blockers</span><span class="value">{_sum.get("migration_blockers", "?")}</span></div>
+<div class="metric"><span class="label">Est. space waste</span><span class="value">{_space_fmt}</span></div>
+</div>
+<p><small>Generated by filoma — v{audit_data.get("version", "?")}</small></p>
+</body></html>"""
+        dest.write_text(html, encoding="utf-8")
+
+
 @app.command()
 def verify(
     reference: str = typer.Argument(..., help="Path to reference snapshot or manifest file"),

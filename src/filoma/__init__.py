@@ -64,14 +64,10 @@ def __getattr__(name: str):
         return Dataset
 
     if name == "Pipeline":
-        # ``Pipeline`` is a fluent alias for ``Dataset``. Keeping them as the
-        # same class lets ``Dataset(p).scan().enrich().verify().report()`` and
-        # ``Pipeline(p).scan()...`` share one implementation. A proper
-        # stage-based ``Pipeline`` is scheduled for Phase 3 of the roadmap.
-        from .dataset import Dataset
+        from .pipeline import Pipeline as _Pipeline
 
-        globals()["Pipeline"] = Dataset
-        return Dataset
+        globals()["Pipeline"] = _Pipeline
+        return _Pipeline
 
     if name in mapping:
         target = mapping[name]

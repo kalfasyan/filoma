@@ -265,6 +265,21 @@ def generate_hygiene_report(ctx: RunContext[Any], path: str) -> str:
             )
             issues.append(issue)
 
+        # Class-balance issue (always emitted so quality gates can consume the distribution)
+        if class_dist:
+            issues.append(
+                AuditFinding(
+                    id="hygiene-class-balance",
+                    severity="info",
+                    category="quality",
+                    description=f"Class distribution across {len(class_dist)} classes",
+                    evidence={"class_distribution": class_dist},
+                    confidence=0.9,
+                    recommendation="Monitor class balance for model training",
+                    affected_paths=[],
+                )
+            )
+
         # Calculate overall score (simple average of metric statuses)
         score_components = []
         for metric in metrics:
@@ -480,6 +495,7 @@ def audit_dataset(
     show_evidence: bool = False,
     export_path: Optional[str] = None,
     export_format: str = "json",
+    dataframe: Any = None,
 ) -> str:
     """Run a full dataset audit workflow in one call.
 
@@ -489,6 +505,10 @@ def audit_dataset(
     - assess_migration_readiness
 
     It returns a concise or verbose summary and can optionally export a report.
+
+    When *dataframe* is provided (a pre-computed filoma DataFrame), the
+    function skips the internal ``probe_to_df`` call and uses the cached
+    frame for extension/split distribution profiling.
     """
     p = Path(path).expanduser().resolve()
     if not p.exists():
@@ -529,7 +549,10 @@ def audit_dataset(
     split_labels = {"train", "valid", "test"}
 
     try:
-        df = filoma.probe_to_df(str(p), enrich=False)
+        if dataframe is not None:
+            df = dataframe
+        else:
+            df = filoma.probe_to_df(str(p), enrich=False)
         profile_total_files = len(df)
 
         # Normalize extension_count table to {ext: count}

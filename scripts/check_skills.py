@@ -26,10 +26,7 @@ SRC = Path(__file__).resolve().parent.parent / "src"
 # Forward references: commands/APIs documented in skills but scheduled for
 # future roadmap phases. Remove entries once the feature ships.
 # See docs/roadmap/adoption.md for phase descriptions.
-FORWARD_REFERENCES: set[str] = {
-    # Phase 3: `filoma audit <path>` first-class subcommand
-    "filoma audit",
-}
+FORWARD_REFERENCES: set[str] = set()
 
 
 def main() -> int:

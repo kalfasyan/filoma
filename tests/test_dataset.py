@@ -85,9 +85,9 @@ def test_verify_auto_snapshots_when_chain_starts_with_verify(temp_dataset):
     assert len(ds.verification["matched"]) == 2
 
 
-def test_pipeline_is_dataset_alias():
-    """``flm.Pipeline`` and ``flm.Dataset`` are the same class."""
-    assert filoma.Pipeline is filoma.Dataset
+def test_dataset_is_pipeline_subclass():
+    """``flm.Dataset`` is a subclass of ``flm.Pipeline``."""
+    assert issubclass(filoma.Dataset, filoma.Pipeline)
 
 
 def test_invalidate_cache_clears_fluent_results(temp_dataset):
