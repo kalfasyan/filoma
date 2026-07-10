@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     pass
 
 import filoma
+from filoma.tool_registry import tool_registry
 
 from .models import AuditFinding, AuditReport, HygieneMetric, HygieneReport, MigrationReadinessItem, MigrationReadinessReport
 
@@ -34,6 +35,7 @@ def _is_mcp_stdio_mode() -> bool:
     return os.getenv("FILOMA_MCP_STDIO", "0") == "1"
 
 
+@tool_registry.register
 def count_files(ctx: RunContext[Any], path: str) -> str:
     """Count the total number of files in a directory with FULL recursive scan.
 
@@ -77,6 +79,7 @@ def count_files(ctx: RunContext[Any], path: str) -> str:
         return f"Error generating image preview: {str(e)}"
 
 
+@tool_registry.register
 def audit_corrupted_files(ctx: RunContext[Any], path: str) -> str:
     """Perform a corrupted file audit and return a structured report.
 
@@ -178,6 +181,7 @@ def audit_corrupted_files(ctx: RunContext[Any], path: str) -> str:
         return f"CORRUPTED FILE AUDIT REPORT (FAILED):\n{report.model_dump_json(indent=2)}"
 
 
+@tool_registry.register
 def generate_hygiene_report(ctx: RunContext[Any], path: str) -> str:
     """Generate a dataset hygiene report with quality metrics.
 
@@ -310,6 +314,7 @@ def generate_hygiene_report(ctx: RunContext[Any], path: str) -> str:
         return f"DATASET HYGIENE REPORT (FAILED):\n{report.model_dump_json(indent=2)}"
 
 
+@tool_registry.register
 def assess_migration_readiness(ctx: RunContext[Any], path: str) -> str:
     """Assess dataset migration readiness with structured analysis.
 
@@ -467,6 +472,7 @@ def _extract_json_payload(report_text: str) -> Optional[dict[str, Any]]:
         return None
 
 
+@tool_registry.register
 def audit_dataset(
     ctx: RunContext[Any],
     path: str,
@@ -1140,6 +1146,7 @@ def audit_dataset(
     return verbose_report
 
 
+@tool_registry.register
 def probe_directory(
     ctx: RunContext[Any],
     path: str,
@@ -1221,6 +1228,7 @@ def probe_directory(
         return f"Error probing directory: {str(e)}"
 
 
+@tool_registry.register
 def find_duplicates(ctx: RunContext[Any], path: str, ignore_safety_limits: bool = False) -> str:
     """Find duplicate files in a directory.
 
@@ -1267,6 +1275,7 @@ def find_duplicates(ctx: RunContext[Any], path: str, ignore_safety_limits: bool 
         return f"Error finding duplicates: {str(e)}"
 
 
+@tool_registry.register
 def get_file_info(ctx: RunContext[Any], path: str) -> str:
     """Get detailed information about a specific file."""
     try:
@@ -1281,6 +1290,7 @@ def get_file_info(ctx: RunContext[Any], path: str) -> str:
         return f"Error getting file info: {str(e)}"
 
 
+@tool_registry.register
 def verify_integrity(ctx: RunContext[Any], reference: str, target: str) -> str:
     """Verify dataset integrity using snapshots or manifests."""
     from filoma.core.verifier import verify_dataset
@@ -1292,6 +1302,7 @@ def verify_integrity(ctx: RunContext[Any], reference: str, target: str) -> str:
         return f"Error during verification: {str(e)}"
 
 
+@tool_registry.register
 def run_quality_check(ctx: RunContext[Any], path: str) -> str:
     """Run data quality analysis on a dataset."""
     from filoma.core.verifier import DatasetVerifier
@@ -1311,6 +1322,7 @@ def run_quality_check(ctx: RunContext[Any], path: str) -> str:
         return f"Error during quality checks: {str(e)}"
 
 
+@tool_registry.register
 def filter_by_extension(ctx: RunContext[Any], extensions: Union[str, List[str]]) -> str:
     """Filter the current DataFrame to only include files with specific extensions.
 
@@ -1343,6 +1355,7 @@ def filter_by_extension(ctx: RunContext[Any], extensions: Union[str, List[str]])
         return f"Error filtering by extension: {str(e)}"
 
 
+@tool_registry.register
 def filter_by_pattern(ctx: RunContext[Any], pattern: str) -> str:
     """Filter the current DataFrame to only include files matching a regex pattern."""
     if ctx.deps.current_df is None:
@@ -1360,6 +1373,7 @@ def filter_by_pattern(ctx: RunContext[Any], pattern: str) -> str:
         return f"Error filtering by pattern: {str(e)}"
 
 
+@tool_registry.register
 def sort_dataframe_by_size(ctx: RunContext[Any], ascending: bool = False, top_n: int = 10) -> str:
     """Sort the current DataFrame by file size and return a top-N preview."""
     if ctx.deps.current_df is None:
@@ -1387,6 +1401,7 @@ def sort_dataframe_by_size(ctx: RunContext[Any], ascending: bool = False, top_n:
         return f"Error sorting dataframe by size: {str(e)}"
 
 
+@tool_registry.register
 def dataframe_head(ctx: RunContext[Any], n: int = 5) -> str:
     """Show the first N rows from the current DataFrame."""
     if ctx.deps.current_df is None:
@@ -1402,6 +1417,7 @@ def dataframe_head(ctx: RunContext[Any], n: int = 5) -> str:
         return f"Error retrieving dataframe head: {str(e)}"
 
 
+@tool_registry.register
 def summarize_dataframe(ctx: RunContext[Any]) -> str:
     """Get summary statistics about the current DataFrame."""
     if ctx.deps.current_df is None:
@@ -1427,6 +1443,7 @@ def summarize_dataframe(ctx: RunContext[Any]) -> str:
         return f"Error summarizing dataframe: {str(e)}"
 
 
+@tool_registry.register
 def search_files(
     ctx: RunContext[Any],
     path: str,
@@ -1524,6 +1541,7 @@ def search_files(
         return f"Error searching files: {str(e)}"
 
 
+@tool_registry.register
 def list_directory(ctx: RunContext[Any], path: str) -> str:
     """List files and folders in a directory (non-recursive, excludes hidden files).
 
@@ -1571,6 +1589,7 @@ def list_directory(ctx: RunContext[Any], path: str) -> str:
         return f"Error listing directory: {str(e)}"
 
 
+@tool_registry.register
 def list_directory_all(ctx: RunContext[Any], path: str) -> str:
     """List ALL files and folders in a directory including hidden files (dotfiles).
 
@@ -1621,6 +1640,7 @@ def list_directory_all(ctx: RunContext[Any], path: str) -> str:
         return f"Error listing directory: {str(e)}"
 
 
+@tool_registry.register
 def get_directory_tree(ctx: RunContext[Any], path: str) -> str:
     """Compatibility wrapper for listing immediate directory contents.
 
@@ -1630,21 +1650,18 @@ def get_directory_tree(ctx: RunContext[Any], path: str) -> str:
     return list_directory(ctx=ctx, path=path)
 
 
+@tool_registry.register
 def list_available_tools(ctx: RunContext[Any]) -> str:
     """List all available tools and their capabilities.
 
     Use this if you are unsure of what operations are possible.
     """
-    # Note: We import FilomaAgent here to avoid circular imports if necessary,
-    # but since this is inside tools.py and FilomaAgent is in agent.py
-    # which imports tools, we should be careful.
-    # However, we can just hardcode or pass it.
-    # For now, let's provide a clear manual list to be safe.
-    from .agent import FilarakiAgent
+    from filoma.filaraki.agent import FilarakiAgent
 
-    return FilarakiAgent.API_REFERENCE
+    return FilarakiAgent._build_api_reference()
 
 
+@tool_registry.register
 def analyze_image(ctx: RunContext[Any], path: str) -> str:
     """Perform specialized analysis on an image file.
 
@@ -1708,6 +1725,7 @@ def analyze_dataframe(ctx: RunContext[Any], operation: str, **kwargs) -> str:
     return f"Error: Unknown operation '{operation}'. Supported: filter_by_extension, filter_by_pattern, sort_by_size, head, summary. Prefer using dedicated dataframe tools directly."
 
 
+@tool_registry.register
 def export_dataframe(ctx: RunContext[Any], path: str, format: str = "csv") -> str:
     """Export the current DataFrame to a file.
 
@@ -1761,6 +1779,7 @@ def _get_file_icon(path: Path) -> str:
         return "📄"
 
 
+@tool_registry.register
 def open_file(ctx: RunContext[Any], path: str) -> str:
     """Open a file for viewing by the user using 'bat' or 'cat' in a subprocess.
 
@@ -1812,6 +1831,7 @@ def open_file(ctx: RunContext[Any], path: str) -> str:
         return f"Error: {str(e)}"
 
 
+@tool_registry.register
 def read_file(
     ctx: RunContext[Any],
     path: str,
@@ -1895,6 +1915,7 @@ def read_file(
         return f"Error reading file: {str(e)}"
 
 
+@tool_registry.register
 def create_dataset_dataframe(ctx: RunContext[Any], path: str, enrich: bool = True) -> str:
     """Create a dataframe from a dataset directory and make it available for analysis.
 
@@ -1942,6 +1963,7 @@ def create_dataset_dataframe(ctx: RunContext[Any], path: str, enrich: bool = Tru
         return f"Error creating dataset dataframe: {str(e)}"
 
 
+@tool_registry.register
 def preview_image(ctx: RunContext[Any], path: str, width: int = 60, mode: str = "ansi") -> str:
     """Generate a preview of an image (ASCII or ANSI color blocks).
 

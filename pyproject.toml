@@ -122,6 +122,7 @@ filaraki-poc = { cmd = "python examples/filaraki_poc.py", env = { PYTHONPATH = "
 filaraki-chat = { cmd = "filoma filaraki chat", env = { PYTHONPATH = "src" } }
 filaraki-test = { cmd = "pytest tests/test_filaraki_poc_init.py", env = { PYTHONPATH = "src" } }
 benchmark = "python scripts/benchmark.py"
+check-skills = { cmd = "python scripts/check_skills.py", env = { PYTHONPATH = "src" } }
 
 [dependency-groups]
 dev = [

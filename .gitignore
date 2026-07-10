@@ -66,3 +66,4 @@ manifest.json
 .secrets.baseline
 tmp/audit_weeds3_v2.json
 .claude/
+.kilo/

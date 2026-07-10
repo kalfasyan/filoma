@@ -16,6 +16,40 @@ _Intuition: Filoma acts as a smart orchestrator that picks the fastest path to y
 
 DOT source: `docs/diagrams/profiling-flow.dot`.
 
+### Backend selection — the canonical extension point
+
+Filoma resolves a backend at runtime via a fixed priority chain:
+
+| Priority | Backend | Condition                           |
+| -------- | ------- | ----------------------------------- |
+| 1        | Rust    | Rust extension installed (maturing) |
+| 2        | `fd`    | `fd-find` available on `$PATH`      |
+| 3        | Python  | Always available (pure stdlib walk) |
+
+This is the **canonical extension pattern** for the codebase. The
+caller (`DirectoryProfiler`) depends on a `Probe` / `Scanner`
+abstraction — never on a concrete backend. A new backend only needs
+to implement the same protocol and register itself in the selection
+logic.
+
+To add a new backend (e.g. a hypothetical S3 scanner):
+
+1. Implement the `scan` protocol returning the same item tuples the
+   existing backends produce.
+2. Register its availability check in `DirectoryProfiler._choose_backend`.
+3. Add a `search_backend` option so callers can opt in.
+
+The key constraint: the protocol is not formalised as an ABC today.
+Contributors should follow the existing `fd` backend as the
+reference implementation in `src/filoma/directories/` — it shows
+the exact item signature, error handling, and fallback conventions
+expected by the `DirectoryProfiler` orchestrator.
+
+See `src/filoma/directories/directory_profiler.py:530` for the
+current selection logic.
+
+---
+
 ## 2. Intuitive Data Preparation
 
 Once discovered, Filoma turns raw filesystem metadata into a powerful `filoma.DataFrame`. This layer allows you to treat your filesystem like a database, enabling easy enrichment, chaining of operations, and content-based deduplication.

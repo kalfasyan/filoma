@@ -30,7 +30,7 @@ try:
 except ImportError:
     logger.debug("python-dotenv not installed, skipping .env loading")
 
-from . import tools
+from filoma.tool_registry import tool_registry
 
 
 @dataclass
@@ -44,93 +44,35 @@ class FilarakiDeps:
 class FilarakiAgent:
     """An intelligent agent for interacting with filoma."""
 
-    API_REFERENCE = """
-COMPLETE TOOL LIST (exhaustive - no other operations exist):
+    @staticmethod
+    def _build_api_reference() -> str:
+        """Build the API reference string from the ToolRegistry."""
+        from filoma.tool_registry import tool_registry
 
-1. count_files(path: str = ".") -> str
-   Returns total files and folders in path (full recursive scan).
-
-2. list_directory(path: str) -> str
-   Lists files/folders (non-recursive, excludes hidden files).
-
-3. list_directory_all(path: str) -> str
-   Lists files/folders (non-recursive, includes hidden files).
-
-4. probe_directory(path: str = ".", max_depth: int = None, ignore_safety_limits: bool = False) -> str
-   Summarizes a directory with counts and top extensions.
-
-5. find_duplicates(path: str = ".", ignore_safety_limits: bool = False) -> str
-   Finds duplicate files and shows duplicate groups.
-
-6. get_file_info(path: str) -> str
-   Returns detailed metadata (JSON) for one file.
-
-7. search_files(path: str = ".", pattern: str = None, extension: str = None, min_size: str = None) -> str
-   Searches files by regex, extension, or minimum size and loads DataFrame state.
-
-8. get_directory_tree(path: str) -> str
-   Compatibility alias for non-recursive directory listing.
-
-9. list_available_tools() -> str
-   Returns this API reference.
-
-10. analyze_image(path: str) -> str
-    Performs image analysis (shape, dtype, and basic stats).
-
-11. filter_by_extension(extensions: Union[str, List[str]]) -> str
-    Filters current DataFrame by extension(s).
-
-12. filter_by_pattern(pattern: str) -> str
-    Filters current DataFrame by regex pattern.
-
-13. sort_dataframe_by_size(ascending: bool = False, top_n: int = 10) -> str
-    Sorts current DataFrame by size and returns top-N preview.
-
-14. dataframe_head(n: int = 5) -> str
-    Shows first N rows of current DataFrame.
-
-15. summarize_dataframe() -> str
-    Returns summary stats for current DataFrame.
-
-16. export_dataframe(path: str, format: str = "csv") -> str
-    Exports current DataFrame to csv/json/parquet.
-
-17. open_file(path: str) -> str
-    Displays file directly to user terminal (bat/cat).
-
-18. read_file(path: str, start_line: int = 1, end_line: int = None) -> str
-    Reads file content into agent context.
-
-19. preview_image(path: str, width: int = 60, mode: str = "ansi") -> str
-    Displays image preview (ansi/ascii) to user terminal.
-
-20. verify_integrity(reference: str, target: str) -> str
-    Verifies dataset integrity using snapshots/manifests.
-
-21. run_quality_check(path: str) -> str
-    Runs data quality checks and returns summary output.
-
-22. create_dataset_dataframe(path: str, enrich: bool = True) -> str
-    Creates a metadata DataFrame from a directory.
-
-23. audit_corrupted_files(path: str) -> str
-    Reports corrupted/zero-byte files with structured findings.
-
-24. generate_hygiene_report(path: str) -> str
-    Generates dataset hygiene metrics and recommendations.
-
-25. assess_migration_readiness(path: str) -> str
-    Assesses dataset migration readiness with blockers/risks.
-
-26. audit_dataset(path: str, mode: str = "concise", show_evidence: bool = False,
-                  export_path: str = None, export_format: str = "json") -> str
-    Runs a full dataset audit workflow (corruption + hygiene + readiness).
-    Use mode='verbose' for full component reports.
-    Use show_evidence=True to include duplicate/corruption examples.
-    Use export_path to save a consolidated report (json, md, or html).
-
-IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-ONLY analysis tool (except for export_dataframe).
-"""
+        lines = ["COMPLETE TOOL LIST (exhaustive - no other operations exist):", ""]
+        for i, spec in enumerate(tool_registry.list_specs(), start=1):
+            # Build signature string
+            props = spec.param_schema.get("properties", {})
+            required = spec.param_schema.get("required", [])
+            sig_parts = []
+            for pname, pinfo in props.items():
+                ptype = pinfo.get("type", "str")
+                if pname in required:
+                    sig_parts.append(f"{pname}: {ptype}")
+                else:
+                    sig_parts.append(f"{pname}: {ptype} = None")
+            sig = f"{spec.name}({', '.join(sig_parts)}) -> str" if sig_parts else f"{spec.name}() -> str"
+            lines.append(f"{i}. {sig}")
+            desc = spec.description[:120] if spec.description else ""
+            if desc:
+                lines.append(f"   {desc}")
+        lines.extend(
+            [
+                "",
+                "IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-ONLY analysis tool (except for export_dataframe).",
+            ]
+        )
+        return "\n".join(lines)
 
     FEW_SHOT_EXAMPLES = ""
 
@@ -158,34 +100,7 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
         self.agent = Agent(
             self.model,
             deps_type=FilarakiDeps,
-            tools=[
-                tools.count_files,
-                tools.list_directory,
-                tools.list_directory_all,
-                tools.probe_directory,
-                tools.find_duplicates,
-                tools.get_file_info,
-                tools.search_files,
-                tools.get_directory_tree,
-                tools.list_available_tools,
-                tools.analyze_image,
-                tools.filter_by_extension,
-                tools.filter_by_pattern,
-                tools.sort_dataframe_by_size,
-                tools.dataframe_head,
-                tools.summarize_dataframe,
-                tools.export_dataframe,
-                tools.open_file,
-                tools.read_file,
-                tools.preview_image,
-                tools.verify_integrity,
-                tools.run_quality_check,
-                tools.create_dataset_dataframe,
-                tools.audit_corrupted_files,
-                tools.generate_hygiene_report,
-                tools.assess_migration_readiness,
-                tools.audit_dataset,
-            ],
+            tools=[spec.callable for spec in tool_registry.list_specs()],
         )
 
         @self.agent.system_prompt
@@ -205,7 +120,7 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
                 "\n\n"
                 f"{knowledge_base}\n"
                 "\n\n"
-                f"{self.API_REFERENCE}\n"
+                f"{self._build_api_reference()}\n"
                 "\n\n"
                 f"{self.FEW_SHOT_EXAMPLES}\n"
                 "\n\n"

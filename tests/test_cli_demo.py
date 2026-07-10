@@ -18,7 +18,7 @@ def test_demo_command_runs_end_to_end():
     if report_path.exists():
         report_path.unlink()
 
-    with patch("filoma.cli._can_open_browser", return_value=True), patch("webbrowser.open") as mock_open:
+    with patch("filoma.cli.commands._can_open_browser", return_value=True), patch("webbrowser.open") as mock_open:
         result = runner.invoke(app, ["demo"])
 
     assert result.exit_code == 0, result.output
