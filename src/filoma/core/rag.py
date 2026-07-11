@@ -17,6 +17,13 @@ import re
 from pathlib import Path
 from typing import Any
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
+
 
 def _resolve_embedder():
     """Resolve an embedding function, trying Ollama first then sentence-transformers.
@@ -263,7 +270,6 @@ class RagStore:
                 )
 
         # 4. Upsert to LanceDB
-        final_count = 0
         if new_chunks or existing is not None:
             if new_chunks:
                 import pyarrow as pa
@@ -287,7 +293,12 @@ class RagStore:
                     self._db.drop_table(self._table_name)
                     self._db.create_table(self._table_name, rematerialized)
 
-            final_count = new_chunks[-1]["chunk_idx"] + 1 if new_chunks else 0
+            if existing is not None:
+                final_count = len(existing) + len(new_chunks)
+            else:
+                final_count = len(new_chunks)
+        else:
+            final_count = 0
 
         return final_count
 

@@ -22,6 +22,7 @@ nav:
       - File & Image Profiling: guides/profiling.md
       - Duplicate Detection: guides/dedup.md
       - AI Agent (Filaraki): guides/filaraki.md
+      - Semantic Search (RAG): guides/rag.md
       - Data Integrity & Quality: guides/data-integrity.md
       - Dataset Management: guides/dataset.md
       - Advanced Usage: guides/advanced-usage.md

@@ -81,25 +81,28 @@ files that exist today.
   agent acquisition.
 - As we add CI-style stages (validate → audit → report → publish), this
   class will become a god-object.
-- **Concrete hot path that proves the point:** running the headline chain
-  `Pipeline(p).scan().enrich().verify().report()` walks the directory tree
-  **~5 times**. `enrich()` builds a Polars dataframe (1 walk), `verify()`
-  re-snapshots to compare (1 walk, unavoidable), and then `report()`
-  delegates to `audit_dataset` whose three sub-tools
+- **Concrete hot path that proved the point (fixed):** the original
+  `Pipeline(p).scan().enrich().verify().report()` walked the directory tree
+  **~5 times**. `enrich()` built a Polars dataframe (1 walk), `verify()`
+  re-snapshotted to compare (1 walk, unavoidable), and `report()`
+  delegated to `audit_dataset` whose three sub-tools
   (`audit_corrupted_files`, `generate_hygiene_report`,
-  `assess_migration_readiness`) each probe the tree independently and a
-  fourth internal `probe_to_df` rebuilds the same dataframe `enrich()`
-  already cached. On a 44 k-item tree this is ~3 s of redundant scanning
-  per audit — the single biggest speedup on the table.
-- **Fix (Phase 3):** factor into a `Pipeline` of single-purpose stages
-  (`Scan`, `Enrich`, `Verify`, `Dedup`, `Report`) that each implement a
-  small `Stage` protocol. `Dataset` becomes a façade that composes the
-  default stages — the LSP-friendly version of what we have now. Critical
-  side benefit: stages share state (the enriched dataframe, the in-memory
-  snapshot) so `Report` consumes what `Enrich` produced instead of
-  re-walking the filesystem. We should also consider further caching of
-  the enriched dataframe on disk (e.g. `dataset.pq`) so that subsequent
-  runs are faster, but that's a separate design question.
+  `assess_migration_readiness`) each probed the tree independently and a
+  fourth internal `probe_to_df` rebuilt the same dataframe `enrich()`
+  already cached. On a 44 k-item tree this was ~3 s of redundant scanning
+  per audit.
+- **Fix 1 — stage-based Pipeline (Phase 3, shipped):** factor into a
+  `Pipeline` of single-purpose stages (`Scan`, `Enrich`, `Verify`,
+  `Dedup`, `Report`) that each implement a small `Stage` protocol.
+  `Dataset` is a façade that composes the default stages. Stages share
+  state (the enriched dataframe, the in-memory snapshot) so `Report`
+  consumes what `Enrich` produced instead of re-walking the filesystem.
+- **Fix 2 — agent-level probe cache (shipped):** added `cached_analyses`
+  and `cached_dfs` to `FilarakiDeps` so every agent tool that calls
+  `probe()` or `probe_to_df()` shares the same result per `(path,
+max_depth)`. `audit_dataset` and its sub-tools now walk once instead of
+  three times. A disk cache (e.g. `dataset.pq`) for cross-session reuse
+  remains a separate design question.
 
 ### 2.3 `cli.py` (907 LOC) — **SRP, ISP**
 
@@ -212,6 +215,11 @@ comprehensive but oriented around features, not jobs.
       from a scanned tree into a local vector store (LanceDB) so
       Filaraki can answer content questions, not just metadata
       questions. Local-first, Ollama embeddings by default.
+- [ ] **RAG cache over probes.** `RagStore` currently re-walks the
+      filesystem independently. Let `Pipeline(...).scan().build_rag_index()`
+      reuse the already-enumerated file list from the probe, avoiding a
+      redundant second traversal. Unifies the probe → DataFrame → RAG
+      pipeline into a single walk.
 - [x] **Schema-proposing agent.** Given a folder of CSV/Parquet/images,
       have the agent propose a dataset schema, a `Pipeline` config, and
       quality-gate policies — the user reviews and accepts.

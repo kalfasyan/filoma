@@ -18,6 +18,9 @@ dependencies = [
   "pydantic-ai>=0.0.1",
   "python-dotenv>=1.0.0",
   "pandas>=2.0.0",
+  "lancedb>=0.34.0",
+  "pyarrow>=22.0.0",
+  "sentence-transformers>=5.6.0",
 ]
 
 [project.scripts]
