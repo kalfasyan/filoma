@@ -31,42 +31,48 @@ Navigate with arrow keys, probe files and directories, and analyze DataFrames—
 
 ## Why filoma?
 
+- **Dataset CI for ML**: folder → verified dataset → insights → agent, in one pipeline
 - **Automatic speed**: Rust / fd / Python backend selection
-- **DataFrame-first**: Direct Polars integration + enrichment helpers
-- **One-liners**: `probe`, `probe_to_df`, `probe_file`, `probe_image`
-- **Architectural Clarity**: High-level visual flows for discovery and processing
-- **Extensible**: Low-level profilers still accessible
-- **Interactive CLI**: Beautiful terminal interface for exploration and analysis
-- **Agentic Analysis**: Natural language interface for filesystem tasks
+- **DataFrame-first**: Polars-native wrapper with enrichment helpers
+- **Deduplication**: exact + near-duplicate text + near-duplicate images
+- **Quality gates**: `filoma-gates.yml` with pass/fail exit codes for CI
+- **Agentic interface**: `filoma ask`, interactive chat, MCP server, schema proposals, cleanup scripts
+- **RAG search**: index text/code files into LanceDB, search by meaning with Ollama embeddings
+- **Watch mode**: `filoma watch` — detect dataset drift, fail CI on gate violations
+- **Plugin discovery**: third-party tools auto-register via `filoma.tools` entry points
+- **Interactive CLI**: Rich-powered terminal UI for exploration
 
 ## Start here
 
-Best place to begin is the Demo notebook (see the [`Demo` page](tutorials/demo.md) in the docs).
-
-1. Read the [Quickstart](getting-started/quickstart.md)
-2. Learn [Core Concepts](guides/concepts.md)
-3. Explore the [Architecture & Flow](reference/architecture.md)
-4. Explore the [DataFrame Workflow](guides/dataframe.md)
-5. Learn about [Filoma Brain](guides/brain.md)
+1. Read the [Quickstart](getting-started/quickstart.md) — pick your persona and go
+2. See how filoma compares: [Why filoma over X?](getting-started/comparisons.md)
+3. Jump to a use case: [Audit](use-cases/audit.md) | [Explore](use-cases/explore.md) | [Dedup](use-cases/dedup.md) | [Talk](use-cases/agent.md)
+4. Learn [Core Concepts](guides/concepts.md)
+5. Explore the [Architecture & Flow](reference/architecture.md)
 6. Browse recipes in the [Cookbook](tutorials/cookbook.md)
-7. Try the [Roboflow Dataset Analysis Demo](tutorials/roboflow_demo.md) (real-world computer vision use case)
-8. Dive into the [API Reference](reference/api.md)
+7. Dive into the [API Reference](reference/api.md)
 
-## Common Tasks (TL;DR)
+## Common Tasks
 
-| Task             | Snippet                         |
-| ---------------- | ------------------------------- |
-| Scan dir         | `probe('.')`                    |
-| DataFrame        | `probe_to_df('.')`              |
-| Chat with Brain  | `filoma brain chat`             |
-| Largest N files  | see Cookbook                    |
-| Filter extension | `df.filter_by_extension('.py')` |
-| Add stats        | `df.add_file_stats_cols()`      |
+| Task                    | Snippet                                              |
+| ----------------------- | ---------------------------------------------------- |
+| Audit a dataset         | `filoma audit ./data --export report.html`           |
+| Watch for dataset drift | `filoma watch ./data --snapshot baseline.json`       |
+| Scan directory          | `flm.probe('.')`                                     |
+| Get DataFrame           | `flm.probe_to_df('.')`                               |
+| Find duplicates         | `flm.Pipeline('./data').scan().dedup()`              |
+| Chat with your data     | `filoma ask "what's in this folder?"`                |
+| Semantic RAG search     | `filoma ask "index docs/ and find all gate configs"` |
+| Filter by extension     | `dfw.filter_by_extension('.py')`                     |
+| Add file stats          | `dfw.add_file_stats_cols()`                          |
+| Propose dataset schema  | `filoma ask "propose a schema for ./data"`           |
+| Generate cleanup script | `filoma ask "generate a dedup script for ./data"`    |
 
 ## Installation
 
 ```bash
-pip install filoma
+uv add filoma          # recommended
+pip install filoma     # classic pip works too
 ```
 
 Want performance? Install Rust (for fastest backend) or fd.

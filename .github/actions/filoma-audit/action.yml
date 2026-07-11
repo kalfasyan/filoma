@@ -1,0 +1,46 @@
+name: "Filoma Dataset Audit"
+description: "Run a dataset audit and post results as a PR comment"
+inputs:
+  path:
+    description: "Path to the dataset directory"
+    required: false
+    default: "."
+  gates:
+    description: "Path to quality gates YAML"
+    required: false
+    default: "filoma-gates.yml"
+  export_format:
+    description: "Report format (json, md, html)"
+    required: false
+    default: "html"
+outputs:
+  passed:
+    description: "Whether all quality gates passed"
+    value: ${{ steps.audit.outputs.passed }}
+  report:
+    description: "Path to the generated report"
+    value: ${{ steps.audit.outputs.report }}
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - run: pip install filoma
+      shell: bash
+    - id: audit
+      run: |
+        set +e
+        filoma audit "${{ inputs.path }}" \
+          --gates "${{ inputs.gates }}" \
+          --export "audit-report.${{ inputs.export_format }}" \
+          --format "${{ inputs.export_format }}"
+        EXIT_CODE=$?
+        if [ $EXIT_CODE -eq 0 ]; then
+          echo "passed=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "passed=false" >> "$GITHUB_OUTPUT"
+        fi
+        echo "report=audit-report.${{ inputs.export_format }}" >> "$GITHUB_OUTPUT"
+        exit $EXIT_CODE
+      shell: bash

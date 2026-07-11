@@ -37,31 +37,9 @@ from typing import TYPE_CHECKING, Any, AsyncIterator, List
 
 from loguru import logger
 
+import filoma.filaraki.tools  # noqa: F401 — triggers @tool_registry.register decorators
 from filoma.filaraki.agent import FilarakiDeps
-from filoma.filaraki.tools import (
-    analyze_image,
-    assess_migration_readiness,
-    audit_corrupted_files,
-    audit_dataset,
-    count_files,
-    create_dataset_dataframe,
-    dataframe_head,
-    export_dataframe,
-    filter_by_extension,
-    filter_by_pattern,
-    find_duplicates,
-    generate_hygiene_report,
-    get_directory_tree,
-    get_file_info,
-    list_available_tools,
-    open_file,
-    preview_image,
-    probe_directory,
-    read_file,
-    search_files,
-    sort_dataframe_by_size,
-    summarize_dataframe,
-)
+from filoma.tool_registry import tool_registry
 
 # Reconfigure loguru to write to stderr (required for MCP stdio transport)
 # The MCP protocol uses stdout for JSON-RPC messages, so logs must go to stderr
@@ -128,7 +106,7 @@ async def list_tools() -> List[Any]:
     """
     mcp = _get_mcp_imports()
     Tool = mcp["Tool"]
-    return [Tool(name=name, description=spec["description"], inputSchema=spec["inputSchema"]) for name, spec in TOOL_SCHEMAS.items()]
+    return [Tool(name=spec.name, description=spec.description, inputSchema=spec.param_schema) for spec in tool_registry.list_specs() if spec.name in _MCP_TOOL_NAMES]
 
 
 async def call_tool(name: str, arguments: dict) -> List[Any]:
@@ -224,7 +202,7 @@ def _save_context(ctx: SimpleRunContext) -> None:
 
 
 async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
-    """Execute a tool with the provided arguments."""
+    """Execute a tool with the provided arguments, using the ToolRegistry."""
     deps = FilarakiDeps(working_dir=os.getcwd())
     ctx = _get_context(deps)
 
@@ -232,11 +210,7 @@ async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
     TextContent = mcp["TextContent"]
 
     def _run_guarded_stdout(func: Any, *args: Any, **kwargs: Any) -> Any:
-        """Run a tool while capturing accidental stdout writes.
-
-        MCP stdio transport requires stdout to contain only JSON-RPC messages.
-        Any human-readable output must be prevented from reaching stdout.
-        """
+        """Run a tool while capturing accidental stdout writes."""
         buf = io.StringIO()
         with redirect_stdout(buf):
             result = func(*args, **kwargs)
@@ -248,142 +222,18 @@ async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
 
         return result
 
+    spec = tool_registry.get_spec(name)
+    if spec is None:
+        return [TextContent(type="text", text=f"Unknown tool: {name}")]
+
+    known_params = set(spec.param_schema.get("properties", {}).keys())
+    filtered_args = {k: v for k, v in arguments.items() if k in known_params}
+
     try:
-        # DIRECTORY ANALYSIS
-        if name == "count_files":
-            result = _run_guarded_stdout(count_files, ctx=ctx, path=arguments.get("path", "."))
+        result = _run_guarded_stdout(spec.callable, ctx=ctx, **filtered_args)
 
-        elif name == "probe_directory":
-            result = _run_guarded_stdout(
-                probe_directory,
-                ctx=ctx,
-                path=arguments.get("path", "."),
-                max_depth=arguments.get("max_depth"),
-                ignore_safety_limits=arguments.get("ignore_safety_limits", False),
-            )
-
-        elif name == "get_directory_tree":
-            result = _run_guarded_stdout(get_directory_tree, ctx=ctx, path=arguments.get("path", "."))
-
-        elif name == "find_duplicates":
-            result = _run_guarded_stdout(
-                find_duplicates,
-                ctx=ctx,
-                path=arguments.get("path", "."),
-                ignore_safety_limits=arguments.get("ignore_safety_limits", False),
-            )
-
-        # FILE OPERATIONS
-        elif name == "get_file_info":
-            result = _run_guarded_stdout(get_file_info, ctx=ctx, path=arguments.get("path"))
-
-        elif name == "search_files":
-            result = _run_guarded_stdout(
-                search_files,
-                ctx=ctx,
-                path=arguments.get("path", "."),
-                pattern=arguments.get("pattern"),
-                extension=arguments.get("extension"),
-                min_size=arguments.get("min_size"),
-                max_depth=arguments.get("max_depth"),
-                include_hidden=arguments.get("include_hidden", False),
-                ignore_git_files=arguments.get("ignore_git_files", True),
-            )
+        if name in _DATAFRAME_TOOLS:
             _save_context(ctx)
-
-        elif name == "open_file":
-            result = _run_guarded_stdout(open_file, ctx=ctx, path=arguments.get("path"))
-
-        elif name == "read_file":
-            result = _run_guarded_stdout(
-                read_file,
-                ctx=ctx,
-                path=arguments.get("path"),
-                start_line=arguments.get("start_line", 1),
-                end_line=arguments.get("end_line"),
-            )
-
-        # DATASET & DATAFRAME
-        elif name == "create_dataset_dataframe":
-            result = _run_guarded_stdout(
-                create_dataset_dataframe,
-                ctx=ctx,
-                path=arguments.get("path"),
-                enrich=arguments.get("enrich", True),
-            )
-            _save_context(ctx)
-
-        elif name == "filter_by_extension":
-            result = _run_guarded_stdout(filter_by_extension, ctx=ctx, extensions=arguments.get("extensions"))
-            _save_context(ctx)
-
-        elif name == "filter_by_pattern":
-            result = _run_guarded_stdout(filter_by_pattern, ctx=ctx, pattern=arguments.get("pattern"))
-            _save_context(ctx)
-
-        elif name == "sort_dataframe_by_size":
-            result = _run_guarded_stdout(
-                sort_dataframe_by_size,
-                ctx=ctx,
-                ascending=arguments.get("ascending", False),
-                top_n=arguments.get("top_n", 10),
-            )
-            _save_context(ctx)
-
-        elif name == "dataframe_head":
-            result = _run_guarded_stdout(dataframe_head, ctx=ctx, n=arguments.get("n", 5))
-
-        elif name == "summarize_dataframe":
-            result = _run_guarded_stdout(summarize_dataframe, ctx=ctx)
-
-        elif name == "export_dataframe":
-            result = _run_guarded_stdout(
-                export_dataframe,
-                ctx=ctx,
-                path=arguments.get("path"),
-                format=arguments.get("format", "csv"),
-            )
-
-        # IMAGE ANALYSIS
-        elif name == "analyze_image":
-            result = _run_guarded_stdout(analyze_image, ctx=ctx, path=arguments.get("path"))
-
-        elif name == "preview_image":
-            result = _run_guarded_stdout(
-                preview_image,
-                ctx=ctx,
-                path=arguments.get("path"),
-                width=arguments.get("width", 60),
-                mode=arguments.get("mode", "ansi"),
-            )
-
-        # DATA QUALITY
-        elif name == "audit_corrupted_files":
-            result = _run_guarded_stdout(audit_corrupted_files, ctx=ctx, path=arguments.get("path"))
-
-        elif name == "generate_hygiene_report":
-            result = _run_guarded_stdout(generate_hygiene_report, ctx=ctx, path=arguments.get("path"))
-
-        elif name == "assess_migration_readiness":
-            result = _run_guarded_stdout(assess_migration_readiness, ctx=ctx, path=arguments.get("path"))
-
-        elif name == "audit_dataset":
-            result = _run_guarded_stdout(
-                audit_dataset,
-                ctx=ctx,
-                path=arguments.get("path"),
-                mode=arguments.get("mode", "concise"),
-                show_evidence=arguments.get("show_evidence", False),
-                export_path=arguments.get("export_path"),
-                export_format=arguments.get("export_format", "json"),
-            )
-
-        # UTILITIES
-        elif name == "list_available_tools":
-            result = _run_guarded_stdout(list_available_tools, ctx=ctx)
-
-        else:
-            return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
         return [TextContent(type="text", text=result)]
 
@@ -392,572 +242,43 @@ async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
         return [TextContent(type="text", text=f"Error executing {name}: {str(e)}")]
 
 
-# Tool schemas for all MCP tools
-TOOL_SCHEMAS = {
-    "count_files": {
-        "description": """Count total files and folders with FULL recursive scan.
-
-Returns a complete count using fast Rust backend. Always scans entire directory tree.
-Use this when user asks for total counts without filters.
-
-Args:
-    path: Directory path (e.g., '.' or '/home/user/data'). Supports ~ for home.
-
-Returns: Report with total files, folders, and combined count.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to directory (e.g., '.' or '/home/user/data')",
-                },
-            },
-            "required": ["path"],
-        },
-    },
-    "probe_directory": {
-        "description": """Probe directory and return summary with top extensions.
-
-Useful for initial exploration. Shows top 10 extensions and metadata.
-Has safety limits (depth=2) unless ignore_safety_limits=True.
-
-Args:
-    path: Directory path
-    max_depth: Maximum recursion depth (null for unlimited)
-    ignore_safety_limits: Allow deep scanning of large directories
-
-Returns: Summary report with counts and extension breakdown.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to directory",
-                },
-                "max_depth": {
-                    "type": ["integer", "null"],
-                    "description": "Maximum recursion depth (null for unlimited)",
-                    "default": None,
-                },
-                "ignore_safety_limits": {
-                    "type": "boolean",
-                    "description": "Allow deep scanning without safety limits",
-                    "default": False,
-                },
-            },
-            "required": ["path"],
-        },
-    },
-    "get_directory_tree": {
-        "description": """List immediate contents of a directory (non-recursive).
-
-Shows files and folders with icons. Good for initial exploration.
-
-Args:
-    path: Directory path
-
-Returns: List of contents with folder/file icons.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to directory",
-                },
-            },
-            "required": ["path"],
-        },
-    },
-    "get_file_info": {
-        "description": """Get detailed metadata for a specific file.
-
-Returns JSON with size, dates, type, and extended metadata.
-
-Args:
-    path: Path to file
-
-Returns: JSON with file metadata.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to file",
-                },
-            },
-            "required": ["path"],
-        },
-    },
-    "search_files": {
-        "description": r"""Search for files by pattern, extension, or size.
-
-Automatically loads results into a DataFrame for further analysis.
-Use for specific file type counts (e.g., 'count .py files').
-
-Args:
-    path: Directory to search
-    pattern: Regex pattern for filenames (e.g., 'test_.*\.py$')
-    extension: File extension without dot (e.g., 'py', 'jpg')
-    min_size: Minimum size (e.g., '1M', '500K')
-    max_depth: Maximum search depth
-    include_hidden: Include hidden files (default: False)
-    ignore_git_files: Respect .gitignore (default: True)
-
-Returns: Search results with count and paths. Results stored in DataFrame.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Directory to search",
-                    "default": ".",
-                },
-                "pattern": {
-                    "type": ["string", "null"],
-                    "description": "Regex pattern for filenames",
-                    "default": None,
-                },
-                "extension": {
-                    "type": ["string", "null"],
-                    "description": "File extension without dot (e.g., 'py')",
-                    "default": None,
-                },
-                "min_size": {
-                    "type": ["string", "null"],
-                    "description": "Minimum size (e.g., '1M', '500K')",
-                    "default": None,
-                },
-                "max_depth": {
-                    "type": ["integer", "null"],
-                    "description": "Maximum search depth",
-                    "default": None,
-                },
-                "include_hidden": {
-                    "type": "boolean",
-                    "description": "Include hidden files",
-                    "default": False,
-                },
-                "ignore_git_files": {
-                    "type": "boolean",
-                    "description": "Respect .gitignore",
-                    "default": True,
-                },
-            },
-            "required": [],
-        },
-    },
-    "find_duplicates": {
-        "description": """Find duplicate files in a directory.
-
-Groups duplicates and shows full paths. May apply safety limits.
-
-Args:
-    path: Directory to scan
-    ignore_safety_limits: Allow scanning without limits
-
-Returns: Report with duplicate groups and file counts.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Directory to scan",
-                },
-                "ignore_safety_limits": {
-                    "type": "boolean",
-                    "description": "Allow scanning without limits",
-                    "default": False,
-                },
-            },
-            "required": ["path"],
-        },
-    },
-    "open_file": {
-        "description": """Display file content directly to user's terminal.
-
-Uses 'bat' (with syntax highlighting) or 'cat'. Most efficient for viewing.
-The agent does NOT see the content - only the user sees it.
-
-Args:
-    path: Path to file
-
-Returns: Confirmation that file was displayed.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to file to display",
-                },
-            },
-            "required": ["path"],
-        },
-    },
-    "read_file": {
-        "description": """Read file content into agent context for analysis.
-
-Use when you need to analyze/summarize/explain file content.
-Returns text with line numbers in markdown code blocks.
-
-Args:
-    path: Path to file
-    start_line: Line to start from (1-indexed, default: 1)
-    end_line: Line to end at (inclusive, default: None for all)
-
-Returns: File content with line numbers.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to file",
-                },
-                "start_line": {
-                    "type": "integer",
-                    "description": "Start line (1-indexed)",
-                    "default": 1,
-                },
-                "end_line": {
-                    "type": ["integer", "null"],
-                    "description": "End line (inclusive, null for all)",
-                    "default": None,
-                },
-            },
-            "required": ["path"],
-        },
-    },
-    "create_dataset_dataframe": {
-        "description": """Create a metadata dataframe from all files in a directory.
-
-Loads file metadata into a DataFrame for analysis.
-After creation, use filter/sort/summarize tools.
-
-Args:
-    path: Dataset directory path
-    enrich: Add extended metadata (default: True)
-
-Returns: Confirmation with DataFrame info (rows, columns).""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Dataset directory path",
-                },
-                "enrich": {
-                    "type": "boolean",
-                    "description": "Add extended metadata (slower but more info)",
-                    "default": True,
-                },
-            },
-            "required": ["path"],
-        },
-    },
-    "filter_by_extension": {
-        "description": """Filter current DataFrame by file extension(s).
-
-Requires an existing DataFrame (from search_files or create_dataset_dataframe).
-Each filter updates the DataFrame - you can chain filters.
-
-Args:
-    extensions: Extension(s) to filter by. Can be string 'py,jpg' or list ['py', 'rs']
-
-Returns: Confirmation with filtered count.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "extensions": {
-                    "type": "string",
-                    "description": "Extensions (e.g., 'py,jpg' or 'py')",
-                },
-            },
-            "required": ["extensions"],
-        },
-    },
-    "filter_by_pattern": {
-        "description": r"""Filter current DataFrame by regex pattern.
-
-Matches paths against regex pattern. Requires existing DataFrame.
-
-Args:
-    pattern: Regex pattern (e.g., 'train/.*\.jpg$' or 'test_')
-
-Returns: Confirmation with filtered count.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "pattern": {
-                    "type": "string",
-                    "description": "Regex pattern for path matching",
-                },
-            },
-            "required": ["pattern"],
-        },
-    },
-    "sort_dataframe_by_size": {
-        "description": """Sort current DataFrame by file size.
-
-Shows top N largest/smallest files. Requires existing DataFrame.
-
-Args:
-    ascending: Sort ascending (smallest first) (default: False)
-    top_n: Number of results to show (default: 10, max: 100)
-
-Returns: List of top files with sizes.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "ascending": {
-                    "type": "boolean",
-                    "description": "Sort ascending (smallest first)",
-                    "default": False,
-                },
-                "top_n": {
-                    "type": "integer",
-                    "description": "Number of results (max 100)",
-                    "default": 10,
-                },
-            },
-            "required": [],
-        },
-    },
-    "dataframe_head": {
-        "description": """Show first N rows of current DataFrame.
-
-Useful after search/filter to see actual file paths. Requires existing DataFrame.
-
-Args:
-    n: Number of rows (default: 5, max: 200)
-
-Returns: First N rows as formatted data.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "n": {
-                    "type": "integer",
-                    "description": "Number of rows (max 200)",
-                    "default": 5,
-                },
-            },
-            "required": [],
-        },
-    },
-    "summarize_dataframe": {
-        "description": """Get summary statistics of current DataFrame.
-
-Shows total count, top extensions, top directories. Requires existing DataFrame.
-
-Args: None
-
-Returns: JSON summary with counts and breakdowns.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {},
-        },
-    },
-    "export_dataframe": {
-        "description": """Export current DataFrame to file.
-
-Requires existing DataFrame. Supported formats: csv, json, parquet.
-This is the ONLY tool that writes files - all others are read-only.
-
-Args:
-    path: Output file path
-    format: Export format - 'csv', 'json', or 'parquet' (default: csv)
-
-Returns: Confirmation of successful export.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Output file path",
-                },
-                "format": {
-                    "type": "string",
-                    "description": "Export format: csv, json, or parquet",
-                    "default": "csv",
-                },
-            },
-            "required": ["path"],
-        },
-    },
-    "analyze_image": {
-        "description": """Analyze an image file for shape, dtype, and statistics.
-
-Returns technical metadata about the image.
-
-Args:
-    path: Path to image file
-
-Returns: JSON with shape, dtype, and basic stats.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to image file",
-                },
-            },
-            "required": ["path"],
-        },
-    },
-    "preview_image": {
-        "description": """Generate a visual preview of an image.
-
-Displays the image directly in user's terminal using ANSI color blocks or ASCII.
-
-Args:
-    path: Path to image file
-    width: Preview width in characters (default: 60)
-    mode: 'ansi' (colored) or 'ascii' (grayscale) (default: ansi)
-
-Returns: Confirmation that preview was displayed.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Path to image file",
-                },
-                "width": {
-                    "type": "integer",
-                    "description": "Preview width in characters",
-                    "default": 60,
-                },
-                "mode": {
-                    "type": "string",
-                    "description": "'ansi' (colored) or 'ascii' (grayscale)",
-                    "default": "ansi",
-                },
-            },
-            "required": ["path"],
-        },
-    },
-    "audit_corrupted_files": {
-        "description": """Audit for corrupted files, zero-byte files, and integrity issues.
-
-Returns structured JSON report with findings, severity, and recommendations.
-Useful for dataset validation before training or migration.
-
-Args:
-    path: Directory to audit
-
-Returns: JSON audit report with corruption findings.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Directory to audit",
-                },
-            },
-            "required": ["path"],
-        },
-    },
-    "generate_hygiene_report": {
-        "description": """Generate comprehensive dataset hygiene report.
-
-Analyzes quality metrics: duplicates, class balance, cross-split leakage, anomalies.
-Returns overall score (0-100) and actionable recommendations.
-
-Args:
-    path: Dataset directory
-
-Returns: JSON hygiene report with metrics and issues.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Dataset directory",
-                },
-            },
-            "required": ["path"],
-        },
-    },
-    "assess_migration_readiness": {
-        "description": """Assess dataset readiness for migration.
-
-Evaluates: integrity, structure, blockers, risks.
-Returns readiness score (0-100) and estimated effort.
-
-Args:
-    path: Dataset directory
-
-Returns: JSON migration readiness report.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Dataset directory",
-                },
-            },
-            "required": ["path"],
-        },
-    },
-    "audit_dataset": {
-        "description": """Run full dataset audit workflow in one call.
-
-Executes corrupted-file audit, hygiene report, and migration readiness,
-then returns one consolidated summary plus full component reports.
-
-Args:
-    path: Dataset directory
-    mode: 'concise' (default) or 'verbose'
-    show_evidence: Include sample duplicate/corruption evidence
-    export_path: Optional path to write consolidated report
-    export_format: 'json' (default), 'md', or 'html'
-
-Returns: Consolidated workflow report with executive summary.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "Dataset directory",
-                },
-                "mode": {
-                    "type": "string",
-                    "enum": ["concise", "verbose"],
-                    "default": "concise",
-                    "description": "Response verbosity mode",
-                },
-                "show_evidence": {
-                    "type": "boolean",
-                    "default": False,
-                    "description": "Include sample evidence in response",
-                },
-                "export_path": {
-                    "type": ["string", "null"],
-                    "default": None,
-                    "description": "Optional output path for report export",
-                },
-                "export_format": {
-                    "type": "string",
-                    "enum": ["json", "md", "html"],
-                    "default": "json",
-                    "description": "Export format when export_path is provided",
-                },
-            },
-            "required": ["path"],
-        },
-    },
-    "list_available_tools": {
-        "description": """List all available tools and their descriptions.
-
-Use this if you are unsure what operations are possible.
-
-Args: None
-
-Returns: Complete API reference with all available tools documented.""",
-        "inputSchema": {
-            "type": "object",
-            "properties": {},
-        },
-    },
-}
+# Tool subsets for MCP exposure and DataFrame state tracking
+_MCP_TOOL_NAMES = frozenset(
+    {
+        "count_files",
+        "probe_directory",
+        "get_directory_tree",
+        "find_duplicates",
+        "get_file_info",
+        "search_files",
+        "open_file",
+        "read_file",
+        "create_dataset_dataframe",
+        "filter_by_extension",
+        "filter_by_pattern",
+        "sort_dataframe_by_size",
+        "dataframe_head",
+        "summarize_dataframe",
+        "export_dataframe",
+        "analyze_image",
+        "preview_image",
+        "audit_corrupted_files",
+        "generate_hygiene_report",
+        "assess_migration_readiness",
+        "audit_dataset",
+        "list_available_tools",
+    }
+)
+
+_DATAFRAME_TOOLS = frozenset(
+    {
+        "search_files",
+        "create_dataset_dataframe",
+        "filter_by_extension",
+        "filter_by_pattern",
+        "sort_dataframe_by_size",
+    }
+)
 
 
 async def main():

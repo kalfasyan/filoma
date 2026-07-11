@@ -1,7 +1,7 @@
 """Agent implementation for filoma."""
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, List, Optional, Union
 
 from loguru import logger
@@ -30,7 +30,7 @@ try:
 except ImportError:
     logger.debug("python-dotenv not installed, skipping .env loading")
 
-from . import tools
+from filoma.tool_registry import tool_registry
 
 
 @dataclass
@@ -39,98 +39,43 @@ class FilarakiDeps:
 
     working_dir: str = os.getcwd()
     current_df: Optional[Any] = None
+    rag_store: Optional[Any] = None
+    cached_analyses: dict = field(default_factory=dict)
+    cached_dfs: dict = field(default_factory=dict)
 
 
 class FilarakiAgent:
     """An intelligent agent for interacting with filoma."""
 
-    API_REFERENCE = """
-COMPLETE TOOL LIST (exhaustive - no other operations exist):
+    @staticmethod
+    def _build_api_reference() -> str:
+        """Build the API reference string from the ToolRegistry."""
+        from filoma.tool_registry import tool_registry
 
-1. count_files(path: str = ".") -> str
-   Returns total files and folders in path (full recursive scan).
-
-2. list_directory(path: str) -> str
-   Lists files/folders (non-recursive, excludes hidden files).
-
-3. list_directory_all(path: str) -> str
-   Lists files/folders (non-recursive, includes hidden files).
-
-4. probe_directory(path: str = ".", max_depth: int = None, ignore_safety_limits: bool = False) -> str
-   Summarizes a directory with counts and top extensions.
-
-5. find_duplicates(path: str = ".", ignore_safety_limits: bool = False) -> str
-   Finds duplicate files and shows duplicate groups.
-
-6. get_file_info(path: str) -> str
-   Returns detailed metadata (JSON) for one file.
-
-7. search_files(path: str = ".", pattern: str = None, extension: str = None, min_size: str = None) -> str
-   Searches files by regex, extension, or minimum size and loads DataFrame state.
-
-8. get_directory_tree(path: str) -> str
-   Compatibility alias for non-recursive directory listing.
-
-9. list_available_tools() -> str
-   Returns this API reference.
-
-10. analyze_image(path: str) -> str
-    Performs image analysis (shape, dtype, and basic stats).
-
-11. filter_by_extension(extensions: Union[str, List[str]]) -> str
-    Filters current DataFrame by extension(s).
-
-12. filter_by_pattern(pattern: str) -> str
-    Filters current DataFrame by regex pattern.
-
-13. sort_dataframe_by_size(ascending: bool = False, top_n: int = 10) -> str
-    Sorts current DataFrame by size and returns top-N preview.
-
-14. dataframe_head(n: int = 5) -> str
-    Shows first N rows of current DataFrame.
-
-15. summarize_dataframe() -> str
-    Returns summary stats for current DataFrame.
-
-16. export_dataframe(path: str, format: str = "csv") -> str
-    Exports current DataFrame to csv/json/parquet.
-
-17. open_file(path: str) -> str
-    Displays file directly to user terminal (bat/cat).
-
-18. read_file(path: str, start_line: int = 1, end_line: int = None) -> str
-    Reads file content into agent context.
-
-19. preview_image(path: str, width: int = 60, mode: str = "ansi") -> str
-    Displays image preview (ansi/ascii) to user terminal.
-
-20. verify_integrity(reference: str, target: str) -> str
-    Verifies dataset integrity using snapshots/manifests.
-
-21. run_quality_check(path: str) -> str
-    Runs data quality checks and returns summary output.
-
-22. create_dataset_dataframe(path: str, enrich: bool = True) -> str
-    Creates a metadata DataFrame from a directory.
-
-23. audit_corrupted_files(path: str) -> str
-    Reports corrupted/zero-byte files with structured findings.
-
-24. generate_hygiene_report(path: str) -> str
-    Generates dataset hygiene metrics and recommendations.
-
-25. assess_migration_readiness(path: str) -> str
-    Assesses dataset migration readiness with blockers/risks.
-
-26. audit_dataset(path: str, mode: str = "concise", show_evidence: bool = False,
-                  export_path: str = None, export_format: str = "json") -> str
-    Runs a full dataset audit workflow (corruption + hygiene + readiness).
-    Use mode='verbose' for full component reports.
-    Use show_evidence=True to include duplicate/corruption examples.
-    Use export_path to save a consolidated report (json, md, or html).
-
-IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-ONLY analysis tool (except for export_dataframe).
-"""
+        lines = ["COMPLETE TOOL LIST (exhaustive - no other operations exist):", ""]
+        for i, spec in enumerate(tool_registry.list_specs(), start=1):
+            # Build signature string
+            props = spec.param_schema.get("properties", {})
+            required = spec.param_schema.get("required", [])
+            sig_parts = []
+            for pname, pinfo in props.items():
+                ptype = pinfo.get("type", "str")
+                if pname in required:
+                    sig_parts.append(f"{pname}: {ptype}")
+                else:
+                    sig_parts.append(f"{pname}: {ptype} = None")
+            sig = f"{spec.name}({', '.join(sig_parts)}) -> str" if sig_parts else f"{spec.name}() -> str"
+            lines.append(f"{i}. {sig}")
+            desc = spec.description[:120] if spec.description else ""
+            if desc:
+                lines.append(f"   {desc}")
+        lines.extend(
+            [
+                "",
+                "IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-ONLY analysis tool (except for export_dataframe).",
+            ]
+        )
+        return "\n".join(lines)
 
     FEW_SHOT_EXAMPLES = ""
 
@@ -152,40 +97,15 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
             working_dir: Default working directory for the agent's tools. Defaults to current working directory.
 
         """
+        import filoma.filaraki.tools  # noqa: F401 — triggers @tool_registry.register
+
         self.model = self._resolve_model(model, base_url, api_key)
         self.default_working_dir = working_dir or os.getcwd()
 
         self.agent = Agent(
             self.model,
             deps_type=FilarakiDeps,
-            tools=[
-                tools.count_files,
-                tools.list_directory,
-                tools.list_directory_all,
-                tools.probe_directory,
-                tools.find_duplicates,
-                tools.get_file_info,
-                tools.search_files,
-                tools.get_directory_tree,
-                tools.list_available_tools,
-                tools.analyze_image,
-                tools.filter_by_extension,
-                tools.filter_by_pattern,
-                tools.sort_dataframe_by_size,
-                tools.dataframe_head,
-                tools.summarize_dataframe,
-                tools.export_dataframe,
-                tools.open_file,
-                tools.read_file,
-                tools.preview_image,
-                tools.verify_integrity,
-                tools.run_quality_check,
-                tools.create_dataset_dataframe,
-                tools.audit_corrupted_files,
-                tools.generate_hygiene_report,
-                tools.assess_migration_readiness,
-                tools.audit_dataset,
-            ],
+            tools=[spec.callable for spec in tool_registry.list_specs()],
         )
 
         @self.agent.system_prompt
@@ -205,7 +125,7 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
                 "\n\n"
                 f"{knowledge_base}\n"
                 "\n\n"
-                f"{self.API_REFERENCE}\n"
+                f"{self._build_api_reference()}\n"
                 "\n\n"
                 f"{self.FEW_SHOT_EXAMPLES}\n"
                 "\n\n"
@@ -293,7 +213,31 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
                 "  * NEVER output tool call JSON as plain text. Always use the actual tool calling mechanism.\n"
                 "  * If the dataframe is already loaded from a previous search, use it instead of searching again.\n"
                 "- EXECUTE ONE TOOL AT A TIME. Do not output multiple tool calls in one message.\n"
-                "- Wait for the result of one operation before calling the next."
+                "- Wait for the result of one operation before calling the next.\n"
+                "\n\n"
+                "CRITICAL INSTRUCTIONS FOR RAG (SEMANTIC SEARCH):\n"
+                "- When the user asks content-based questions about text files, documentation, or code,\n"
+                "  use the RAG tools: first call index_for_rag(path) to index the directory,\n"
+                "  then call search_rag(query) to find semantically relevant chunks.\n"
+                "- Only index a directory once per session; the RAG store is cached.\n"
+                "- Always call search_rag BEFORE answering content questions about indexed files.\n"
+                "\n\n"
+                "CRITICAL INSTRUCTIONS FOR SCHEMA PROPOSAL:\n"
+                "- When asked to propose a dataset schema, pipeline configuration, or quality gates:\n"
+                "  1. Use probe_directory(path) to get an overview of the dataset.\n"
+                "  2. Use read_file(path) to inspect sample files.\n"
+                "  3. Propose: dataset_name, columns (name, dtype, nullable, description),\n"
+                "     pipeline_config suggestions, quality_gates thresholds, issues found, and recommendations.\n"
+                "  4. Return the proposal in a structured format with clear section headers.\n"
+                "- Use markdown tables for column definitions when possible.\n"
+                "\n\n"
+                "CRITICAL INSTRUCTIONS FOR CLEANUP SCRIPTS:\n"
+                "- When duplicate files, data leakage, or class imbalance is detected:\n"
+                "  1. Generate a standalone, reviewable Python script with inline comments.\n"
+                "  2. Include --dry-run flags and safety checks in all generated scripts.\n"
+                "  3. NEVER execute the generated script — present it to the user for review.\n"
+                "  4. Use .remove(), .rename(), or shutil.move() with explicit user confirmation prompts.\n"
+                "  5. The script must include a docstring explaining what it does and all safety precautions.\n"
             )
 
     def _resolve_model(
@@ -324,19 +268,26 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
         ollama_base_url = env_base_url
         is_ollama = False
 
+        # Detect cloud configuration up-front so we can use it both to skip
+        # Ollama auto-detection AND to decide whether ``FILOMA_FILARAKI_MODEL``
+        # by itself signals Ollama intent.
+        has_cloud_key = any(
+            [
+                os.getenv("MISTRAL_API_KEY"),
+                os.getenv("GEMINI_API_KEY"),
+                os.getenv("OPENAI_API_KEY"),
+                os.getenv("OPENROUTER_API_KEY"),
+            ]
+        )
+
         if ollama_base_url:
-            # Explicit configuration provided
-            is_ollama = "localhost:11434" in ollama_base_url or "ollama" in ollama_base_url
+            # Explicit configuration provided. Match common Ollama URL shapes:
+            # - localhost:11434 (default)
+            # - "ollama" anywhere in the URL (e.g. http://ollama:11434)
+            # - any host on the default Ollama port :11434 (e.g. WSL host IP)
+            is_ollama = "localhost:11434" in ollama_base_url or "ollama" in ollama_base_url or ":11434" in ollama_base_url
         else:
             # Only auto-detect Ollama if no cloud provider API key is configured
-            has_cloud_key = any(
-                [
-                    os.getenv("MISTRAL_API_KEY"),
-                    os.getenv("GEMINI_API_KEY"),
-                    os.getenv("OPENAI_API_KEY"),
-                    os.getenv("OPENROUTER_API_KEY"),
-                ]
-            )
             if not has_cloud_key:
                 try:
                     import socket
@@ -352,6 +303,16 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
                         logger.debug("Auto-detected Ollama running on localhost:11434")
                 except Exception:
                     pass
+
+            # If FILOMA_FILARAKI_MODEL is set but auto-detection didn't find an
+            # Ollama daemon on localhost (common in WSL where the daemon runs
+            # on the Windows host), still treat the model as Ollama intent
+            # provided no cloud key is configured. Users on non-default hosts
+            # should set FILOMA_FILARAKI_BASE_URL explicitly.
+            if not is_ollama and env_model and not has_cloud_key and not env_base_url:
+                ollama_base_url = "http://localhost:11434/v1"
+                is_ollama = True
+                logger.debug(f"FILOMA_FILARAKI_MODEL='{env_model}' set with no cloud config; assuming Ollama at {ollama_base_url} (override with FILOMA_FILARAKI_BASE_URL).")
 
         if is_ollama:
             from pydantic_ai.models.openai import OpenAIChatModel
@@ -413,9 +374,18 @@ IMPORTANT: I CANNOT create, delete, move, rename, or modify files. I am a READ-O
             return OpenAIChatModel(model_name=m_name, provider=provider)
 
         # Default Fallback: Ollama with gemma4:e4b
-        logger.warning("No AI configuration found. Defaulting to local Ollama with 'gemma4:e4b'.")
-        logger.warning("Make sure Ollama is running: ollama serve && ollama pull gemma4:e4b")
-        return "gemma4:e4b"
+        # Wrap in OllamaProvider so pydantic-ai doesn't try to parse the model
+        # string as ``provider:model`` (which crashed older versions with
+        # ``ValueError: Unknown provider: gemma4``).
+        from pydantic_ai.models.openai import OpenAIChatModel
+        from pydantic_ai.providers.ollama import OllamaProvider
+
+        fallback_url = "http://localhost:11434/v1"
+        fallback_model = "gemma4:e4b"
+        logger.warning(f"No AI configuration found. Defaulting to local Ollama at {fallback_url} with '{fallback_model}'.")
+        logger.warning(f"Make sure Ollama is running: ollama serve && ollama pull {fallback_model}")
+        provider = OllamaProvider(base_url=fallback_url, api_key=None)
+        return OpenAIChatModel(model_name=fallback_model, provider=provider)
 
     def run(
         self,

@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     pass
 
 import filoma
+from filoma.tool_registry import tool_registry
 
 from .models import AuditFinding, AuditReport, HygieneMetric, HygieneReport, MigrationReadinessItem, MigrationReadinessReport
 
@@ -34,6 +35,51 @@ def _is_mcp_stdio_mode() -> bool:
     return os.getenv("FILOMA_MCP_STDIO", "0") == "1"
 
 
+def _cached_probe(ctx: RunContext[Any], path: str, max_depth: Optional[int] = None) -> Any:
+    """Return a cached DirectoryAnalysis for *path*, probing only once per (path, max_depth)."""
+    p = Path(path).expanduser().resolve()
+    cache_key = (str(p), max_depth)
+
+    if cache_key in ctx.deps.cached_analyses:
+        return ctx.deps.cached_analyses[cache_key]
+
+    from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
+
+    config = DirectoryProfilerConfig(build_dataframe=True)
+    profiler = DirectoryProfiler(config)
+    analysis = profiler.probe(str(p), max_depth=max_depth)
+
+    ctx.deps.cached_analyses[cache_key] = analysis
+    return analysis
+
+
+def _cached_probe_to_df(ctx: RunContext[Any], path: str, max_depth: Optional[int] = None, enrich: bool = True) -> Any:
+    """Return a cached DataFrame for *path*, probing only once per (path, max_depth, enrich)."""
+    p = Path(path).expanduser().resolve()
+    cache_key = (str(p), max_depth, enrich)
+
+    if cache_key in ctx.deps.cached_dfs:
+        return ctx.deps.cached_dfs[cache_key]
+
+    analysis = _cached_probe(ctx, path, max_depth=max_depth)
+
+    df_wrapper = analysis.to_df()
+    if df_wrapper is None:
+        raise RuntimeError("DataFrame was not built. Ensure 'polars' is installed.")
+
+    df_wrapper.add_lineage_entry("probe", path=str(p))
+
+    if enrich:
+        try:
+            df_wrapper = df_wrapper.add_depth_col(str(p)).add_path_components().add_file_stats_cols()
+        except Exception:
+            pass
+
+    ctx.deps.cached_dfs[cache_key] = df_wrapper
+    return df_wrapper
+
+
+@tool_registry.register
 def count_files(ctx: RunContext[Any], path: str) -> str:
     """Count the total number of files in a directory with FULL recursive scan.
 
@@ -54,12 +100,7 @@ def count_files(ctx: RunContext[Any], path: str) -> str:
 
         logger.info(f"Starting FULL file count for '{path}' (no depth limit).")
 
-        # Use DirectoryProfiler directly to get the accurate count from Rust backend
-        from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
-
-        config = DirectoryProfilerConfig(build_dataframe=False)  # Don't need df, just the count
-        profiler = DirectoryProfiler(config)
-        analysis = profiler.probe(str(p), max_depth=None)
+        analysis = _cached_probe(ctx, str(p))
 
         file_count = analysis.summary.get("total_files", 0)
         folder_count = analysis.summary.get("total_folders", 0)
@@ -77,6 +118,7 @@ def count_files(ctx: RunContext[Any], path: str) -> str:
         return f"Error generating image preview: {str(e)}"
 
 
+@tool_registry.register
 def audit_corrupted_files(ctx: RunContext[Any], path: str) -> str:
     """Perform a corrupted file audit and return a structured report.
 
@@ -105,10 +147,7 @@ def audit_corrupted_files(ctx: RunContext[Any], path: str) -> str:
         # Derive total scanned files for accurate success-rate semantics
         total_files_checked = 0
         try:
-            from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
-
-            profiler = DirectoryProfiler(DirectoryProfilerConfig(build_dataframe=False))
-            analysis = profiler.probe(str(p), max_depth=None)
+            analysis = _cached_probe(ctx, str(p))
             total_files_checked = int(analysis.summary.get("total_files", 0))
         except Exception:
             # Keep audit resilient even if directory counting fails
@@ -178,6 +217,7 @@ def audit_corrupted_files(ctx: RunContext[Any], path: str) -> str:
         return f"CORRUPTED FILE AUDIT REPORT (FAILED):\n{report.model_dump_json(indent=2)}"
 
 
+@tool_registry.register
 def generate_hygiene_report(ctx: RunContext[Any], path: str) -> str:
     """Generate a dataset hygiene report with quality metrics.
 
@@ -261,6 +301,21 @@ def generate_hygiene_report(ctx: RunContext[Any], path: str) -> str:
             )
             issues.append(issue)
 
+        # Class-balance issue (always emitted so quality gates can consume the distribution)
+        if class_dist:
+            issues.append(
+                AuditFinding(
+                    id="hygiene-class-balance",
+                    severity="info",
+                    category="quality",
+                    description=f"Class distribution across {len(class_dist)} classes",
+                    evidence={"class_distribution": class_dist},
+                    confidence=0.9,
+                    recommendation="Monitor class balance for model training",
+                    affected_paths=[],
+                )
+            )
+
         # Calculate overall score (simple average of metric statuses)
         score_components = []
         for metric in metrics:
@@ -310,6 +365,7 @@ def generate_hygiene_report(ctx: RunContext[Any], path: str) -> str:
         return f"DATASET HYGIENE REPORT (FAILED):\n{report.model_dump_json(indent=2)}"
 
 
+@tool_registry.register
 def assess_migration_readiness(ctx: RunContext[Any], path: str) -> str:
     """Assess dataset migration readiness with structured analysis.
 
@@ -330,10 +386,6 @@ def assess_migration_readiness(ctx: RunContext[Any], path: str) -> str:
             return f"Error: Path '{path}' does not exist."
 
         from filoma.core.verifier import DatasetVerifier
-        from filoma.dataset import Dataset
-
-        # Check basic dataset structure
-        dataset = Dataset(str(p))
 
         # Run verification to check integrity
         verifier = DatasetVerifier(str(p))
@@ -364,7 +416,7 @@ def assess_migration_readiness(ctx: RunContext[Any], path: str) -> str:
 
         # Check file distribution (structure)
         try:
-            df = dataset.to_dataframe(enrich=False)
+            df = _cached_probe_to_df(ctx, str(p), enrich=False)
             total_files = len(df)
 
             if total_files == 0:
@@ -467,6 +519,7 @@ def _extract_json_payload(report_text: str) -> Optional[dict[str, Any]]:
         return None
 
 
+@tool_registry.register
 def audit_dataset(
     ctx: RunContext[Any],
     path: str,
@@ -474,6 +527,7 @@ def audit_dataset(
     show_evidence: bool = False,
     export_path: Optional[str] = None,
     export_format: str = "json",
+    dataframe: Any = None,
 ) -> str:
     """Run a full dataset audit workflow in one call.
 
@@ -483,6 +537,10 @@ def audit_dataset(
     - assess_migration_readiness
 
     It returns a concise or verbose summary and can optionally export a report.
+
+    When *dataframe* is provided (a pre-computed filoma DataFrame), the
+    function skips the internal ``probe_to_df`` call and uses the cached
+    frame for extension/split distribution profiling.
     """
     p = Path(path).expanduser().resolve()
     if not p.exists():
@@ -523,7 +581,10 @@ def audit_dataset(
     split_labels = {"train", "valid", "test"}
 
     try:
-        df = filoma.probe_to_df(str(p), enrich=False)
+        if dataframe is not None:
+            df = dataframe
+        else:
+            df = _cached_probe_to_df(ctx, str(p), enrich=False)
         profile_total_files = len(df)
 
         # Normalize extension_count table to {ext: count}
@@ -1140,6 +1201,7 @@ def audit_dataset(
     return verbose_report
 
 
+@tool_registry.register
 def probe_directory(
     ctx: RunContext[Any],
     path: str,
@@ -1173,12 +1235,8 @@ def probe_directory(
                 effective_max_depth = 2
                 depth_was_limited = True
 
-        # Use DirectoryProfiler to get accurate summary data
-        from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
-
-        config = DirectoryProfilerConfig(build_dataframe=True)
-        profiler = DirectoryProfiler(config)
-        analysis = profiler.probe(str(p), max_depth=effective_max_depth)
+        # Use cached probe to avoid re-scanning the same directory
+        analysis = _cached_probe(ctx, str(p), max_depth=effective_max_depth)
 
         # Get accurate counts from summary (not DataFrame which may be incomplete)
         file_count = analysis.summary.get("total_files", 0)
@@ -1221,14 +1279,25 @@ def probe_directory(
         return f"Error probing directory: {str(e)}"
 
 
-def find_duplicates(ctx: RunContext[Any], path: str, ignore_safety_limits: bool = False) -> str:
-    """Find duplicate files in a directory.
+@tool_registry.register
+def find_duplicates(
+    ctx: RunContext[Any],
+    path: str,
+    ignore_safety_limits: bool = False,
+    strategy: str = "exact",
+) -> str:
+    """Find duplicate files in a directory via exact content matching.
+
+    Accepts path, ignore_safety_limits, and strategy.
+    strategy is accepted for compatibility but ignored — duplicates are
+    always matched by SHA-256 content hash.
 
     Args:
     ----
         ctx: The run context.
         path: The path to the directory to check for duplicates.
         ignore_safety_limits: If True, allows deep scanning for duplicates.
+        strategy: Ignored — duplicates are always matched by exact hash.
 
     """
     try:
@@ -1238,11 +1307,11 @@ def find_duplicates(ctx: RunContext[Any], path: str, ignore_safety_limits: bool 
             return f"Error: The path '{path}' (resolved to '{p}') does not exist. Please provide a valid directory path."
 
         max_depth = None
-        if not ignore_safety_limits and p == Path.cwd() or p == Path.cwd().parent:
+        if not ignore_safety_limits and (p == Path.cwd() or str(p.resolve()) == str(Path.cwd().parent.resolve())):
             logger.info(f"Applying safety limit to duplicate search on '{path}' (depth=2).")
             max_depth = 2
 
-        df = filoma.probe_to_df(str(p), max_depth=max_depth)
+        df = _cached_probe_to_df(ctx, str(p), max_depth=max_depth)
         dupes = df.evaluate_duplicates(show_table=False)
 
         exact_groups = dupes.get("exact", [])
@@ -1267,6 +1336,7 @@ def find_duplicates(ctx: RunContext[Any], path: str, ignore_safety_limits: bool 
         return f"Error finding duplicates: {str(e)}"
 
 
+@tool_registry.register
 def get_file_info(ctx: RunContext[Any], path: str) -> str:
     """Get detailed information about a specific file."""
     try:
@@ -1281,6 +1351,7 @@ def get_file_info(ctx: RunContext[Any], path: str) -> str:
         return f"Error getting file info: {str(e)}"
 
 
+@tool_registry.register
 def verify_integrity(ctx: RunContext[Any], reference: str, target: str) -> str:
     """Verify dataset integrity using snapshots or manifests."""
     from filoma.core.verifier import verify_dataset
@@ -1292,6 +1363,7 @@ def verify_integrity(ctx: RunContext[Any], reference: str, target: str) -> str:
         return f"Error during verification: {str(e)}"
 
 
+@tool_registry.register
 def run_quality_check(ctx: RunContext[Any], path: str) -> str:
     """Run data quality analysis on a dataset."""
     from filoma.core.verifier import DatasetVerifier
@@ -1311,6 +1383,7 @@ def run_quality_check(ctx: RunContext[Any], path: str) -> str:
         return f"Error during quality checks: {str(e)}"
 
 
+@tool_registry.register
 def filter_by_extension(ctx: RunContext[Any], extensions: Union[str, List[str]]) -> str:
     """Filter the current DataFrame to only include files with specific extensions.
 
@@ -1343,6 +1416,7 @@ def filter_by_extension(ctx: RunContext[Any], extensions: Union[str, List[str]])
         return f"Error filtering by extension: {str(e)}"
 
 
+@tool_registry.register
 def filter_by_pattern(ctx: RunContext[Any], pattern: str) -> str:
     """Filter the current DataFrame to only include files matching a regex pattern."""
     if ctx.deps.current_df is None:
@@ -1360,6 +1434,7 @@ def filter_by_pattern(ctx: RunContext[Any], pattern: str) -> str:
         return f"Error filtering by pattern: {str(e)}"
 
 
+@tool_registry.register
 def sort_dataframe_by_size(ctx: RunContext[Any], ascending: bool = False, top_n: int = 10) -> str:
     """Sort the current DataFrame by file size and return a top-N preview."""
     if ctx.deps.current_df is None:
@@ -1387,6 +1462,7 @@ def sort_dataframe_by_size(ctx: RunContext[Any], ascending: bool = False, top_n:
         return f"Error sorting dataframe by size: {str(e)}"
 
 
+@tool_registry.register
 def dataframe_head(ctx: RunContext[Any], n: int = 5) -> str:
     """Show the first N rows from the current DataFrame."""
     if ctx.deps.current_df is None:
@@ -1402,6 +1478,7 @@ def dataframe_head(ctx: RunContext[Any], n: int = 5) -> str:
         return f"Error retrieving dataframe head: {str(e)}"
 
 
+@tool_registry.register
 def summarize_dataframe(ctx: RunContext[Any]) -> str:
     """Get summary statistics about the current DataFrame."""
     if ctx.deps.current_df is None:
@@ -1427,6 +1504,7 @@ def summarize_dataframe(ctx: RunContext[Any]) -> str:
         return f"Error summarizing dataframe: {str(e)}"
 
 
+@tool_registry.register
 def search_files(
     ctx: RunContext[Any],
     path: str,
@@ -1524,6 +1602,7 @@ def search_files(
         return f"Error searching files: {str(e)}"
 
 
+@tool_registry.register
 def list_directory(ctx: RunContext[Any], path: str) -> str:
     """List files and folders in a directory (non-recursive, excludes hidden files).
 
@@ -1571,6 +1650,7 @@ def list_directory(ctx: RunContext[Any], path: str) -> str:
         return f"Error listing directory: {str(e)}"
 
 
+@tool_registry.register
 def list_directory_all(ctx: RunContext[Any], path: str) -> str:
     """List ALL files and folders in a directory including hidden files (dotfiles).
 
@@ -1621,6 +1701,7 @@ def list_directory_all(ctx: RunContext[Any], path: str) -> str:
         return f"Error listing directory: {str(e)}"
 
 
+@tool_registry.register
 def get_directory_tree(ctx: RunContext[Any], path: str) -> str:
     """Compatibility wrapper for listing immediate directory contents.
 
@@ -1630,21 +1711,18 @@ def get_directory_tree(ctx: RunContext[Any], path: str) -> str:
     return list_directory(ctx=ctx, path=path)
 
 
+@tool_registry.register
 def list_available_tools(ctx: RunContext[Any]) -> str:
     """List all available tools and their capabilities.
 
     Use this if you are unsure of what operations are possible.
     """
-    # Note: We import FilomaAgent here to avoid circular imports if necessary,
-    # but since this is inside tools.py and FilomaAgent is in agent.py
-    # which imports tools, we should be careful.
-    # However, we can just hardcode or pass it.
-    # For now, let's provide a clear manual list to be safe.
-    from .agent import FilarakiAgent
+    from filoma.filaraki.agent import FilarakiAgent
 
-    return FilarakiAgent.API_REFERENCE
+    return FilarakiAgent._build_api_reference()
 
 
+@tool_registry.register
 def analyze_image(ctx: RunContext[Any], path: str) -> str:
     """Perform specialized analysis on an image file.
 
@@ -1708,6 +1786,7 @@ def analyze_dataframe(ctx: RunContext[Any], operation: str, **kwargs) -> str:
     return f"Error: Unknown operation '{operation}'. Supported: filter_by_extension, filter_by_pattern, sort_by_size, head, summary. Prefer using dedicated dataframe tools directly."
 
 
+@tool_registry.register
 def export_dataframe(ctx: RunContext[Any], path: str, format: str = "csv") -> str:
     """Export the current DataFrame to a file.
 
@@ -1761,6 +1840,7 @@ def _get_file_icon(path: Path) -> str:
         return "📄"
 
 
+@tool_registry.register
 def open_file(ctx: RunContext[Any], path: str) -> str:
     """Open a file for viewing by the user using 'bat' or 'cat' in a subprocess.
 
@@ -1812,6 +1892,7 @@ def open_file(ctx: RunContext[Any], path: str) -> str:
         return f"Error: {str(e)}"
 
 
+@tool_registry.register
 def read_file(
     ctx: RunContext[Any],
     path: str,
@@ -1895,6 +1976,7 @@ def read_file(
         return f"Error reading file: {str(e)}"
 
 
+@tool_registry.register
 def create_dataset_dataframe(ctx: RunContext[Any], path: str, enrich: bool = True) -> str:
     """Create a dataframe from a dataset directory and make it available for analysis.
 
@@ -1921,8 +2003,8 @@ def create_dataset_dataframe(ctx: RunContext[Any], path: str, enrich: bool = Tru
 
         logger.info(f"Creating dataframe for dataset directory: {p}")
 
-        # Use filoma's probe_to_df to create the dataframe
-        df = filoma.probe_to_df(str(p), enrich=enrich)
+        # Use cached probe_to_df to avoid re-scanning the same directory
+        df = _cached_probe_to_df(ctx, str(p), enrich=enrich)
 
         # Store the dataframe in context for further analysis
         ctx.deps.current_df = df
@@ -1942,6 +2024,7 @@ def create_dataset_dataframe(ctx: RunContext[Any], path: str, enrich: bool = Tru
         return f"Error creating dataset dataframe: {str(e)}"
 
 
+@tool_registry.register
 def preview_image(ctx: RunContext[Any], path: str, width: int = 60, mode: str = "ansi") -> str:
     """Generate a preview of an image (ASCII or ANSI color blocks).
 
@@ -2023,3 +2106,86 @@ def preview_image(ctx: RunContext[Any], path: str, width: int = 60, mode: str = 
         return "Error: Pillow and Rich are required for image previews."
     except Exception as e:
         return f"Error generating image preview: {str(e)}"
+
+
+# ---------------------------------------------------------------------------
+# RAG tools (Phase 5.1)
+# ---------------------------------------------------------------------------
+
+
+@tool_registry.register
+def index_for_rag(ctx: RunContext[Any], path: str) -> str:
+    """Index a directory of text files into a RAG vector store for semantic search.
+
+    Walks the given directory, reads text/markdown/code files, chunks them
+    into sentence-aware segments, embeds each chunk, and stores vectors in
+    a local LanceDB database. Subsequent calls to ``search_rag`` will query
+    against this index.
+
+    The RAG store is cached on the agent session (``ctx.deps.rag_store``)
+    so ``index_for_rag`` only needs to be called once per session.
+
+    Args:
+        ctx: The run context.
+        path: Path to the directory containing text files to index.
+
+    Returns:
+        Summary message with the number of chunks indexed.
+
+    """
+    import tempfile
+
+    p = Path(path).expanduser().resolve()
+    if not p.exists():
+        return f"Error: Path '{path}' does not exist."
+    if not p.is_dir():
+        return f"Error: '{path}' is not a directory."
+
+    try:
+        from filoma.core.rag import RagStore
+
+        if not hasattr(ctx.deps, "rag_store") or ctx.deps.rag_store is None:
+            db_dir = tempfile.mkdtemp(prefix="filoma_rag_")
+            ctx.deps.rag_store = RagStore(db_path=db_dir)
+
+        count = ctx.deps.rag_store.index(str(p))
+        return f"Indexed {count} chunks from '{p}' into RAG store."
+    except ImportError as e:
+        return f"Error: RAG dependencies not available. Install with 'pip install filoma[rag]'. Details: {e}"
+
+
+@tool_registry.register
+def search_rag(ctx: RunContext[Any], query: str, top_k: int = 5) -> str:
+    """Search the RAG vector store with a semantic query.
+
+    Requires ``index_for_rag`` to have been called first in the session.
+    Returns the top-k most relevant text chunks with their file paths
+    and relevance scores.
+
+    Args:
+        ctx: The run context.
+        query: Natural language query to search for.
+        top_k: Number of results to return (default: 5, max: 20).
+
+    Returns:
+        Formatted text with search results including file paths,
+        chunk text, and relevance distance.
+
+    """
+    if not hasattr(ctx.deps, "rag_store") or ctx.deps.rag_store is None:
+        return "Error: No RAG store indexed. Call 'index_for_rag' first."
+
+    top_k = min(max(top_k, 1), 20)
+    results = ctx.deps.rag_store.search(query, top_k=top_k)
+
+    if not results:
+        return f"No results found for query: '{query}'"
+
+    lines = [f"RAG search results for: '{query}' ({len(results)} results):"]
+    for i, r in enumerate(results, 1):
+        lines.append(f"\n--- Result {i} (distance={r['_distance']:.4f}) ---")
+        lines.append(f"File: {r['path']}")
+        lines.append(f"Chunk: {r['chunk_idx']}")
+        lines.append(f"Text: {r['text'][:500]}{'...' if len(r['text']) > 500 else ''}")
+
+    return "\n".join(lines)

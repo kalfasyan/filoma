@@ -1,214 +1,27 @@
-"""Interactive CLI for filoma using Typer and questionary."""
+"""Interactive filesystem browser and DataFrame UI helpers.
+
+Used by :func:`filoma.cli.commands.main` — the default interactive CLI.
+"""
 
 from pathlib import Path
 from typing import Any, List, Optional
 
 import questionary
-import typer
-from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
-import filoma
-from filoma._version import __version__
+from ._app import console
 
-app = typer.Typer(
-    name="filoma",
-    help="Interactive filesystem profiling and analysis tool",
-    rich_markup_mode="rich",
-    add_completion=False,
-)
-
-
-def version_callback(value: bool) -> None:
-    """Print version and exit."""
-    if value:
-        typer.echo(f"filoma {__version__}")
-        raise typer.Exit()
-
-
-@app.callback()
-def main_callback(
-    version: bool = typer.Option(False, "--version", help="Show version information", callback=version_callback),
-) -> None:
-    """Filoma - Interactive filesystem profiling and analysis tool."""
-    return
-
-
-filaraki_app = typer.Typer(
-    name="filaraki",
-    help="Intelligent filesystem analysis using AI",
-    rich_markup_mode="rich",
-)
-app.add_typer(filaraki_app)
-
-mcp_app = typer.Typer(
-    name="mcp",
-    help="MCP server for external agent integration",
-    rich_markup_mode="rich",
-)
-app.add_typer(mcp_app)
-
-console = Console()
-
-
-@filaraki_app.command("chat")
-def filaraki_chat(
-    model: Optional[str] = typer.Option(None, "--model", "-m", help="AI model to use"),
-) -> None:
-    """Start an interactive chat session with Filaraki."""
-    from filoma.filaraki.cli import chat as start_chat
-
-    start_chat(model=model)
-
-
-@mcp_app.command("serve")
-def mcp_serve() -> None:
-    r"""Start the MCP server for external agent integration.
-
-    This command starts a Model Context Protocol (MCP) server that exposes
-    filoma's filesystem analysis tools to any MCP-compatible client.
-
-    The server runs on stdio transport by default, making it compatible with
-    nanobot and other MCP clients.
-
-    Example:\n
-        filoma mcp serve\n
-    Environment variables:\n
-        FILOMA_MCP_TRANSPORT: 'stdio' (default) or 'sse'\n
-        FILOMA_MCP_PORT: Port for SSE transport (default: 8000)
-    """
-    import asyncio
-    import os
-
-    from filoma.mcp_server import main
-
-    transport = os.getenv("FILOMA_MCP_TRANSPORT", "stdio")
-
-    # Important: for stdio MCP, writing human-readable output to stdout can
-    # corrupt the JSON-RPC stream expected by MCP clients.
-    if transport != "stdio":
-        console.print("[bold blue]Starting Filoma MCP Server...[/bold blue]")
-        console.print("[dim]Server will run until interrupted (Ctrl+C)[/dim]\n")
-
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        if transport != "stdio":
-            console.print("\n[yellow]MCP server stopped.[/yellow]")
-
-
-@app.command()
-def main(path: Optional[str] = typer.Argument(None, help="Starting directory (defaults to current directory)")) -> None:
-    """Interactive filesystem profiling and analysis tool.
-
-    Navigate directories with arrow keys and probe files/folders using filoma's analysis functions.
-    """
-    try:
-        # Determine starting directory
-        if path is not None:
-            start_dir = Path(path).resolve()
-            if not start_dir.exists():
-                console.print(f"[red]Error: Directory '{path}' does not exist[/red]")
-                raise typer.Exit(1)
-            if not start_dir.is_dir():
-                console.print(f"[red]Error: '{path}' is not a directory[/red]")
-                raise typer.Exit(1)
-        else:
-            start_dir = Path.cwd()
-
-        # Start the interactive browser
-        browse_and_probe(start_dir)
-
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Goodbye! 👋[/yellow]")
-    except Exception as e:
-        console.print(f"\n[red]Unexpected error: {e}[/red]")
-        raise typer.Exit(1)
-
-
-@app.command()
-def verify(
-    reference: str = typer.Argument(..., help="Path to reference snapshot or manifest file"),
-    target: str = typer.Option(..., "--target", "-t", help="Target directory for integrity check"),
-) -> None:
-    """Verify dataset integrity using snapshots or manifests."""
-    from filoma.core.verifier import verify_dataset
-
-    console.print(f"[bold blue]Checking integrity of {target} against {reference}...[/bold blue]")
-    try:
-        results = verify_dataset(reference, target_path=target)
-        console.print("[green]✅ Integrity check complete.[/green]")
-        console.print(results)
-    except Exception as e:
-        console.print(f"[red]Error during verification: {e}[/red]")
-        raise typer.Exit(1)
-
-
-@app.command()
-def quality(
-    path: str = typer.Argument(..., help="Dataset path for quality check"),
-) -> None:
-    """Run data quality analysis on a dataset."""
-    from filoma.core.verifier import DatasetVerifier
-
-    console.print(f"[bold blue]Running quality checks on {path}...[/bold blue]")
-    try:
-        verifier = DatasetVerifier(path)
-        verifier.run_all()
-        verifier.print_summary()
-    except Exception as e:
-        console.print(f"[red]Error during quality checks: {e}[/red]")
-        raise typer.Exit(1)
-
-
-@app.command()
-def dedup(
-    paths: List[str] = typer.Argument(..., help="Path(s) to check for duplicates"),
-    cross_dir: bool = typer.Option(False, "--cross-dir", help="Only check for duplicates across provided paths"),
-) -> None:
-    """Find and report duplicate files in one or more directories."""
-    import filoma
-
-    console.print(f"[bold blue]Checking for duplicates in {', '.join(paths)}...[/bold blue]")
-    try:
-        # Create a single dataframe from all paths if cross-dir checking,
-        # or process them individually. For simplicity, we merge.
-        # Actually, probe_to_df usually takes a single path.
-        # We can create a consolidated DataFrame.
-        combined_dfs = [filoma.probe_to_df(p) for p in paths]
-        combined_df = combined_dfs[0]
-        for df in combined_dfs[1:]:
-            combined_df = combined_df.vstack(df.to_polars())
-
-        # Wrapped as a filoma.DataFrame
-        df = filoma.DataFrame(combined_df)
-
-        # If cross_dir, restrict duplicate search to span different directories
-        cross_dir_paths = paths if cross_dir else None
-
-        dupes = df.evaluate_duplicates(show_table=True, cross_dir_paths=cross_dir_paths)
-
-        for category in ["exact", "text", "image"]:
-            groups = dupes.get(category, [])
-            if groups:
-                console.print(f"\n[bold yellow]{category.capitalize()} duplicates ({len(groups)} groups):[/bold yellow]")
-                for i, group in enumerate(groups):
-                    console.print(f"Group {i + 1}:")
-                    for file_path in group:
-                        console.print(f"  • {file_path}")
-            else:
-                console.print(f"\n[dim]No {category} duplicates found.[/dim]")
-    except Exception as e:
-        console.print(f"[red]Error during duplicate check: {e}[/red]")
-        raise typer.Exit(1)
+# ---------------------------------------------------------------------------
+# Interactive browser
+# ---------------------------------------------------------------------------
 
 
 def show_welcome(current_dir: Path) -> None:
     """Display welcome message and current directory."""
     welcome_text = f"""
-[bold blue]🗂️  Filoma Interactive CLI[/bold blue]
+[bold blue]\U0001f5c2  Filoma Interactive CLI[/bold blue]
 
 Current directory: [green]{current_dir}[/green]
 
@@ -224,7 +37,6 @@ def get_directory_contents(path: Path) -> tuple[List[Path], List[Path]]:
         directories = [item for item in items if item.is_dir() and not item.name.startswith(".")]
         files = [item for item in items if item.is_file() and not item.name.startswith(".")]
 
-        # Sort both lists
         directories.sort(key=lambda x: x.name.lower())
         files.sort(key=lambda x: x.name.lower())
 
@@ -238,26 +50,21 @@ def create_file_browser_choices(current_dir: Path) -> List[questionary.Choice]:
     """Create choices for the file browser menu."""
     choices = []
 
-    # Add parent directory option (unless we're at root)
     if current_dir.parent != current_dir:
-        choices.append(questionary.Choice("📁 .. (Parent Directory)", value=("parent", current_dir.parent)))
+        choices.append(questionary.Choice("\U0001f4c1 .. (Parent Directory)", value=("parent", current_dir.parent)))
 
-    # Get directory contents
     directories, files = get_directory_contents(current_dir)
 
-    # Add directories
     for directory in directories:
-        choices.append(questionary.Choice(f"📁 {directory.name}/", value=("directory", directory)))
+        choices.append(questionary.Choice(f"\U0001f4c1 {directory.name}/", value=("directory", directory)))
 
-    # Add files
     for file in files:
         file_icon = get_file_icon(file)
         choices.append(questionary.Choice(f"{file_icon} {file.name}", value=("file", file)))
 
-    # Add action options
-    choices.append(questionary.Choice("━━━━━━━━━━━━━━━━━━━━━━━━", disabled=""))
-    choices.append(questionary.Choice("🔍 Probe current directory", value=("probe_dir", current_dir)))
-    choices.append(questionary.Choice("❌ Exit", value=("exit", None)))
+    choices.append(questionary.Choice("\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501", disabled=""))
+    choices.append(questionary.Choice("\U0001f50d Probe current directory", value=("probe_dir", current_dir)))
+    choices.append(questionary.Choice("\u274c Exit", value=("exit", None)))
 
     return choices
 
@@ -266,44 +73,38 @@ def get_file_icon(file_path: Path) -> str:
     """Get an appropriate icon for the file type."""
     suffix = file_path.suffix.lower()
 
-    # Image files
     if suffix in [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".tif", ".zarr"]:
-        return "🖼️"
-    # Numpy files
+        return "\U0001f5bc"
     elif suffix == ".npy":
-        return "🔢"
-    # Data files
+        return "\U0001f522"
     elif suffix in [".csv", ".json", ".xml", ".yaml", ".yml"]:
-        return "📊"
-    # Code files
+        return "\U0001f4ca"
     elif suffix in [".py", ".rs", ".js", ".ts", ".html", ".css"]:
-        return "💻"
-    # Documents
+        return "\U0001f4bb"
     elif suffix in [".txt", ".md", ".pdf", ".doc", ".docx"]:
-        return "📄"
-    # Archive files
+        return "\U0001f4c4"
     elif suffix in [".zip", ".tar", ".gz", ".rar"]:
-        return "📦"
+        return "\U0001f4e6"
     else:
-        return "📄"
+        return "\U0001f4c4"
 
 
 def show_probe_menu(item_path: Path, item_type: str) -> Optional[str]:
     """Show menu for probe actions."""
     if item_type == "file":
         choices = [
-            questionary.Choice("🔍 Auto Probe (detect type)", value="probe"),
-            questionary.Choice("📄 Probe as File", value="probe_file"),
-            questionary.Choice("🖼️ Probe as Image", value="probe_image"),
-            questionary.Choice("📊 Probe to DataFrame", value="probe_to_df"),
-            questionary.Choice("🔙 Back", value="back"),
+            questionary.Choice("\U0001f50d Auto Probe (detect type)", value="probe"),
+            questionary.Choice("\U0001f4c4 Probe as File", value="probe_file"),
+            questionary.Choice("\U0001f5bc Probe as Image", value="probe_image"),
+            questionary.Choice("\U0001f4ca Probe to DataFrame", value="probe_to_df"),
+            questionary.Choice("\U0001f519 Back", value="back"),
         ]
         title = f"How would you like to probe: {item_path.name}?"
-    else:  # directory
+    else:
         choices = [
-            questionary.Choice("🔍 Auto Probe Directory", value="probe"),
-            questionary.Choice("📊 Probe to DataFrame", value="probe_to_df"),
-            questionary.Choice("🔙 Back", value="back"),
+            questionary.Choice("\U0001f50d Auto Probe Directory", value="probe"),
+            questionary.Choice("\U0001f4ca Probe to DataFrame", value="probe_to_df"),
+            questionary.Choice("\U0001f519 Back", value="back"),
         ]
         title = f"How would you like to probe: {item_path.name}/?"
 
@@ -330,10 +131,10 @@ def execute_probe_with_spinner(probe_func, path: Path, **kwargs) -> Any:
         task = progress.add_task(f"Probing {path.name}...", total=None)
         try:
             result = probe_func(str(path), **kwargs)
-            progress.update(task, description=f"✅ Completed probing {path.name}")
+            progress.update(task, description=f"\u2705 Completed probing {path.name}")
             return result
         except Exception as e:
-            progress.update(task, description=f"❌ Failed to probe {path.name}")
+            progress.update(task, description=f"\u274c Failed to probe {path.name}")
             console.print(f"[red]Error: {e}[/red]")
             return None
 
@@ -343,18 +144,15 @@ def display_probe_result(result: Any, probe_type: str, path: Path) -> None:
     if result is None:
         return
 
-    console.print(f"\n[bold green]✅ Probe Results for {path.name}[/bold green]")
+    console.print(f"\n[bold green]\u2705 Probe Results for {path.name}[/bold green]")
 
-    # Create a table for the results
     table = Table(show_header=True, header_style="bold blue")
     table.add_column("Property", style="dim")
     table.add_column("Value")
 
     if hasattr(result, "__dict__"):
-        # For dataclass results
         for key, value in result.__dict__.items():
             if value is not None:
-                # Format large numbers nicely
                 if isinstance(value, int) and value > 1024:
                     if value > 1024**3:
                         formatted = f"{value / (1024**3):.2f} GB"
@@ -370,9 +168,8 @@ def display_probe_result(result: Any, probe_type: str, path: Path) -> None:
 
     console.print(table)
 
-    # If it's a DataFrame result, show some info about it
     if hasattr(result, "df") and probe_type == "probe_to_df":
-        console.print("\n[bold blue]📊 DataFrame Info:[/bold blue]")
+        console.print("\n[bold blue]\U0001f4ca DataFrame Info:[/bold blue]")
         try:
             df = result.df
             console.print(f"Shape: {df.shape}")
@@ -389,10 +186,8 @@ def browse_and_probe(start_dir: Path) -> None:
         console.clear()
         show_welcome(current_dir)
 
-        # Create choices for current directory
         choices = create_file_browser_choices(current_dir)
 
-        # Show the selection menu
         selection = questionary.select(
             f"Select an item in {current_dir}:",
             choices=choices,
@@ -405,7 +200,7 @@ def browse_and_probe(start_dir: Path) -> None:
             ),
         ).ask()
 
-        if selection is None:  # User pressed Ctrl+C
+        if selection is None:
             break
 
         action_type, item_path = selection
@@ -415,13 +210,12 @@ def browse_and_probe(start_dir: Path) -> None:
         elif action_type == "parent":
             current_dir = item_path
         elif action_type == "directory":
-            # Ask if they want to enter the directory or probe it
             choice = questionary.select(
                 f"What would you like to do with {item_path.name}/?",
                 choices=[
-                    questionary.Choice("📁 Enter directory", value="enter"),
-                    questionary.Choice("🔍 Probe directory", value="probe"),
-                    questionary.Choice("🔙 Back", value="back"),
+                    questionary.Choice("\U0001f4c1 Enter directory", value="enter"),
+                    questionary.Choice("\U0001f50d Probe directory", value="probe"),
+                    questionary.Choice("\U0001f519 Back", value="back"),
                 ],
                 style=questionary.Style(
                     [
@@ -447,26 +241,30 @@ def browse_and_probe(start_dir: Path) -> None:
                 execute_probe_action(probe_action, item_path)
 
 
+# ---------------------------------------------------------------------------
+# DataFrame interactive helpers
+# ---------------------------------------------------------------------------
+
+
 def process_dataframe_interactively(df_result: Any, path: Path) -> None:
     """Interactive DataFrame processing and analysis."""
     while True:
         try:
-            df = df_result.df  # Get the underlying Polars DataFrame
+            df = df_result.df
 
-            console.print(f"\n[bold blue]📊 DataFrame Analysis for {path.name}[/bold blue]")
+            console.print(f"\n[bold blue]\U0001f4ca DataFrame Analysis for {path.name}[/bold blue]")
             console.print(f"Shape: [green]{df.shape}[/green]")
 
-            # Create menu options
             choices = [
-                questionary.Choice("📊 Show DataFrame Info", value="info"),
-                questionary.Choice("👀 Show Head (first 10 rows)", value="head"),
-                questionary.Choice("👀 Show Head (custom rows)", value="head_custom"),
-                questionary.Choice("📋 Show Columns", value="columns"),
-                questionary.Choice("📈 Column Analysis", value="column_analysis"),
-                questionary.Choice("🔍 Basic Statistics", value="describe"),
-                questionary.Choice("🔎 Search/Filter", value="filter"),
-                questionary.Choice("💾 Export Options", value="export"),
-                questionary.Choice("🔙 Back to File Browser", value="back"),
+                questionary.Choice("\U0001f4ca Show DataFrame Info", value="info"),
+                questionary.Choice("\U0001f440 Show Head (first 10 rows)", value="head"),
+                questionary.Choice("\U0001f440 Show Head (custom rows)", value="head_custom"),
+                questionary.Choice("\U0001f4cb Show Columns", value="columns"),
+                questionary.Choice("\U0001f4c8 Column Analysis", value="column_analysis"),
+                questionary.Choice("\U0001f50d Basic Statistics", value="describe"),
+                questionary.Choice("\U0001f50e Search/Filter", value="filter"),
+                questionary.Choice("\U0001f4be Export Options", value="export"),
+                questionary.Choice("\U0001f519 Back to File Browser", value="back"),
             ]
 
             choice = questionary.select(
@@ -506,7 +304,6 @@ def process_dataframe_interactively(df_result: Any, path: Path) -> None:
             elif choice == "export":
                 export_dataframe_interactively(df, path)
 
-            # Wait for user input before showing menu again
             console.print("\n[dim]Press Enter to continue...[/dim]")
             input()
 
@@ -519,17 +316,15 @@ def process_dataframe_interactively(df_result: Any, path: Path) -> None:
 
 def show_dataframe_info(df: Any) -> None:
     """Display DataFrame information."""
-    console.print("\n[bold blue]📊 DataFrame Information[/bold blue]")
+    console.print("\n[bold blue]\U0001f4ca DataFrame Information[/bold blue]")
 
     table = Table(show_header=True, header_style="bold blue")
     table.add_column("Property", style="dim")
     table.add_column("Value")
 
-    # Basic info
-    table.add_row("Shape", f"{df.shape[0]} rows × {df.shape[1]} columns")
+    table.add_row("Shape", f"{df.shape[0]} rows \u00d7 {df.shape[1]} columns")
     table.add_row("Columns", str(len(df.columns)))
 
-    # Column types
     try:
         dtypes = df.dtypes
         type_counts = {}
@@ -542,7 +337,6 @@ def show_dataframe_info(df: Any) -> None:
     except Exception:
         table.add_row("Column Types", "Unable to determine")
 
-    # Memory usage estimation
     try:
         memory_mb = df.estimated_size("mb")
         table.add_row("Estimated Memory", f"{memory_mb:.2f} MB")
@@ -554,17 +348,15 @@ def show_dataframe_info(df: Any) -> None:
 
 def show_dataframe_head(df: Any, n_rows: int = 10) -> None:
     """Display the first n rows of the DataFrame."""
-    console.print(f"\n[bold blue]👀 First {n_rows} rows[/bold blue]")
+    console.print(f"\n[bold blue]\U0001f440 First {n_rows} rows[/bold blue]")
 
     try:
         head_df = df.head(n_rows)
 
-        # Convert to pandas for nicer display if possible
         try:
             pandas_df = head_df.to_pandas()
             console.print(pandas_df.to_string(max_cols=10, max_colwidth=50))
         except Exception:
-            # Fallback to basic display
             console.print(str(head_df))
     except Exception as e:
         console.print(f"[red]Error displaying head: {e}[/red]")
@@ -572,7 +364,7 @@ def show_dataframe_head(df: Any, n_rows: int = 10) -> None:
 
 def show_dataframe_columns(df: Any) -> None:
     """Display DataFrame columns with types."""
-    console.print("\n[bold blue]📋 DataFrame Columns[/bold blue]")
+    console.print("\n[bold blue]\U0001f4cb DataFrame Columns[/bold blue]")
 
     table = Table(show_header=True, header_style="bold blue")
     table.add_column("Column", style="dim")
@@ -584,7 +376,6 @@ def show_dataframe_columns(df: Any) -> None:
         dtypes = df.dtypes
 
         for i, (col, dtype) in enumerate(zip(columns, dtypes)):
-            # Get sample values
             try:
                 sample_vals = df.select(col).head(3).to_series().to_list()
                 sample_str = ", ".join([str(val)[:30] for val in sample_vals if val is not None])
@@ -602,16 +393,14 @@ def show_dataframe_columns(df: Any) -> None:
 
 def show_dataframe_describe(df: Any) -> None:
     """Show basic statistics for numeric columns."""
-    console.print("\n[bold blue]📈 Basic Statistics[/bold blue]")
+    console.print("\n[bold blue]\U0001f4c8 Basic Statistics[/bold blue]")
 
     try:
-        # Try to get numeric columns and describe them
         numeric_df = df.select([col for col in df.columns if df[col].dtype in [df.dtypes[0].__class__().__name__ for dtype in [int, float]]])
 
         if numeric_df.width > 0:
             desc = numeric_df.describe()
 
-            # Convert to pandas for nicer display
             try:
                 pandas_desc = desc.to_pandas()
                 console.print(pandas_desc.to_string())
@@ -628,9 +417,8 @@ def analyze_column_interactively(df: Any) -> None:
     try:
         columns = df.columns
 
-        # Let user select a column
         choices = [questionary.Choice(col, value=col) for col in columns]
-        choices.append(questionary.Choice("🔙 Back", value="back"))
+        choices.append(questionary.Choice("\U0001f519 Back", value="back"))
 
         selected_col = questionary.select(
             "Select a column to analyze:",
@@ -646,13 +434,12 @@ def analyze_column_interactively(df: Any) -> None:
         if selected_col == "back" or selected_col is None:
             return
 
-        # Analysis options for the selected column
         analysis_choices = [
-            questionary.Choice("📊 Value Counts", value="value_counts"),
-            questionary.Choice("🔢 Unique Values", value="unique"),
-            questionary.Choice("📈 Basic Stats", value="stats"),
-            questionary.Choice("❓ Null Count", value="nulls"),
-            questionary.Choice("🔙 Back", value="back"),
+            questionary.Choice("\U0001f4ca Value Counts", value="value_counts"),
+            questionary.Choice("\U0001f522 Unique Values", value="unique"),
+            questionary.Choice("\U0001f4c8 Basic Stats", value="stats"),
+            questionary.Choice("\u2753 Null Count", value="nulls"),
+            questionary.Choice("\U0001f519 Back", value="back"),
         ]
 
         analysis_choice = questionary.select(
@@ -669,14 +456,13 @@ def analyze_column_interactively(df: Any) -> None:
         if analysis_choice == "back" or analysis_choice is None:
             return
 
-        console.print(f"\n[bold blue]📊 Analysis for column: {selected_col}[/bold blue]")
+        console.print(f"\n[bold blue]\U0001f4ca Analysis for column: {selected_col}[/bold blue]")
 
         if analysis_choice == "value_counts":
             try:
                 value_counts = df[selected_col].value_counts()
                 console.print(f"\n[green]Value counts for '{selected_col}':[/green]")
 
-                # Convert to pandas for display
                 try:
                     pandas_vc = value_counts.to_pandas()
                     console.print(pandas_vc.to_string())
@@ -691,7 +477,7 @@ def analyze_column_interactively(df: Any) -> None:
                 console.print(f"\n[green]Unique values in '{selected_col}' (first 20):[/green]")
                 unique_list = unique_vals.to_list()[:20]
                 for val in unique_list:
-                    console.print(f"  • {val}")
+                    console.print(f"  \u2022 {val}")
                 if len(unique_vals) > 20:
                     console.print(f"  ... and {len(unique_vals) - 20} more")
                 console.print(f"\nTotal unique values: [bold]{len(unique_vals)}[/bold]")
@@ -704,7 +490,6 @@ def analyze_column_interactively(df: Any) -> None:
                 table.add_column("Statistic")
                 table.add_column("Value")
 
-                # Basic stats
                 table.add_row("Count", str(len(df)))
 
                 try:
@@ -719,7 +504,6 @@ def analyze_column_interactively(df: Any) -> None:
                 except Exception:
                     pass
 
-                # For numeric columns, add more stats
                 try:
                     if df[selected_col].dtype in [
                         "Int64",
@@ -762,14 +546,13 @@ def analyze_column_interactively(df: Any) -> None:
 
 def filter_dataframe_interactively(df: Any) -> None:
     """Interactive DataFrame filtering."""
-    console.print("\n[bold blue]🔍 DataFrame Filtering[/bold blue]")
+    console.print("\n[bold blue]\U0001f50d DataFrame Filtering[/bold blue]")
     console.print("[yellow]Note: This is a preview feature. Advanced filtering coming soon![/yellow]")
 
     try:
-        # Simple column filtering
         column = questionary.select(
             "Select column to filter by:",
-            choices=[questionary.Choice(col, value=col) for col in df.columns] + [questionary.Choice("🔙 Back", value="back")],
+            choices=[questionary.Choice(col, value=col) for col in df.columns] + [questionary.Choice("\U0001f519 Back", value="back")],
             style=questionary.Style(
                 [
                     ("selected", "fg:#00aa00 bold"),
@@ -781,12 +564,11 @@ def filter_dataframe_interactively(df: Any) -> None:
         if column == "back" or column is None:
             return
 
-        # Show sample values
         console.print(f"\n[green]Sample values in '{column}':[/green]")
         try:
             sample_vals = df[column].head(10).to_list()
             for val in sample_vals:
-                console.print(f"  • {val}")
+                console.print(f"  \u2022 {val}")
         except Exception:
             console.print("Unable to show sample values")
 
@@ -811,13 +593,13 @@ def filter_dataframe_interactively(df: Any) -> None:
 
 def export_dataframe_interactively(df: Any, original_path: Path) -> None:
     """Interactive DataFrame export options."""
-    console.print("\n[bold blue]💾 Export DataFrame[/bold blue]")
+    console.print("\n[bold blue]\U0001f4be Export DataFrame[/bold blue]")
 
     export_choices = [
-        questionary.Choice("📄 Export to CSV", value="csv"),
-        questionary.Choice("📊 Export to JSON", value="json"),
-        questionary.Choice("📋 Export to Parquet", value="parquet"),
-        questionary.Choice("🔙 Back", value="back"),
+        questionary.Choice("\U0001f4c4 Export to CSV", value="csv"),
+        questionary.Choice("\U0001f4ca Export to JSON", value="json"),
+        questionary.Choice("\U0001f4cb Export to Parquet", value="parquet"),
+        questionary.Choice("\U0001f519 Back", value="back"),
     ]
 
     choice = questionary.select(
@@ -834,7 +616,6 @@ def export_dataframe_interactively(df: Any, original_path: Path) -> None:
     if choice == "back" or choice is None:
         return
 
-    # Suggest filename based on original path
     suggested_name = f"{original_path.stem}_analysis.{choice}"
 
     filename = questionary.text("Enter filename:", default=suggested_name).ask()
@@ -857,16 +638,23 @@ def export_dataframe_interactively(df: Any, original_path: Path) -> None:
                 elif choice == "parquet":
                     df.write_parquet(output_path)
 
-                progress.update(task, description=f"✅ Exported to {output_path}")
+                progress.update(task, description=f"\u2705 Exported to {output_path}")
 
-            console.print(f"[green]✅ Successfully exported to: {output_path}[/green]")
+            console.print(f"[green]\u2705 Successfully exported to: {output_path}[/green]")
 
         except Exception as e:
             console.print(f"[red]Export failed: {e}[/red]")
 
 
+# ---------------------------------------------------------------------------
+# Probe action dispatcher
+# ---------------------------------------------------------------------------
+
+
 def execute_probe_action(action: str, path: Path) -> None:
     """Execute the selected probe action."""
+    import filoma
+
     try:
         if action == "probe":
             result = execute_probe_with_spinner(filoma.probe, path)
@@ -881,12 +669,10 @@ def execute_probe_action(action: str, path: Path) -> None:
             result = execute_probe_with_spinner(filoma.probe_to_df, path)
             display_probe_result(result, action, path)
 
-            # If it's a DataFrame result, offer DataFrame processing options
             if result and hasattr(result, "df"):
                 process_dataframe_interactively(result, path)
                 return
 
-        # Wait for user to press enter before continuing
         console.print("\n[dim]Press Enter to continue...[/dim]")
         input()
 
@@ -896,12 +682,3 @@ def execute_probe_action(action: str, path: Path) -> None:
         console.print(f"\n[red]Error: {e}[/red]")
         console.print("\n[dim]Press Enter to continue...[/dim]")
         input()
-
-
-def cli() -> None:
-    """Entry point for the filoma CLI."""
-    app()
-
-
-if __name__ == "__main__":
-    app()

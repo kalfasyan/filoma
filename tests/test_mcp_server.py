@@ -14,8 +14,9 @@ pytest.importorskip("mcp")
 
 from mcp.types import Tool
 
+import filoma.filaraki.tools  # noqa: F401 — ensures tools are registered
 from filoma.mcp_server import (
-    TOOL_SCHEMAS,
+    _MCP_TOOL_NAMES,
     SimpleRunContext,
     _dataframe_state,
     _get_context,
@@ -24,6 +25,7 @@ from filoma.mcp_server import (
     call_tool,
     list_tools,
 )
+from filoma.tool_registry import tool_registry
 
 
 class TestMCPServerImports:
@@ -31,19 +33,23 @@ class TestMCPServerImports:
 
     def test_imports(self):
         """Test that MCP server module imports correctly."""
-        assert len(TOOL_SCHEMAS) == 22
+        assert len(_MCP_TOOL_NAMES) == 22
 
     def test_all_tools_have_descriptions(self):
         """Verify all tools have descriptions and schemas."""
-        for name, spec in TOOL_SCHEMAS.items():
-            assert "description" in spec
-            assert "inputSchema" in spec
-            assert spec["description"], f"Tool {name} has empty description"
+        for spec in tool_registry.list_specs():
+            if spec.name not in _MCP_TOOL_NAMES:
+                continue
+            assert spec.description, f"Tool {spec.name} has empty description"
+            assert spec.param_schema["type"] == "object"
+            assert "properties" in spec.param_schema
 
     def test_tool_schema_structure(self):
         """Verify inputSchema follows JSON Schema structure."""
-        for name, spec in TOOL_SCHEMAS.items():
-            schema = spec["inputSchema"]
+        for spec in tool_registry.list_specs():
+            if spec.name not in _MCP_TOOL_NAMES:
+                continue
+            schema = spec.param_schema
             assert schema["type"] == "object"
             assert "properties" in schema
             if "required" in schema:
@@ -65,8 +71,7 @@ class TestToolRegistration:
         """Verify tool names match schema definitions."""
         tools = await list_tools()
         tool_names = {t.name for t in tools}
-        schema_names = set(TOOL_SCHEMAS.keys())
-        assert tool_names == schema_names
+        assert tool_names == _MCP_TOOL_NAMES
 
     @pytest.mark.asyncio
     async def test_expected_tools_present(self):

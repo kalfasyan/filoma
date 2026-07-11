@@ -1,88 +1,152 @@
 # Quickstart
 
-`filoma` is a fast and flexible Python tool for filesystem analysis. It helps you understand the contents of your directories, profile individual files, and prepare datasets for downstream analysis.
+`filoma` is **Dataset CI for ML** — go from folder to verified dataset to insights to agent, in one pipeline. It combines fast filesystem scanning, DataFrame enrichment, deduplication, quality gates, and an AI agent that understands your filesystem.
 
 ## Installation
 
 ```bash
-pip install filoma
+uv add filoma          # recommended
+pip install filoma     # classic pip works too
 ```
 
-## Two Ways to Get Started
+Want the fastest scanning? Install Rust or `fd` on your system — filoma auto-detects both and falls back to pure Python if neither is available.
 
-### 1. Interactive CLI (Recommended for Beginners)
+## Choose your path
 
-Launch the interactive terminal interface for visual exploration:
+Pick the persona that matches what you're trying to do. Each tab is a self-contained 5-minute first run.
+
+=== "ML Engineer"
+
+    You want to verify a dataset before training. Corruption checks, duplicate detection, class balance — in one command, wired into CI.
+
+    ```bash
+    # One-line audit with HTML report
+    filoma audit ./data --export audit-report.html
+
+    # With quality gates
+    filoma audit ./data --gates filoma-gates.yml
+    ```
+
+    **Python API:**
+
+    ```python
+    import filoma as flm
+
+    pipeline = flm.Pipeline("./data").scan().enrich().verify().dedup().report()
+    result = pipeline.audit()
+    print(result.summary)
+    ```
+
+    **Next steps:** [Audit a Dataset](../use-cases/audit.md) — quality gates, GitHub Actions, CI integration.
+
+=== "Data Engineer"
+
+    You've been handed a folder — maybe 50 GB, maybe something weird. You need a DataFrame, fast.
+
+    ```python
+    import filoma as flm
+
+    # Scan and get a Polars DataFrame with enrichment
+    dfw = flm.probe_to_df("./data", enrich=True)
+
+    # Filter, sort, export
+    py_files = dfw.filter_by_extension(".py")
+    large = dfw.df.sort("size", descending=True).head(10)
+    print(dfw.extension_counts())
+    dfw.save_parquet("inventory.parquet")
+    ```
+
+    **CLI quick peek:**
+
+    ```bash
+    filoma             # interactive file browser (arrow keys, Rich UI)
+    filoma ./data      # start in a specific directory
+    ```
+
+    **Next steps:** [Explore a Dataset](../use-cases/explore.md) — profiling, filtering, aggregation workflows.
+
+=== "Researcher"
+
+    You want to ask your filesystem questions in natural language. No code, no API keys.
+
+    ```bash
+    # One-shot queries
+    filoma ask "how many Python files are in this project?"
+    filoma ask "find corrupted images in ./data"
+
+    # Semantic search over docs/code (RAG)
+    filoma ask "index ./docs and find every mention of quality gates"
+
+    # Interactive chat (needs Ollama or API key)
+    filoma filaraki chat
+
+    # Setup wizard
+    filoma setup
+    ```
+
+    **Local setup (no cloud):**
+
+    ```bash
+    ollama pull gemma4:e4b
+    ollama serve
+    filoma filaraki chat
+    ```
+
+    ```python
+    import filoma as flm
+    answer = flm.ask("audit ./data and show me the top 3 data quality issues")
+    print(answer)
+    ```
+
+    **Next steps:** [Talk to Your Data](../use-cases/agent.md) — provider setup, MCP server, example dialogues.
+
+## All three personas? You're covered.
+
+filoma's Pipeline unifies everything:
+
+```python
+import filoma as flm
+
+result = (
+    flm.Pipeline("./dataset")
+    .scan()          # explore: what's in here?
+    .enrich()        # data eng: add path components, stats
+    .dedup()         # find duplicates
+    .verify()        # ML eng: integrity checks
+    .report()        # HTML audit report
+    .run()
+)
+```
+
+Complementary surfaces for pipeline stages:
 
 ```bash
-filoma                    # Start in current directory
-filoma /path/to/analyze   # Start in specific directory
+# Watch for drift in CI (verify + gates as a one-shot check)
+filoma watch ./dataset --snapshot baseline.json --gates filoma-gates.yml
+
+# Semantic search over your files (RAG)
+filoma ask "index ./dataset and find all references to training config"
+
+# Schema proposals and cleanup scripts (agentic)
+filoma ask "propose a schema for ./dataset"
+filoma ask "generate a dedup cleanup script for ./dataset"
 ```
 
-Use arrow keys to navigate, probe files and directories, and analyze results with a beautiful terminal interface. Perfect for exploration and ad-hoc analysis.
+## Key features
 
-**[Learn more about the Interactive CLI →](../guides/cli.md)**
+- **Fast scans**: Rust backend and `fd` for high-performance directory traversal.
+- **DataFrame-first**: Polars-native wrapper with enrichment helpers (depth, path components, file stats).
+- **Dedup**: Exact (SHA-256), text near-duplicates (k-shingles), image near-duplicates (perceptual hashing).
+- **Quality gates**: `filoma-gates.yml` policy file with pass/fail exit codes for CI.
+- **Agentic interface**: `filoma ask`, `filoma filaraki chat`, MCP server, schema proposals, cleanup scripts.
+- **RAG search**: Index text/code files into a vector store and search by meaning.
+- **Watch mode**: `filoma watch` — detect dataset drift, compare snapshots, fail CI on gate violations.
+- **Plugin discovery**: Third-party tools auto-register via `filoma.tools` entry points.
+- **Lazy loading**: `import filoma` is fast; heavy dependencies load on demand.
 
-### 2. Python API (For Scripting and Automation)
+## Where to go next
 
-For programmatic use, integration into scripts, or Jupyter notebooks:
-
-```python
-from filoma import probe_to_df
-
-df = probe_to_df('.')  # Scan current directory
-df.df.head()          # View first few rows
-```
-
-**[Continue with the Interactive Demo →](../tutorials/demo.md)**
-
-## Getting Started: The Interactive Demo
-
-The best way to get started with the Python API is to run the interactive demo notebook. It covers the most common workflows in a hands-on way.
-
-- **[View the Interactive Demo](../tutorials/demo.md)**
-
-## Basic Usage: Scan a Directory
-
-The most common use case is scanning a directory to see what's inside. The `probe_to_df` function scans a path and returns a [Polars](https://pola.rs/) DataFrame, which is great for interactive analysis.
-
-```python
-from filoma import probe_to_df
-
-# Scan the current directory and get a DataFrame
-df = probe_to_df('.')
-
-# Print the first few rows
-print(df.head())
-```
-
-This will give you a table with information about each file, like its path, size, and modification time.
-
-## Profile a Single File
-
-You can also get detailed information about a single file using `probe_file`:
-
-```python
-from filoma import probe_file
-
-# Profile the README.md file
-file_info = probe_file('README.md')
-
-# Print the file's properties
-print(file_info.as_dict())
-```
-
-## Key Features
-
-- **Fast Scans**: Uses a Rust backend and `fd` for high-performance directory traversal.
-- **DataFrame-First**: Easily integrates with the Polars for powerful data manipulation and analysis.
-- **Image Profiling**: Extracts metadata from images.
-  -- **Splitting utilities**: Provides helpers for creating deterministic train/validation/test splits from your file data when preparing datasets.
-- **Lazy Loading**: `import filoma` is fast and lightweight. Dependencies like `polars` and `Pillow` are loaded on demand.
-
-## Where to Go Next
-
-- **Cookbook**: Find copy-paste recipes for common tasks.
-- **Concepts**: Learn about the core ideas behind `filoma`.
-- **Data Quality**: Check your dataset for integrity and quality.
-- **DataFrame Workflow**: See how to work with `filoma`'s DataFrame output.
+- [Comparisons: Why filoma over X?](comparisons.md) — how filoma fits alongside `fd`, Polars, `great_expectations`, etc.
+- [Cookbook](../tutorials/cookbook.md) — copy-paste recipes for common tasks.
+- [Core Concepts](../guides/concepts.md) — the mental model behind filoma.
+- [API Reference](../reference/api.md) — full function and class documentation.

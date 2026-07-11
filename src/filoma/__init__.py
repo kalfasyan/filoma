@@ -25,8 +25,11 @@ __all__ = [
     "images",
     "files",
     "filaraki",
+    "RagStore",
     "DataFrame",
     "Dataset",
+    "Pipeline",
+    "ask",
     "probe",
     "probe_to_df",
     "probe_file",
@@ -48,6 +51,8 @@ def __getattr__(name: str):
         "files": "filoma.files",
         "images": "filoma.images",
         "filaraki": "filoma.filaraki",
+        # RAG store
+        "RagStore": "filoma.core.rag:RagStore",
         # common classes placed in submodules (module:attr)
         "DataFrame": "filoma.dataframe:DataFrame",
         "DirectoryProfiler": "filoma.directories.directory_profiler:DirectoryProfiler",
@@ -60,6 +65,12 @@ def __getattr__(name: str):
 
         globals()["Dataset"] = Dataset
         return Dataset
+
+    if name == "Pipeline":
+        from .pipeline import Pipeline as _Pipeline
+
+        globals()["Pipeline"] = _Pipeline
+        return _Pipeline
 
     if name in mapping:
         target = mapping[name]
@@ -302,3 +313,51 @@ def probe_to_df(path: str, to_pandas: bool = False, enrich: bool = True, **kwarg
             raise RuntimeError(f"Failed to convert Polars DataFrame to pandas: {e}")
 
     return df_enriched
+
+
+def ask(
+    prompt: str,
+    *,
+    path: Optional[str] = None,
+    model: Any = None,
+    message_history: Any = None,
+) -> Any:
+    """Ask Filaraki a one-shot question against a directory.
+
+    Auto-instantiates a :class:`~filoma.filaraki.agent.FilarakiAgent` rooted at
+    ``path`` (defaults to the current working directory) and runs ``prompt``
+    against it synchronously.
+
+    Args:
+        prompt: The natural-language question or instruction.
+        path: Working directory the agent's filesystem tools operate against.
+              Defaults to ``os.getcwd()``.
+        model: Optional model string or pydantic-ai ``Model`` instance. When
+               ``None``, the agent auto-detects a provider (Ollama → Mistral
+               → Gemini → OpenAI-compatible).
+        message_history: Optional pydantic-ai message history for multi-turn
+                         conversations.
+
+    Returns:
+        The pydantic-ai ``AgentRunResult``. Use ``.output`` to get the text.
+
+    Example:
+        >>> import filoma as flm
+        >>> flm.ask("how many python files are here?").output  # doctest: +SKIP
+        'There are 42 .py files...'
+
+    """
+    import os as _os
+
+    from .filaraki import get_agent
+
+    agent = get_agent(model=model, working_dir=path or _os.getcwd())
+    try:
+        return agent.run(prompt, message_history=message_history)
+    except Exception as exc:
+        exc_name = type(exc).__qualname__
+        if "UnexpectedModelBehavior" in exc_name:
+            from types import SimpleNamespace
+
+            return SimpleNamespace(output="The model failed to produce a valid response. Try rephrasing your question or using a different model.")
+        raise

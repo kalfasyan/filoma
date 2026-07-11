@@ -18,10 +18,18 @@ dependencies = [
   "pydantic-ai>=0.0.1",
   "python-dotenv>=1.0.0",
   "pandas>=2.0.0",
+  "lancedb>=0.34.0",
+  "pyarrow>=22.0.0",
+  "sentence-transformers>=5.6.0",
 ]
 
 [project.scripts]
 filoma = "filoma.cli:cli"
+
+# Third-party tools register via the ``filoma.tools`` entry-point group.
+# Each entry-point callable calls ``tool_registry.register(...)``.
+# Docs: docs/roadmap/adoption.md §5.5
+[project.entry-points."filoma.tools"]
 
 [project.optional-dependencies]
 stats = ["scipy>=1.10.0", "scikit-learn>=1.3.0", "numpy>=1.26.0"]
@@ -63,6 +71,10 @@ docs = [
 
 dedup = ["datasketch>=1.5.3", "pillow>=10.0.0"]
 
+# RAG: LanceDB vector store plus optional sentence-transformers.
+# Default embedding path uses Ollama (ollama pull nomic-embed-text).
+rag = ["lancedb", "sentence-transformers>=2.2.0", "pyarrow"]
+
 [build-system]
 requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
@@ -99,6 +111,11 @@ indent-style = "space"
 python-source = "src"
 module-name = "filoma.filoma_core"
 features = ["pyo3/extension-module"]
+include = [
+  "src/filoma/scripts/setup_env.sh",
+  "src/filoma/skills/**/*.md",
+  "src/filoma/skills/**/*.tpl",
+]
 # to build with maturin, run: maturin develop --bindings pyo3 --release --manifest-path Cargo.toml -v
 
 [tool.pytest.ini_options]
@@ -117,6 +134,7 @@ filaraki-poc = { cmd = "python examples/filaraki_poc.py", env = { PYTHONPATH = "
 filaraki-chat = { cmd = "filoma filaraki chat", env = { PYTHONPATH = "src" } }
 filaraki-test = { cmd = "pytest tests/test_filaraki_poc_init.py", env = { PYTHONPATH = "src" } }
 benchmark = "python scripts/benchmark.py"
+check-skills = { cmd = "python scripts/check_skills.py", env = { PYTHONPATH = "src" } }
 
 [dependency-groups]
 dev = [

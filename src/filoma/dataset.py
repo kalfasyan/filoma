@@ -1,87 +1,85 @@
-"""High-level Dataset management entity for filoma."""
+"""High-level Dataset management entity for filoma.
+
+Dataset is a backward-compatible subclass of Pipeline that preserves
+the legacy API (``snap``, ``probe``, ``to_dataframe``, etc.) while
+benefiting from the stage-based shared-state architecture underneath.
+"""
 
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
-from .core.snapshot import DatasetSnapshot, snapshot, verify
-from .core.verifier import DatasetVerifier
-from .dataframe import DataFrame
+from .pipeline import Pipeline
 
 
-class Dataset:
-    """A high-level entity for managing datasets."""
+class Dataset(Pipeline):
+    """A high-level entity for managing datasets.
 
-    def __init__(self, root_path: Union[str, Path]):
-        """Initialize the Dataset with a root path."""
-        self.root_path = Path(root_path).resolve()
-        if not self.root_path.exists():
-            raise FileNotFoundError(f"Path does not exist: {self.root_path}")
-        self.snapshot: Optional[DatasetSnapshot] = None
-        self._df: Optional[DataFrame] = None
+    Supports the fluent chain ``Dataset(p).scan().enrich().verify().report()``
+    inherited from :class:`Pipeline`, plus backward-compatible legacy methods
+    (``snap``, ``probe``, ``to_dataframe``, ``run_quality_scan``,
+    ``get_filaraki``).
+
+    The underlying stage-based pipeline shares state across stages so the
+    full chain walks the filesystem only once.
+    """
+
+    def __init__(self, root_path: Union[str, Path]) -> None:
+        """Initialize with a dataset root path; delegates to :class:`Pipeline`."""
+        super().__init__(root_path)
         self._cached_probe_result: Any = None
 
-    def snap(self, mode: str = "fast", **kwargs) -> "Dataset":
-        """Perform a scan and create a snapshot."""
-        self.snapshot = snapshot(str(self.root_path), mode=mode, **kwargs)
-        return self
+    def snap(self, mode: str = "fast", **kwargs: Any) -> "Dataset":
+        """Perform a scan and create a snapshot (legacy alias for ``scan``)."""
+        return self.scan(mode=mode, **kwargs)  # type: ignore[return-value]
 
-    def probe(self, **kwargs) -> Any:
-        """Perform a directory profile."""
+    def probe(self, **kwargs: Any) -> Any:
+        """Perform a directory profile (cached)."""
         if self._cached_probe_result is None:
-            from . import probe
+            import filoma
 
-            self._cached_probe_result = probe(str(self.root_path), **kwargs)
+            self._cached_probe_result = filoma.probe(str(self.root_path), **kwargs)
         return self._cached_probe_result
 
-    def to_dataframe(self, **kwargs) -> "DataFrame":
+    def to_dataframe(self, **kwargs: Any) -> Any:
         """Convert the dataset scan into a polars DataFrame."""
-        if self._df is None:
-            from . import probe_to_df
+        if self._state.dataframe is None:
+            self.enrich(**kwargs)
+        return self._state.dataframe
 
-            self._df = probe_to_df(str(self.root_path), **kwargs)
-        return self._df
-
-    def verify(self, snapshot_path: Optional[Union[str, Path]] = None, **kwargs) -> Dict[str, Any]:
-        """Perform integrity verification."""
-        path = snapshot_path or (self.snapshot.root_path if self.snapshot else None)
-        if not path:
-            raise ValueError("No snapshot provided or exists.")
-        return verify(str(path), target_path=str(self.root_path), **kwargs)
+    def verify(  # type: ignore[override]
+        self,
+        snapshot_path: Optional[Union[str, Path]] = None,
+        **kwargs: Any,
+    ) -> "Dataset":
+        """Verify dataset integrity against a snapshot. Returns self for chaining."""
+        super().verify(snapshot_path=snapshot_path, **kwargs)
+        return self
 
     def run_quality_scan(self) -> Any:
         """Run deep data quality analysis."""
+        from .core.verifier import DatasetVerifier
+
         verifier = DatasetVerifier(str(self.root_path))
         verifier.run_all()
+        self._state.quality = verifier
         return verifier
 
-    def dedup(self, **kwargs) -> Any:
-        """Perform deduplication."""
-        import os
-
-        from .dedup import find_duplicates
-
-        paths = [os.path.join(root, fname) for root, _, files in os.walk(str(self.root_path)) for fname in files]
-        return find_duplicates(paths, **kwargs)
+    def dedup(self, **kwargs: Any) -> Any:
+        """Find duplicate files. Returns the dedup result dict."""
+        super().dedup(**kwargs)
+        return self._state.duplicates
 
     def get_filaraki(self) -> Any:
-        """Access the Filaraki agentic AI tool for this dataset.
-
-        Returns a FilarakiAgent instance configured with this dataset's root path
-        as the default working directory, so all agent tool calls operate on the dataset.
-        """
+        """Access the Filaraki agentic AI tool for this dataset."""
         from .filaraki import get_agent
 
         return get_agent(working_dir=str(self.root_path))
 
     def get_brain(self) -> Any:
-        """Access the agentic AI tool for this dataset.
-
-        .. deprecated::
-            Use :meth:`get_filaraki` instead.
-        """
+        """Access the agentic AI tool for this dataset (deprecated, use ``get_filaraki``)."""
         return self.get_filaraki()
 
     def invalidate_cache(self) -> None:
         """Clear all cached internal states."""
-        self._df = None
+        super().invalidate_cache()
         self._cached_probe_result = None

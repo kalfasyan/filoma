@@ -1,10 +1,25 @@
 # Installation
 
-The simplest way to install `filoma` is via `pip`:
+`filoma` ships as a regular Python package, so any modern installer works.
+We recommend [`uv`](https://docs.astral.sh/uv/) — it's what filoma itself
+is developed with — but `pip` works too.
 
 ```bash
+# Recommended: uv (drops filoma into your project)
+uv add filoma
+
+# Or, in a virtualenv / conda env you already activated:
+uv pip install filoma
+
+# Classic pip:
 pip install filoma
 ```
+
+> 💡 New to `uv`? Install it once with
+> `curl -LsSf https://astral.sh/uv/install.sh | sh`. After that,
+> `uv add filoma` and `uv run filoma demo` give you the whole package
+>
+> - a working dev shell with no virtualenv juggling.
 
 ## Performance Tiers
 
@@ -23,8 +38,9 @@ To ensure you have the **Fastest (Rust)** backend active, you should have the Ru
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source ~/.cargo/env
 
-# Install/Reinstall filoma
-pip install --force-reinstall filoma
+# Reinstall filoma so it can build the Rust extension
+uv add --reinstall filoma          # uv
+pip install --force-reinstall filoma  # pip
 ```
 
 Alternatively, installing `fd` provides a great performance boost without needing a compiler:
