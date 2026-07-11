@@ -158,15 +158,15 @@ in under 60 seconds, with no decisions to make.
 Goal: make the codebase boring to extend. Every new agentic capability
 should require editing exactly one file.
 
-- [ ] **Single `ToolRegistry`.** Define `@filoma.tool` decorator with
+- [x] **Single `ToolRegistry`.** Define `@filoma.tool` decorator with
       `name`, `description`, JSON schema (derived from type hints).
       Migrate `filaraki/tools.py` and `mcp_server.py` to consume it.
       Net result: one place to add tools, two adapters auto-update.
-- [ ] **Split `cli.py` into `cli/` package** by command group.
-- [ ] **Stage-based `Pipeline`** (see §2.2). `Dataset` becomes a façade.
-- [ ] **Document the backend-selection pattern** as the canonical
+- [x] **Split `cli.py` into `cli/` package** by command group.
+- [x] **Stage-based `Pipeline`** (see §2.2). `Dataset` becomes a façade.
+- [x] **Document the backend-selection pattern** as the canonical
       extension point in `docs/reference/architecture.md`.
-- [ ] **Drift guard for bundled skills.** Add a `check-skills` task
+- [x] **Drift guard for bundled skills.** Add a `check-skills` task
       (poe / Make) that greps each `src/filoma/skills/*/SKILL.md` for
       the CLI commands and Python helpers it references and asserts
       they exist. Cleanest once the `ToolRegistry` lands so missing
@@ -177,15 +177,15 @@ should require editing exactly one file.
 Goal: deliver on the headline. Dataset CI should be runnable from the CLI,
 from CI/CD, and from a notebook.
 
-- [ ] **`filoma audit <path>`** as a first-class subcommand (today it's
+- [x] **`filoma audit <path>`** as a first-class subcommand (today it's
       reachable, but buried under Filaraki). Exit code reflects pass/fail
       so it can be wired into GitHub Actions.
-- [ ] **`filoma-action`** GitHub Action wrapping `filoma audit` with a
+- [x] **`filoma-action`** GitHub Action wrapping `filoma audit` with a
       sensible default report, posted as a PR comment for ML repos.
 - [ ] **Versioned manifest format** (`filoma.lock` or similar) so two
       audits can be diffed: "what changed in my dataset since last
       training run?".
-- [ ] **Quality gates as policies**: a small YAML that lets users say
+- [x] **Quality gates as policies**: a small YAML that lets users say
       "fail if duplicate ratio > 1%, fail if any class < 50 samples",
       consumed by `filoma audit`.
 
@@ -194,16 +194,16 @@ from CI/CD, and from a notebook.
 Docs are the second-best adoption lever after the README. Today they are
 comprehensive but oriented around features, not jobs.
 
-- [ ] **Restructure docs around the four jobs**: _audit_, _explore_,
+- [x] **Restructure docs around the four jobs**: _audit_, _explore_,
       _dedup_, _talk_. Each gets a single-page tutorial that reads like a
       story, not a feature list.
-- [ ] **Persona-tagged quickstarts** (ML / data eng / researcher) — three
+- [x] **Persona-tagged quickstarts** (ML / data eng / researcher) — three
       copies of the quickstart, each one optimized for that persona's
       first 5 minutes.
-- [ ] **"Why filoma over X?"** comparison page (vs. `fd`, `du`, raw
+- [x] **"Why filoma over X?"** comparison page (vs. `fd`, `du`, raw
       Polars, `pandas-profiling`, `great_expectations`). Currently
       missing — newcomers ask this question silently and bounce.
-- [ ] **Roadmap visible from docs index** so contributors see the
+- [x] **Roadmap visible from docs index** so contributors see the
       direction.
 
 ### Phase 5 — _Agentic depth_ (XL, **future work, design only here**)
@@ -237,7 +237,7 @@ listed so design discussion has somewhere to live.
       (`filoma skills agents-md`) and Cursor rules
       (`filoma skills cursor-rules`) cover the rest of the agent
       ecosystem. See `src/filoma/skills/`.
-- [ ] **One-line installer** already exists for nanobot+Ollama; promote
+- [x] **One-line installer** already exists for nanobot+Ollama; promote
       it to a top-of-README install option for the agentic flow.
 - [ ] **A dedicated `examples/` notebook per persona** (ML audit, data
       eng exploration, researcher chat) — each runnable end-to-end on a

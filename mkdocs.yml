@@ -8,6 +8,12 @@ nav:
   - Getting Started:
       - Quickstart: getting-started/quickstart.md
       - Installation: getting-started/installation.md
+      - Comparisons: getting-started/comparisons.md
+  - Use Cases:
+      - Audit a Dataset: use-cases/audit.md
+      - Explore a Dataset: use-cases/explore.md
+      - Deduplicate a Dataset: use-cases/dedup.md
+      - Talk to Your Data: use-cases/agent.md
   - Guides:
       - Interactive CLI: guides/cli.md
       - Core Concepts: guides/concepts.md
@@ -15,7 +21,9 @@ nav:
       - DataFrame Workflow: guides/dataframe.md
       - File & Image Profiling: guides/profiling.md
       - Duplicate Detection: guides/dedup.md
-      - Intelligent Analysis (Brain): guides/brain.md
+      - AI Agent (Filaraki): guides/filaraki.md
+      - Data Integrity & Quality: guides/data-integrity.md
+      - Dataset Management: guides/dataset.md
       - Advanced Usage: guides/advanced-usage.md
   - Tutorials:
       - Main Demo: tutorials/demo.md
@@ -38,6 +46,8 @@ plugins:
 markdown_extensions:
   - admonition
   - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
   - toc:
       permalink: true
 
