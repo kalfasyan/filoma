@@ -1,7 +1,7 @@
 """Agent implementation for filoma."""
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, List, Optional, Union
 
 from loguru import logger
@@ -40,6 +40,8 @@ class FilarakiDeps:
     working_dir: str = os.getcwd()
     current_df: Optional[Any] = None
     rag_store: Optional[Any] = None
+    cached_analyses: dict = field(default_factory=dict)
+    cached_dfs: dict = field(default_factory=dict)
 
 
 class FilarakiAgent:

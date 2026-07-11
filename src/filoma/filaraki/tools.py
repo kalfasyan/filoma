@@ -35,6 +35,50 @@ def _is_mcp_stdio_mode() -> bool:
     return os.getenv("FILOMA_MCP_STDIO", "0") == "1"
 
 
+def _cached_probe(ctx: RunContext[Any], path: str, max_depth: Optional[int] = None) -> Any:
+    """Return a cached DirectoryAnalysis for *path*, probing only once per (path, max_depth)."""
+    p = Path(path).expanduser().resolve()
+    cache_key = (str(p), max_depth)
+
+    if cache_key in ctx.deps.cached_analyses:
+        return ctx.deps.cached_analyses[cache_key]
+
+    from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
+
+    config = DirectoryProfilerConfig(build_dataframe=True)
+    profiler = DirectoryProfiler(config)
+    analysis = profiler.probe(str(p), max_depth=max_depth)
+
+    ctx.deps.cached_analyses[cache_key] = analysis
+    return analysis
+
+
+def _cached_probe_to_df(ctx: RunContext[Any], path: str, max_depth: Optional[int] = None, enrich: bool = True) -> Any:
+    """Return a cached DataFrame for *path*, probing only once per (path, max_depth, enrich)."""
+    p = Path(path).expanduser().resolve()
+    cache_key = (str(p), max_depth, enrich)
+
+    if cache_key in ctx.deps.cached_dfs:
+        return ctx.deps.cached_dfs[cache_key]
+
+    analysis = _cached_probe(ctx, path, max_depth=max_depth)
+
+    df_wrapper = analysis.to_df()
+    if df_wrapper is None:
+        raise RuntimeError("DataFrame was not built. Ensure 'polars' is installed.")
+
+    df_wrapper.add_lineage_entry("probe", path=str(p))
+
+    if enrich:
+        try:
+            df_wrapper = df_wrapper.add_depth_col(str(p)).add_path_components().add_file_stats_cols()
+        except Exception:
+            pass
+
+    ctx.deps.cached_dfs[cache_key] = df_wrapper
+    return df_wrapper
+
+
 @tool_registry.register
 def count_files(ctx: RunContext[Any], path: str) -> str:
     """Count the total number of files in a directory with FULL recursive scan.
@@ -56,12 +100,7 @@ def count_files(ctx: RunContext[Any], path: str) -> str:
 
         logger.info(f"Starting FULL file count for '{path}' (no depth limit).")
 
-        # Use DirectoryProfiler directly to get the accurate count from Rust backend
-        from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
-
-        config = DirectoryProfilerConfig(build_dataframe=False)  # Don't need df, just the count
-        profiler = DirectoryProfiler(config)
-        analysis = profiler.probe(str(p), max_depth=None)
+        analysis = _cached_probe(ctx, str(p))
 
         file_count = analysis.summary.get("total_files", 0)
         folder_count = analysis.summary.get("total_folders", 0)
@@ -108,10 +147,7 @@ def audit_corrupted_files(ctx: RunContext[Any], path: str) -> str:
         # Derive total scanned files for accurate success-rate semantics
         total_files_checked = 0
         try:
-            from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
-
-            profiler = DirectoryProfiler(DirectoryProfilerConfig(build_dataframe=False))
-            analysis = profiler.probe(str(p), max_depth=None)
+            analysis = _cached_probe(ctx, str(p))
             total_files_checked = int(analysis.summary.get("total_files", 0))
         except Exception:
             # Keep audit resilient even if directory counting fails
@@ -350,10 +386,6 @@ def assess_migration_readiness(ctx: RunContext[Any], path: str) -> str:
             return f"Error: Path '{path}' does not exist."
 
         from filoma.core.verifier import DatasetVerifier
-        from filoma.dataset import Dataset
-
-        # Check basic dataset structure
-        dataset = Dataset(str(p))
 
         # Run verification to check integrity
         verifier = DatasetVerifier(str(p))
@@ -384,7 +416,7 @@ def assess_migration_readiness(ctx: RunContext[Any], path: str) -> str:
 
         # Check file distribution (structure)
         try:
-            df = dataset.to_dataframe(enrich=False)
+            df = _cached_probe_to_df(ctx, str(p), enrich=False)
             total_files = len(df)
 
             if total_files == 0:
@@ -552,7 +584,7 @@ def audit_dataset(
         if dataframe is not None:
             df = dataframe
         else:
-            df = filoma.probe_to_df(str(p), enrich=False)
+            df = _cached_probe_to_df(ctx, str(p), enrich=False)
         profile_total_files = len(df)
 
         # Normalize extension_count table to {ext: count}
@@ -1203,12 +1235,8 @@ def probe_directory(
                 effective_max_depth = 2
                 depth_was_limited = True
 
-        # Use DirectoryProfiler to get accurate summary data
-        from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
-
-        config = DirectoryProfilerConfig(build_dataframe=True)
-        profiler = DirectoryProfiler(config)
-        analysis = profiler.probe(str(p), max_depth=effective_max_depth)
+        # Use cached probe to avoid re-scanning the same directory
+        analysis = _cached_probe(ctx, str(p), max_depth=effective_max_depth)
 
         # Get accurate counts from summary (not DataFrame which may be incomplete)
         file_count = analysis.summary.get("total_files", 0)
@@ -1283,7 +1311,7 @@ def find_duplicates(
             logger.info(f"Applying safety limit to duplicate search on '{path}' (depth=2).")
             max_depth = 2
 
-        df = filoma.probe_to_df(str(p), max_depth=max_depth)
+        df = _cached_probe_to_df(ctx, str(p), max_depth=max_depth)
         dupes = df.evaluate_duplicates(show_table=False)
 
         exact_groups = dupes.get("exact", [])
@@ -1975,8 +2003,8 @@ def create_dataset_dataframe(ctx: RunContext[Any], path: str, enrich: bool = Tru
 
         logger.info(f"Creating dataframe for dataset directory: {p}")
 
-        # Use filoma's probe_to_df to create the dataframe
-        df = filoma.probe_to_df(str(p), enrich=enrich)
+        # Use cached probe_to_df to avoid re-scanning the same directory
+        df = _cached_probe_to_df(ctx, str(p), enrich=enrich)
 
         # Store the dataframe in context for further analysis
         ctx.deps.current_df = df
