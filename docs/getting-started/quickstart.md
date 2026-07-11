@@ -74,6 +74,9 @@ Pick the persona that matches what you're trying to do. Each tab is a self-conta
     filoma ask "how many Python files are in this project?"
     filoma ask "find corrupted images in ./data"
 
+    # Semantic search over docs/code (RAG)
+    filoma ask "index ./docs and find every mention of quality gates"
+
     # Interactive chat (needs Ollama or API key)
     filoma filaraki chat
 
@@ -115,13 +118,30 @@ result = (
 )
 ```
 
+Complementary surfaces for pipeline stages:
+
+```bash
+# Watch for drift in CI (verify + gates as a one-shot check)
+filoma watch ./dataset --snapshot baseline.json --gates filoma-gates.yml
+
+# Semantic search over your files (RAG)
+filoma ask "index ./dataset and find all references to training config"
+
+# Schema proposals and cleanup scripts (agentic)
+filoma ask "propose a schema for ./dataset"
+filoma ask "generate a dedup cleanup script for ./dataset"
+```
+
 ## Key features
 
 - **Fast scans**: Rust backend and `fd` for high-performance directory traversal.
 - **DataFrame-first**: Polars-native wrapper with enrichment helpers (depth, path components, file stats).
 - **Dedup**: Exact (SHA-256), text near-duplicates (k-shingles), image near-duplicates (perceptual hashing).
 - **Quality gates**: `filoma-gates.yml` policy file with pass/fail exit codes for CI.
-- **Agentic interface**: `filoma ask`, `filoma filaraki chat`, MCP server for any AI assistant.
+- **Agentic interface**: `filoma ask`, `filoma filaraki chat`, MCP server, schema proposals, cleanup scripts.
+- **RAG search**: Index text/code files into a vector store and search by meaning.
+- **Watch mode**: `filoma watch` — detect dataset drift, compare snapshots, fail CI on gate violations.
+- **Plugin discovery**: Third-party tools auto-register via `filoma.tools` entry points.
 - **Lazy loading**: `import filoma` is fast; heavy dependencies load on demand.
 
 ## Where to go next

@@ -38,7 +38,7 @@ def ask_command(
         raise typer.Exit(code=1)
 
     result = flm.ask(question, path=path, model=model)
-    output = getattr(result, "output", result)
+    output = getattr(result, "output", str(result))
     console.print(output)
 
 

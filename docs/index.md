@@ -36,7 +36,10 @@ Navigate with arrow keys, probe files and directories, and analyze DataFrames—
 - **DataFrame-first**: Polars-native wrapper with enrichment helpers
 - **Deduplication**: exact + near-duplicate text + near-duplicate images
 - **Quality gates**: `filoma-gates.yml` with pass/fail exit codes for CI
-- **Agentic interface**: `filoma ask`, interactive chat, MCP server
+- **Agentic interface**: `filoma ask`, interactive chat, MCP server, schema proposals, cleanup scripts
+- **RAG search**: index text/code files into LanceDB, search by meaning with Ollama embeddings
+- **Watch mode**: `filoma watch` — detect dataset drift, fail CI on gate violations
+- **Plugin discovery**: third-party tools auto-register via `filoma.tools` entry points
 - **Interactive CLI**: Rich-powered terminal UI for exploration
 
 ## Start here
@@ -51,15 +54,19 @@ Navigate with arrow keys, probe files and directories, and analyze DataFrames—
 
 ## Common Tasks
 
-| Task                | Snippet                                    |
-| ------------------- | ------------------------------------------ |
-| Audit a dataset     | `filoma audit ./data --export report.html` |
-| Scan directory      | `flm.probe('.')`                           |
-| Get DataFrame       | `flm.probe_to_df('.')`                     |
-| Find duplicates     | `flm.Pipeline('./data').scan().dedup()`    |
-| Chat with your data | `filoma ask "what's in this folder?"`      |
-| Filter by extension | `dfw.filter_by_extension('.py')`           |
-| Add file stats      | `dfw.add_file_stats_cols()`                |
+| Task                    | Snippet                                              |
+| ----------------------- | ---------------------------------------------------- |
+| Audit a dataset         | `filoma audit ./data --export report.html`           |
+| Watch for dataset drift | `filoma watch ./data --snapshot baseline.json`       |
+| Scan directory          | `flm.probe('.')`                                     |
+| Get DataFrame           | `flm.probe_to_df('.')`                               |
+| Find duplicates         | `flm.Pipeline('./data').scan().dedup()`              |
+| Chat with your data     | `filoma ask "what's in this folder?"`                |
+| Semantic RAG search     | `filoma ask "index docs/ and find all gate configs"` |
+| Filter by extension     | `dfw.filter_by_extension('.py')`                     |
+| Add file stats          | `dfw.add_file_stats_cols()`                          |
+| Propose dataset schema  | `filoma ask "propose a schema for ./data"`           |
+| Generate cleanup script | `filoma ask "generate a dedup script for ./data"`    |
 
 ## Installation
 

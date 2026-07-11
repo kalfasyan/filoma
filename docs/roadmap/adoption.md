@@ -206,25 +206,22 @@ comprehensive but oriented around features, not jobs.
 - [x] **Roadmap visible from docs index** so contributors see the
       direction.
 
-### Phase 5 — _Agentic depth_ (XL, **future work, design only here**)
+### Phase 5 — _Agentic depth_ (XL)
 
-These are explicitly _not_ implemented as part of this roadmap. They are
-listed so design discussion has somewhere to live.
-
-- [ ] **RAG over the dataset itself.** Ingest text/markdown/json files
-      from a scanned tree into a local vector store (sqlite-vss or
-      similar) so Filaraki can answer content questions, not just
-      metadata questions. Local-first, no cloud dependency.
-- [ ] **Schema-proposing agent.** Given a folder of CSV/Parquet/images,
+- [x] **RAG over the dataset itself.** Ingest text/markdown/json files
+      from a scanned tree into a local vector store (LanceDB) so
+      Filaraki can answer content questions, not just metadata
+      questions. Local-first, Ollama embeddings by default.
+- [x] **Schema-proposing agent.** Given a folder of CSV/Parquet/images,
       have the agent propose a dataset schema, a `Pipeline` config, and
       quality-gate policies — the user reviews and accepts.
-- [ ] **Auto-generated cleanup scripts.** When the agent identifies
+- [x] **Auto-generated cleanup scripts.** When the agent identifies
       duplicates / leakage / class imbalance, it offers a reviewable
       script (move/delete/rebalance) rather than executing destructively.
-- [ ] **Proactive watch mode.** `filoma watch <path>` that surfaces
-      drift between snapshots and notifies the user (or fails CI) when
-      a quality gate trips.
-- [ ] **Tool-marketplace style plugin discovery** — third-party packages
+- [x] **Watch mode.** `filoma watch <path>` that surfaces
+      drift between snapshots and notifies the user when a quality gate
+      trips. Supports snapshot, verify, gates, and JSON export.
+- [x] **Tool-marketplace style plugin discovery** — third-party packages
       register tools via the `ToolRegistry` from Phase 2, and Filaraki
       / MCP pick them up automatically.
 
@@ -268,9 +265,8 @@ To keep the project focused, the roadmap **does not** include:
 
 ## 5. How to use this document
 
-- Phase 0 is shipped together with this doc. Phases 1–4 are the
-  near-term roadmap. Phase 5 is design-space only — open an issue
-  before writing code.
+- Phase 0 is shipped together with this doc. Phases 1–6 are the
+  near-term roadmap. Phase 5 is implemented.
 - Each phase item should become a GitHub issue with persona tag,
   effort estimate, and a link back to the relevant section here.
 - This is a living document. PRs that add or reorder items are

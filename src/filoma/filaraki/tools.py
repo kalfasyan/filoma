@@ -1252,14 +1252,24 @@ def probe_directory(
 
 
 @tool_registry.register
-def find_duplicates(ctx: RunContext[Any], path: str, ignore_safety_limits: bool = False) -> str:
-    """Find duplicate files in a directory.
+def find_duplicates(
+    ctx: RunContext[Any],
+    path: str,
+    ignore_safety_limits: bool = False,
+    strategy: str = "exact",
+) -> str:
+    """Find duplicate files in a directory via exact content matching.
+
+    Accepts path, ignore_safety_limits, and strategy.
+    strategy is accepted for compatibility but ignored — duplicates are
+    always matched by SHA-256 content hash.
 
     Args:
     ----
         ctx: The run context.
         path: The path to the directory to check for duplicates.
         ignore_safety_limits: If True, allows deep scanning for duplicates.
+        strategy: Ignored — duplicates are always matched by exact hash.
 
     """
     try:
@@ -1269,7 +1279,7 @@ def find_duplicates(ctx: RunContext[Any], path: str, ignore_safety_limits: bool 
             return f"Error: The path '{path}' (resolved to '{p}') does not exist. Please provide a valid directory path."
 
         max_depth = None
-        if not ignore_safety_limits and p == Path.cwd() or p == Path.cwd().parent:
+        if not ignore_safety_limits and (p == Path.cwd() or str(p.resolve()) == str(Path.cwd().parent.resolve())):
             logger.info(f"Applying safety limit to duplicate search on '{path}' (depth=2).")
             max_depth = 2
 
@@ -2068,3 +2078,86 @@ def preview_image(ctx: RunContext[Any], path: str, width: int = 60, mode: str = 
         return "Error: Pillow and Rich are required for image previews."
     except Exception as e:
         return f"Error generating image preview: {str(e)}"
+
+
+# ---------------------------------------------------------------------------
+# RAG tools (Phase 5.1)
+# ---------------------------------------------------------------------------
+
+
+@tool_registry.register
+def index_for_rag(ctx: RunContext[Any], path: str) -> str:
+    """Index a directory of text files into a RAG vector store for semantic search.
+
+    Walks the given directory, reads text/markdown/code files, chunks them
+    into sentence-aware segments, embeds each chunk, and stores vectors in
+    a local LanceDB database. Subsequent calls to ``search_rag`` will query
+    against this index.
+
+    The RAG store is cached on the agent session (``ctx.deps.rag_store``)
+    so ``index_for_rag`` only needs to be called once per session.
+
+    Args:
+        ctx: The run context.
+        path: Path to the directory containing text files to index.
+
+    Returns:
+        Summary message with the number of chunks indexed.
+
+    """
+    import tempfile
+
+    p = Path(path).expanduser().resolve()
+    if not p.exists():
+        return f"Error: Path '{path}' does not exist."
+    if not p.is_dir():
+        return f"Error: '{path}' is not a directory."
+
+    try:
+        from filoma.core.rag import RagStore
+
+        if not hasattr(ctx.deps, "rag_store") or ctx.deps.rag_store is None:
+            db_dir = tempfile.mkdtemp(prefix="filoma_rag_")
+            ctx.deps.rag_store = RagStore(db_path=db_dir)
+
+        count = ctx.deps.rag_store.index(str(p))
+        return f"Indexed {count} chunks from '{p}' into RAG store."
+    except ImportError as e:
+        return f"Error: RAG dependencies not available. Install with 'pip install filoma[rag]'. Details: {e}"
+
+
+@tool_registry.register
+def search_rag(ctx: RunContext[Any], query: str, top_k: int = 5) -> str:
+    """Search the RAG vector store with a semantic query.
+
+    Requires ``index_for_rag`` to have been called first in the session.
+    Returns the top-k most relevant text chunks with their file paths
+    and relevance scores.
+
+    Args:
+        ctx: The run context.
+        query: Natural language query to search for.
+        top_k: Number of results to return (default: 5, max: 20).
+
+    Returns:
+        Formatted text with search results including file paths,
+        chunk text, and relevance distance.
+
+    """
+    if not hasattr(ctx.deps, "rag_store") or ctx.deps.rag_store is None:
+        return "Error: No RAG store indexed. Call 'index_for_rag' first."
+
+    top_k = min(max(top_k, 1), 20)
+    results = ctx.deps.rag_store.search(query, top_k=top_k)
+
+    if not results:
+        return f"No results found for query: '{query}'"
+
+    lines = [f"RAG search results for: '{query}' ({len(results)} results):"]
+    for i, r in enumerate(results, 1):
+        lines.append(f"\n--- Result {i} (distance={r['_distance']:.4f}) ---")
+        lines.append(f"File: {r['path']}")
+        lines.append(f"Chunk: {r['chunk_idx']}")
+        lines.append(f"Text: {r['text'][:500]}{'...' if len(r['text']) > 500 else ''}")
+
+    return "\n".join(lines)

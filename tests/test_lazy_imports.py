@@ -11,8 +11,9 @@ _AGENTIC_HEAVY_DEPS = (
     "google",
     "google.generativeai",
     "openai",
+    "lancedb",
 )
-_DATA_HEAVY_DEPS = ("polars", "polars.internals", "PIL", "PIL.Image")
+_DATA_HEAVY_DEPS = ("polars", "polars.internals", "PIL", "PIL.Image", "pyarrow")
 
 
 def run_python(code: str):

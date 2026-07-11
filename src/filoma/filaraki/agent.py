@@ -39,6 +39,7 @@ class FilarakiDeps:
 
     working_dir: str = os.getcwd()
     current_df: Optional[Any] = None
+    rag_store: Optional[Any] = None
 
 
 class FilarakiAgent:
@@ -94,6 +95,8 @@ class FilarakiAgent:
             working_dir: Default working directory for the agent's tools. Defaults to current working directory.
 
         """
+        import filoma.filaraki.tools  # noqa: F401 — triggers @tool_registry.register
+
         self.model = self._resolve_model(model, base_url, api_key)
         self.default_working_dir = working_dir or os.getcwd()
 
@@ -208,7 +211,31 @@ class FilarakiAgent:
                 "  * NEVER output tool call JSON as plain text. Always use the actual tool calling mechanism.\n"
                 "  * If the dataframe is already loaded from a previous search, use it instead of searching again.\n"
                 "- EXECUTE ONE TOOL AT A TIME. Do not output multiple tool calls in one message.\n"
-                "- Wait for the result of one operation before calling the next."
+                "- Wait for the result of one operation before calling the next.\n"
+                "\n\n"
+                "CRITICAL INSTRUCTIONS FOR RAG (SEMANTIC SEARCH):\n"
+                "- When the user asks content-based questions about text files, documentation, or code,\n"
+                "  use the RAG tools: first call index_for_rag(path) to index the directory,\n"
+                "  then call search_rag(query) to find semantically relevant chunks.\n"
+                "- Only index a directory once per session; the RAG store is cached.\n"
+                "- Always call search_rag BEFORE answering content questions about indexed files.\n"
+                "\n\n"
+                "CRITICAL INSTRUCTIONS FOR SCHEMA PROPOSAL:\n"
+                "- When asked to propose a dataset schema, pipeline configuration, or quality gates:\n"
+                "  1. Use probe_directory(path) to get an overview of the dataset.\n"
+                "  2. Use read_file(path) to inspect sample files.\n"
+                "  3. Propose: dataset_name, columns (name, dtype, nullable, description),\n"
+                "     pipeline_config suggestions, quality_gates thresholds, issues found, and recommendations.\n"
+                "  4. Return the proposal in a structured format with clear section headers.\n"
+                "- Use markdown tables for column definitions when possible.\n"
+                "\n\n"
+                "CRITICAL INSTRUCTIONS FOR CLEANUP SCRIPTS:\n"
+                "- When duplicate files, data leakage, or class imbalance is detected:\n"
+                "  1. Generate a standalone, reviewable Python script with inline comments.\n"
+                "  2. Include --dry-run flags and safety checks in all generated scripts.\n"
+                "  3. NEVER execute the generated script — present it to the user for review.\n"
+                "  4. Use .remove(), .rename(), or shutil.move() with explicit user confirmation prompts.\n"
+                "  5. The script must include a docstring explaining what it does and all safety precautions.\n"
             )
 
     def _resolve_model(

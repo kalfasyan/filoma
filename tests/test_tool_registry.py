@@ -7,8 +7,8 @@ from filoma.tool_registry import ToolRegistry, ToolSpec, tool_registry
 class TestToolRegistrySize:
     """Test that all expected tools are registered."""
 
-    def test_registry_has_26_tools(self):
-        assert len(tool_registry) == 26
+    def test_registry_has_28_tools(self):
+        assert len(tool_registry) == 28
 
     def test_core_tools_registered(self):
         names = {spec.name for spec in tool_registry.list_specs()}
@@ -130,7 +130,7 @@ class TestRegistryAPI:
 
     def test_list_specs_returns_correct_count(self):
         specs = tool_registry.list_specs()
-        assert len(specs) == 26
+        assert len(specs) == 28
         assert all(isinstance(s, ToolSpec) for s in specs)
 
 

@@ -6,18 +6,20 @@ This page compares filoma to tools that overlap in parts of that pipeline. The g
 
 ## Comparison matrix
 
-| Dimension                  | **filoma**                                            | `fd` / `du`                                   | raw Polars            | `pandas-profiling`                  | `great_expectations`         |
-| -------------------------- | ----------------------------------------------------- | --------------------------------------------- | --------------------- | ----------------------------------- | ---------------------------- |
-| **Speed (directory scan)** | Rust / `fd` fallback — sub-second on 100k files       | `fd`: fastest in class; `du`: disk-usage only | No directory scanning | No directory scanning               | No directory scanning        |
-| **DataFrame output**       | Polars-native wrapper with enrichment helpers         | None                                          | Core strength         | pandas-profiling generates profiles | Expectation Suites on pandas |
-| **Dedup**                  | Exact + text near-dupes + image near-dupes            | None                                          | Manual                | None                                | None                         |
-| **Data integrity**         | Snapshots + manifests + SHA-256 verification          | None                                          | Manual                | Column-level profiling only         | Expectation-level only       |
-| **Quality gates (YAML)**   | Built-in `filoma-gates.yml` with pass/fail exit codes | None                                          | None                  | None                                | Expectations as code only    |
-| **Agentic interface**      | `filoma ask`, Filaraki chat, MCP server               | None                                          | None                  | None                                | None                         |
-| **Local-first**            | Yes — Ollama auto-detected, no cloud required         | Yes                                           | Yes                   | Yes                                 | Yes (self-hosted)            |
-| **ML dataset focus**       | Class balance, leakage detection, split auditing      | None                                          | General-purpose       | General-purpose EDA                 | Data validation (any domain) |
-| **CI/CD integration**      | GitHub Action + exit codes                            | None                                          | None                  | None                                | CI-friendly                  |
-| **Reporting**              | HTML/JSON/MD audit reports with KPIs                  | None                                          | None                  | HTML profile reports                | Data Docs (HTML)             |
+| Dimension                   | **filoma**                                            | `fd` / `du`                                   | raw Polars            | `pandas-profiling`                  | `great_expectations`         |
+| --------------------------- | ----------------------------------------------------- | --------------------------------------------- | --------------------- | ----------------------------------- | ---------------------------- |
+| **Speed (directory scan)**  | Rust / `fd` fallback — sub-second on 100k files       | `fd`: fastest in class; `du`: disk-usage only | No directory scanning | No directory scanning               | No directory scanning        |
+| **DataFrame output**        | Polars-native wrapper with enrichment helpers         | None                                          | Core strength         | pandas-profiling generates profiles | Expectation Suites on pandas |
+| **Dedup**                   | Exact + text near-dupes + image near-dupes            | None                                          | Manual                | None                                | None                         |
+| **Data integrity**          | Snapshots + manifests + SHA-256 verification          | None                                          | Manual                | Column-level profiling only         | Expectation-level only       |
+| **Quality gates (YAML)**    | Built-in `filoma-gates.yml` with pass/fail exit codes | None                                          | None                  | None                                | Expectations as code only    |
+| **Agentic interface**       | `filoma ask`, Filaraki chat, MCP server, schema props | None                                          | None                  | None                                | None                         |
+| **RAG / semantic search**   | LanceDB vector store, Ollama or st embeddings         | None                                          | None                  | None                                | None                         |
+| **Watch / drift detection** | Snapshot → verify → gates → export, CI exit codes     | None                                          | None                  | None                                | None                         |
+| **Plugin discovery**        | `filoma.tools` entry points, auto-register in agents  | None                                          | None                  | None                                | None                         |
+| **ML dataset focus**        | Class balance, leakage detection, split auditing      | None                                          | General-purpose       | General-purpose EDA                 | Data validation (any domain) |
+| **CI/CD integration**       | GitHub Action + exit codes                            | None                                          | None                  | None                                | CI-friendly                  |
+| **Reporting**               | HTML/JSON/MD audit reports with KPIs                  | None                                          | None                  | HTML profile reports                | Data Docs (HTML)             |
 
 ## When to use filoma
 

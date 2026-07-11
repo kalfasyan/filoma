@@ -25,6 +25,7 @@ __all__ = [
     "images",
     "files",
     "filaraki",
+    "RagStore",
     "DataFrame",
     "Dataset",
     "Pipeline",
@@ -50,6 +51,8 @@ def __getattr__(name: str):
         "files": "filoma.files",
         "images": "filoma.images",
         "filaraki": "filoma.filaraki",
+        # RAG store
+        "RagStore": "filoma.core.rag:RagStore",
         # common classes placed in submodules (module:attr)
         "DataFrame": "filoma.dataframe:DataFrame",
         "DirectoryProfiler": "filoma.directories.directory_profiler:DirectoryProfiler",
@@ -349,4 +352,12 @@ def ask(
     from .filaraki import get_agent
 
     agent = get_agent(model=model, working_dir=path or _os.getcwd())
-    return agent.run(prompt, message_history=message_history)
+    try:
+        return agent.run(prompt, message_history=message_history)
+    except Exception as exc:
+        exc_name = type(exc).__qualname__
+        if "UnexpectedModelBehavior" in exc_name:
+            from types import SimpleNamespace
+
+            return SimpleNamespace(output="The model failed to produce a valid response. Try rephrasing your question or using a different model.")
+        raise

@@ -9,6 +9,7 @@ the same registry, eliminating the duplication between
 
 from __future__ import annotations
 
+import importlib.metadata
 import inspect
 import re
 from dataclasses import dataclass
@@ -43,6 +44,26 @@ class ToolRegistry:
 
     def __init__(self) -> None:  # noqa: D107
         self._tools: dict[str, ToolSpec] = {}
+        self._plugins_loaded: bool = False
+
+    # ------------------------------------------------------------------
+    # Plugin discovery
+    # ------------------------------------------------------------------
+
+    def _discover_plugins(self) -> None:
+        """Load third-party tools registered via ``importlib.metadata`` entry points.
+
+        Scans the ``filoma.tools`` entry-point group once per process.
+        Each entry-point callable is expected to call
+        ``tool_registry.register(...)`` to register one or more tools.
+        Plugins must not perform filesystem I/O or heavy imports at load time.
+        """
+        if self._plugins_loaded:
+            return
+        self._plugins_loaded = True
+        entry_points = importlib.metadata.entry_points(group="filoma.tools")
+        for ep in entry_points:
+            _ = ep.load()()
 
     # ------------------------------------------------------------------
     # Registration
@@ -71,10 +92,12 @@ class ToolRegistry:
 
     def list_specs(self) -> list[ToolSpec]:
         """Return all registered tool specs in registration order."""
+        self._discover_plugins()
         return list(self._tools.values())
 
     def get_spec(self, name: str) -> Optional[ToolSpec]:
         """Get a single tool spec by name."""
+        self._discover_plugins()
         return self._tools.get(name)
 
     def get_callable(self, name: str) -> Optional[Callable[..., Any]]:
