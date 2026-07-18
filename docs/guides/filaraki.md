@@ -73,6 +73,37 @@ async def analyze_directory():
 asyncio.run(analyze_directory())
 ```
 
+## Using Filoma with GitHub Copilot
+
+GitHub Copilot (VS Code chat, [Copilot CLI](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/about-copilot-cli), and Copilot coding agent) all understand filoma natively through two open standards: [Agent Skills](https://agentskills.io) and MCP.
+
+### Option 1 — Agent Skill (instructions only, nothing to run)
+
+```bash
+filoma skills install --scope vscode   # writes ./.github/skills/filoma-*/SKILL.md
+```
+
+Commit `.github/skills/` to your repo and it's picked up automatically for every collaborator — no extension, no settings change. Copilot reads each skill's `description` to decide when to load it (e.g. "audit this dataset for training"), then follows instructions that call filoma's regular CLI / Python API. `filoma skills agents-md --write` additionally appends a filoma section to `AGENTS.md`, which Copilot also reads as always-on context.
+
+### Option 2 — MCP server (real tool calls, no `pip install filoma` required)
+
+Add a `.vscode/mcp.json` to any repo (commit it so colleagues get it too):
+
+```json
+{
+  "servers": {
+    "filoma": {
+      "command": "uvx",
+      "args": ["--python", ">=3.11", "filoma", "mcp", "serve"]
+    }
+  }
+}
+```
+
+`uvx` downloads and caches filoma on first use and runs it in an isolated environment, so nobody needs to `pip install filoma` into their project. Paste the same block into your user profile MCP config (Command Palette → **MCP: Open User Configuration**) to get filoma's tools in every workspace, or into [Copilot CLI's MCP config](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers) for the terminal agent.
+
+> This filoma repo ships its own `.vscode/mcp.json`, pointed at the local development build (`uv run filoma mcp serve`) instead of `uvx`, so contributors get the in-progress MCP server automatically when they open this workspace in Copilot Chat.
+
 ## MCP Server Configuration with Nanobot
 
 Filoma Filaraki can be exposed as an MCP (Model Context Protocol) server to [nanobot](https://github.com/HKUDS/nanobot), a Rust-based AI agent that runs locally with [Ollama](https://ollama.com).

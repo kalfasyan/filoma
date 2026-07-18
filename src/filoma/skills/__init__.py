@@ -1,9 +1,10 @@
 """Bundled agent skills shipped with filoma.
 
 This subpackage ships ``SKILL.md`` directories that follow the
-`Anthropic Agent Skills <https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview>`_
-format, which is also recognized by VS Code chat customization
-(``.github/skills/<name>/SKILL.md``).
+`Agent Skills <https://agentskills.io>`_ open standard, which is
+recognized by GitHub Copilot (VS Code chat, Copilot CLI, and Copilot
+coding agent, via ``.github/skills/<name>/SKILL.md``), Claude Code /
+Claude Desktop, and other compatible agents.
 
 The skills here are *agent-side knowledge* — they tell an LLM when and
 how to invoke filoma's existing CLI / Python / MCP surfaces. They do
@@ -17,7 +18,7 @@ Contents:
 - ``templates/`` — snippets for ``AGENTS.md`` and Cursor ``.mdc`` rules
 
 Use the ``filoma skills`` CLI to install them into the right place for
-your agent (Claude Code, Claude Desktop, VS Code chat, Cursor, …).
+your agent (Claude Code, Claude Desktop, GitHub Copilot, Cursor, …).
 """
 
 from __future__ import annotations

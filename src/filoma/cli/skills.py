@@ -11,7 +11,7 @@ from ._app import console, skills_app
 _SKILL_SCOPES: dict[str, tuple[str, str]] = {
     "user": ("~/.claude/skills", "Personal Claude Code / Claude Desktop skills"),
     "project": (".claude/skills", "Project-local Claude Code skills"),
-    "vscode": (".github/skills", "VS Code chat customization skills"),
+    "vscode": (".github/skills", "GitHub Copilot skills (VS Code, Copilot CLI, coding agent) via the Agent Skills standard"),
 }
 
 
@@ -95,7 +95,7 @@ def skills_install(
         "project",
         "--scope",
         "-s",
-        help="Where to install: 'user' (~/.claude/skills), 'project' (.claude/skills), or 'vscode' (.github/skills)",
+        help="Where to install: 'user' (~/.claude/skills), 'project' (.claude/skills), or 'vscode' (.github/skills — also used by GitHub Copilot)",
     ),
     name: Optional[str] = typer.Option(
         None,
@@ -115,7 +115,7 @@ def skills_install(
     Examples:
         filoma skills install                   # → ./.claude/skills/
         filoma skills install --scope user      # → ~/.claude/skills/
-        filoma skills install --scope vscode    # → ./.github/skills/
+        filoma skills install --scope vscode    # → ./.github/skills/ (GitHub Copilot: VS Code, CLI, coding agent)
         filoma skills install -n filoma-dedup   # only install one skill
 
     """
@@ -158,7 +158,7 @@ def skills_install(
     if scope in ("user", "project"):
         console.print("[dim]Restart Claude Code to pick up new skills, or reload the skill list in your client.[/dim]")
     elif scope == "vscode":
-        console.print("[dim]VS Code chat will discover the skills automatically when you re-open the workspace.[/dim]")
+        console.print("[dim]GitHub Copilot (VS Code, Copilot CLI, coding agent) will discover the skills automatically — reopen the folder for the CLI.[/dim]")
 
 
 @skills_app.command("agents-md")

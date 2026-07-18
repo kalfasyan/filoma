@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "filoma": {
+      "command": "uv",
+      "args": ["run", "--directory", "${workspaceFolder}", "filoma", "mcp", "serve"]
+    }
+  }
+}

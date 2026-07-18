@@ -1,4 +1,4 @@
-.vscode/
+.vscode/*
 .idea/
 __pycache__/
 .pytest_cache/
@@ -67,3 +67,6 @@ manifest.json
 tmp/audit_weeds3_v2.json
 .claude/
 .kilo/
+
+# Shared MCP config (explicitly un-ignored despite the *.json rule above)
+!.vscode/mcp.json
