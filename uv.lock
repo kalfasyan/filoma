@@ -1097,7 +1097,7 @@ wheels = [
 
 [[package]]
 name = "filoma"
-version = "1.12.7"
+version = "1.12.8"
 source = { editable = "." }
 dependencies = [
     { name = "detect-secrets" },
