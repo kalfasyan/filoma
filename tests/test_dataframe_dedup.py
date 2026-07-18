@@ -111,4 +111,3 @@ def test_add_corruption_cols_reuses_existing_size_bytes():
 
         result = df.add_corruption_cols()
         assert result.to_polars()["is_corrupt"][0] is True
-

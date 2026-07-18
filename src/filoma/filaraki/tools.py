@@ -1413,10 +1413,7 @@ def filter_by_extension(ctx: RunContext[Any], extensions: Union[str, List[str]])
             return "Error: 'extensions' argument is required (e.g., 'jpg' or ['py', 'rs'])."
 
         if len(df) == 0:
-            return (
-                "The current DataFrame already has 0 rows, so there is nothing to filter. "
-                "Call create_dataset_dataframe() or search_files() again to load data first."
-            )
+            return "The current DataFrame already has 0 rows, so there is nothing to filter. Call create_dataset_dataframe() or search_files() again to load data first."
 
         if isinstance(extensions, str):
             stripped = extensions.strip()
@@ -1459,10 +1456,7 @@ def filter_by_pattern(ctx: RunContext[Any], pattern: str) -> str:
 
     df = ctx.deps.current_df
     if len(df) == 0:
-        return (
-            "The current DataFrame already has 0 rows, so there is nothing to filter. "
-            "Call create_dataset_dataframe() or search_files() again to load data first."
-        )
+        return "The current DataFrame already has 0 rows, so there is nothing to filter. Call create_dataset_dataframe() or search_files() again to load data first."
 
     try:
         df = df.filter_by_pattern(pattern)

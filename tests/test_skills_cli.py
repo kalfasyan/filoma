@@ -48,10 +48,7 @@ def test_bundled_skills_frontmatter_is_valid_yaml():
     for name, skill_dir in iter_bundled_skills():
         description = _extract_skill_description(skill_dir / "SKILL.md")
         assert description is not None, f"{name}: could not extract description"
-        assert ": " not in description, (
-            f"{name}: description contains a bare ': ' which breaks YAML frontmatter "
-            "parsing for agents that do strict YAML parsing (use an em dash — or comma instead)"
-        )
+        assert ": " not in description, f"{name}: description contains a bare ': ' which breaks YAML frontmatter parsing for agents that do strict YAML parsing (use an em dash — or comma instead)"
 
 
 def test_skills_list_command(runner: CliRunner):
