@@ -31,7 +31,7 @@ The key features are:
 - **Integrity**: Snapshots, manifests, and SHA-256 verification for dataset versioning.
 - **CI-ready**: `filoma-gates.yml` quality gates with pass/fail exit codes, plus drift detection via `filoma watch`.
 - **Agentic**: Natural-language filesystem queries via `flm.ask()`, interactive chat, or an MCP server.
-- **Vector search**: LanceDB-backed RAG — search your files by meaning.
+- **Vector search**: LanceDB-backed RAG — search your files by meaning, or attach embeddings straight to the DataFrame with `add_embedding_cols()` / `add_semantic_similarity_cols()` to surface semantic relationships between files.
 - **Extensible**: Third-party plugins via `filoma.tools` entry points and bundled skill workflows.
 
 <small>\* Benchmarked on a MacBook Air M4, local NVMe SSD. Your numbers will vary by hardware and filesystem — see [Benchmarks](docs/reference/benchmarks.md).</small>

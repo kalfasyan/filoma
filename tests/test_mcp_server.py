@@ -34,7 +34,7 @@ class TestMCPServerImports:
 
     def test_imports(self):
         """Test that MCP server module imports correctly."""
-        assert len(_MCP_TOOL_NAMES) == 24
+        assert len(_MCP_TOOL_NAMES) == 27
 
     def test_all_tools_have_descriptions(self):
         """Verify all tools have descriptions and schemas."""
@@ -64,7 +64,7 @@ class TestToolRegistration:
     async def test_list_tools_returns_all_tools(self):
         """Test that list_tools returns all MCP tools."""
         tools = await list_tools()
-        assert len(tools) == 24
+        assert len(tools) == 27
         assert all(isinstance(t, Tool) for t in tools)
 
     @pytest.mark.asyncio
@@ -337,6 +337,129 @@ class TestDataFrameState:
         reasons = dict(zip(pdf["path"].to_list(), pdf["corruption_reason"].to_list()))
         expected_path = str((temp_dir / "empty.txt").resolve())
         assert reasons[expected_path] == "zero_byte"
+
+    @pytest.mark.asyncio
+    async def test_add_embedding_cols(self, temp_dir, monkeypatch):
+        """Test add_embedding_cols attaches an embedding column to the stored DataFrame."""
+        monkeypatch.setattr("filoma.core.rag._resolve_embedder", lambda: (lambda texts: [[1.0, 2.0, 3.0] for _ in texts]))
+
+        await call_tool("create_dataset_dataframe", {"path": str(temp_dir), "enrich": False})
+
+        result = await call_tool("add_embedding_cols", {})
+        assert len(result) == 1
+        text = result[0].text
+        assert "embedding" in text
+
+        df = _dataframe_state[_NO_SESSION]["current_df"]
+        pdf = df.to_polars()
+        assert "embedding" in pdf.columns
+        # file1.txt/file2.txt/script.py are all recognized text files.
+        assert pdf["embedding"].is_not_null().sum() == 3
+
+    @pytest.mark.asyncio
+    async def test_add_semantic_similarity_cols(self, temp_dir, monkeypatch):
+        """Test add_semantic_similarity_cols requires embeddings and attaches neighbor columns."""
+        monkeypatch.setattr("filoma.core.rag._resolve_embedder", lambda: (lambda texts: [[1.0, 2.0, 3.0] for _ in texts]))
+
+        await call_tool("create_dataset_dataframe", {"path": str(temp_dir), "enrich": False})
+
+        # Without embeddings first, the tool should surface the ValueError.
+        missing = await call_tool("add_semantic_similarity_cols", {})
+        assert "embedding" in missing[0].text.lower()
+
+        await call_tool("add_embedding_cols", {})
+        result = await call_tool("add_semantic_similarity_cols", {"top_k": 1})
+        assert len(result) == 1
+        text = result[0].text
+        assert "nearest_neighbor" in text.lower()
+
+        df = _dataframe_state[_NO_SESSION]["current_df"]
+        pdf = df.to_polars()
+        assert "nearest_neighbor_paths" in pdf.columns
+        assert "nearest_neighbor_similarities" in pdf.columns
+
+    @pytest.mark.asyncio
+    async def test_add_metadata_embedding_cols(self, temp_dir):
+        """Test add_metadata_embedding_cols attaches a metadata_embedding column."""
+        await call_tool("create_dataset_dataframe", {"path": str(temp_dir), "enrich": True})
+
+        result = await call_tool("add_metadata_embedding_cols", {})
+        assert len(result) == 1
+        text = result[0].text
+        assert "metadata_embedding" in text
+
+        df = _dataframe_state[_NO_SESSION]["current_df"]
+        pdf = df.to_polars()
+        assert "metadata_embedding" in pdf.columns
+        assert pdf["metadata_embedding"].null_count() == 0
+
+    @pytest.mark.asyncio
+    async def test_add_metadata_embedding_cols_requires_usable_columns(self, temp_dir):
+        """Without enrichment, there are no metadata columns to build from."""
+        await call_tool("create_dataset_dataframe", {"path": str(temp_dir), "enrich": False})
+
+        result = await call_tool("add_metadata_embedding_cols", {})
+        assert "error" in result[0].text.lower()
+
+    @pytest.mark.asyncio
+    async def test_add_semantic_similarity_cols_blends_metadata(self, temp_dir, monkeypatch):
+        """Passing metadata_embedding_col should change similarity scores vs. content-only."""
+        monkeypatch.setattr("filoma.core.rag._resolve_embedder", lambda: (lambda texts: [[1.0, 2.0, 3.0] for _ in texts]))
+
+        await call_tool("create_dataset_dataframe", {"path": str(temp_dir), "enrich": True})
+        await call_tool("add_embedding_cols", {})
+        await call_tool("add_metadata_embedding_cols", {})
+
+        result = await call_tool("add_semantic_similarity_cols", {"metadata_embedding_col": "metadata_embedding", "content_weight": 0.5, "top_k": 1})
+        assert len(result) == 1
+        assert "nearest_neighbor" in result[0].text.lower()
+
+        df = _dataframe_state[_NO_SESSION]["current_df"]
+        pdf = df.to_polars()
+        assert "nearest_neighbor_paths" in pdf.columns
+
+    @pytest.mark.asyncio
+    async def test_add_embedding_cols_refuses_over_safety_limit(self, tmp_path, monkeypatch):
+        """add_embedding_cols must refuse (not hang) when too many files look embeddable."""
+        monkeypatch.setattr("filoma.core.rag._resolve_embedder", lambda: (lambda texts: [[1.0, 2.0, 3.0] for _ in texts]))
+        monkeypatch.setattr("filoma.filaraki.tools._EMBED_SAFETY_LIMIT", 3)
+
+        big_dir = tmp_path / "big"
+        big_dir.mkdir()
+        for i in range(10):
+            (big_dir / f"file{i}.txt").write_text(f"content {i}")
+
+        await call_tool("create_dataset_dataframe", {"path": str(big_dir), "enrich": False})
+
+        result = await call_tool("add_embedding_cols", {})
+        assert len(result) == 1
+        text = result[0].text
+        assert "safety limit" in text.lower()
+
+        # The DataFrame must be untouched — no embedding column, no long-running work done.
+        df = _dataframe_state[_NO_SESSION]["current_df"]
+        assert "embedding" not in df.to_polars().columns
+
+    @pytest.mark.asyncio
+    async def test_add_embedding_cols_ignore_safety_limits_proceeds(self, tmp_path, monkeypatch):
+        """ignore_safety_limits=True must bypass the safety refusal."""
+        monkeypatch.setattr("filoma.core.rag._resolve_embedder", lambda: (lambda texts: [[1.0, 2.0, 3.0] for _ in texts]))
+        monkeypatch.setattr("filoma.filaraki.tools._EMBED_SAFETY_LIMIT", 3)
+
+        big_dir = tmp_path / "big"
+        big_dir.mkdir()
+        for i in range(10):
+            (big_dir / f"file{i}.txt").write_text(f"content {i}")
+
+        await call_tool("create_dataset_dataframe", {"path": str(big_dir), "enrich": False})
+
+        result = await call_tool("add_embedding_cols", {"ignore_safety_limits": True})
+        text = result[0].text
+        assert "embedding" in text.lower()
+        assert "safety limit" not in text.lower()
+
+        df = _dataframe_state[_NO_SESSION]["current_df"]
+        assert "embedding" in df.to_polars().columns
 
 
 class TestMCPDisconnectHandling:

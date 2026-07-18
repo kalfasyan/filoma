@@ -30,6 +30,13 @@ class ProbeResult(BaseModel):
     summary: str
 
 
+# Safety cap for `add_embedding_cols`: embedding is CPU/model-bound (much
+# slower than a stat or hash call per file), so a DataFrame covering an
+# entire repo (build artifacts, vendored deps, .git, etc.) can otherwise
+# silently try to embed tens of thousands of files. See docs/guides/rag.md.
+_EMBED_SAFETY_LIMIT = 500
+
+
 def _is_mcp_stdio_mode() -> bool:
     """Return True when running under MCP stdio transport."""
     return os.getenv("FILOMA_MCP_STDIO", "0") == "1"
@@ -1535,6 +1542,148 @@ def add_corruption_cols(ctx: RunContext[Any]) -> str:
         return f"\u2705 Checked integrity: {corrupt_count} of {len(df)} rows are corrupt or zero-byte. Columns added: is_corrupt, corruption_reason."
     except Exception as e:
         return f"Error flagging corrupt rows: {str(e)}"
+
+
+@tool_registry.register
+def add_embedding_cols(ctx: RunContext[Any], max_chars: int = 4000, ignore_safety_limits: bool = False) -> str:
+    """Add a semantic `embedding` column to the current DataFrame, computed from each file's content.
+
+    Embeds text/code files (readme, source, config, etc.) using the same
+    backend as filoma's RAG store (Ollama `nomic-embed-text` if reachable,
+    else sentence-transformers `all-MiniLM-L6-v2`). Only the first
+    `max_chars` characters of each file are embedded. Directories, binary
+    files, and unreadable files get a null embedding. Follow up with
+    `add_semantic_similarity_cols` to find each file's nearest neighbor by
+    content.
+
+    Embedding is CPU/model-bound (much slower than a hash or stat call per
+    file), so a safety limit applies: if the DataFrame has more than
+    ``_EMBED_SAFETY_LIMIT`` files that look embeddable, this refuses to run
+    unless ``ignore_safety_limits=True``. On a whole-repo DataFrame this
+    usually means build artifacts / vendored dependencies (`.venv`,
+    `target/`, `node_modules`, `.git`) got swept in — narrow the DataFrame
+    first with `filter_by_extension` / `filter_by_pattern`.
+
+    Args:
+        ctx: The run context.
+        max_chars: Number of leading characters read from each file before
+            embedding (default 4000, keeps large files fast).
+        ignore_safety_limits: If True, embed regardless of how many files
+            that implies. ONLY set to True if the user explicitly asked to
+            embed everything / a large dataset.
+
+    """
+    if ctx.deps.current_df is None:
+        return "Error: No DataFrame loaded. Please run 'search_files' or 'create_dataset_dataframe' first."
+
+    df = ctx.deps.current_df
+    try:
+        if not ignore_safety_limits and "path" in df.columns:
+            from filoma.core.rag import _is_text_file
+
+            embeddable_count = sum(1 for p in df.to_polars()["path"].to_list() if _is_text_file(Path(p)))
+            if embeddable_count > _EMBED_SAFETY_LIMIT:
+                return (
+                    f"\u26a0\ufe0f This DataFrame has {embeddable_count:,} files that look embeddable, which exceeds the "
+                    f"safety limit of {_EMBED_SAFETY_LIMIT:,} (embedding is CPU/model-bound and can take a long time at this scale). "
+                    "This often happens when the DataFrame covers an entire repo, including build artifacts or "
+                    "vendored dependencies (.venv, target/, node_modules, .git). Narrow it first with "
+                    "filter_by_extension() / filter_by_pattern(), or re-run with ignore_safety_limits=True to embed anyway."
+                )
+
+        df = df.add_embedding_cols(max_chars=max_chars)
+        ctx.deps.current_df = df
+        embedded_count = int(df.to_polars()["embedding"].is_not_null().sum())
+        return f"\u2705 Embedded {embedded_count} of {len(df)} rows (non-text/unreadable files are skipped). Column added: embedding."
+    except ImportError as e:
+        return f"Error: RAG/embedding dependencies not available. Install with 'pip install filoma[rag]'. Details: {e}"
+    except Exception as e:
+        return f"Error computing embeddings: {str(e)}"
+
+
+@tool_registry.register
+def add_metadata_embedding_cols(ctx: RunContext[Any], columns: Optional[List[str]] = None) -> str:
+    """Add a `metadata_embedding` column derived from structured file metadata.
+
+    Complements `add_embedding_cols` (which embeds file content) with a
+    numeric feature vector built from the DataFrame's own columns: size,
+    depth, extension, owner, group, is_dir, and timestamps. Pass this
+    column to `add_semantic_similarity_cols` (via metadata_embedding_col)
+    so similar-file rankings can reflect shared metadata (same extension,
+    similar size, same owner) alongside shared meaning.
+
+    Auto-selects from size_bytes/depth/suffix/owner/group/is_dir/
+    modified_time/created_time \u2014 call add_file_stats_cols(),
+    add_path_components(), and/or add_depth_col() first to make these
+    columns available, or pass an explicit `columns` list.
+
+    Args:
+        ctx: The run context.
+        columns: Optional explicit list of DataFrame columns to build the
+            feature vector from. If omitted, auto-detects usable columns.
+
+    """
+    if ctx.deps.current_df is None:
+        return "Error: No DataFrame loaded. Please run 'search_files' or 'create_dataset_dataframe' first."
+
+    df = ctx.deps.current_df
+    try:
+        df = df.add_metadata_embedding_cols(columns=columns)
+        ctx.deps.current_df = df
+        return (
+            f"\u2705 Built metadata embeddings for {len(df)} rows. Column added: metadata_embedding. "
+            "Pass metadata_embedding_col='metadata_embedding' to add_semantic_similarity_cols to blend it with content similarity."
+        )
+    except ValueError as e:
+        return f"Error: {str(e)}"
+    except Exception as e:
+        return f"Error computing metadata embeddings: {str(e)}"
+
+
+@tool_registry.register
+def add_semantic_similarity_cols(
+    ctx: RunContext[Any],
+    top_k: int = 1,
+    metadata_embedding_col: Optional[str] = None,
+    content_weight: float = 0.6,
+) -> str:
+    """Add nearest-neighbor columns to the current DataFrame using cosine similarity of embeddings.
+
+    Requires `add_embedding_cols` to have been called first. Adds
+    `nearest_neighbor_paths` and `nearest_neighbor_similarities` (list
+    columns, most similar first) showing which other files are
+    semantically related to each row \u2014 independent of folder or filename.
+    Best suited to per-folder/per-dataset analysis (hundreds to low
+    thousands of rows); this is an O(n^2) computation.
+
+    Optionally blends in structured-metadata similarity: pass
+    `metadata_embedding_col="metadata_embedding"` (after calling
+    `add_metadata_embedding_cols` first) to weight content similarity
+    against metadata similarity (extension, size, owner, timestamps) via
+    `content_weight` (default 0.6 content / 0.4 metadata).
+
+    Args:
+        ctx: The run context.
+        top_k: Number of nearest neighbors to attach per row (default 1).
+        metadata_embedding_col: Optional column from
+            `add_metadata_embedding_cols` to blend with content similarity.
+        content_weight: Weight (0-1) given to content similarity when
+            `metadata_embedding_col` is provided; ignored otherwise.
+
+    """
+    if ctx.deps.current_df is None:
+        return "Error: No DataFrame loaded. Please run 'search_files' or 'create_dataset_dataframe' first."
+
+    df = ctx.deps.current_df
+    try:
+        df = df.add_semantic_similarity_cols(top_k=top_k, metadata_embedding_col=metadata_embedding_col, content_weight=content_weight)
+        ctx.deps.current_df = df
+        matched_count = int(df.to_polars()["nearest_neighbor_paths"].is_not_null().sum())
+        return f"\u2705 Computed semantic similarity: {matched_count} of {len(df)} rows matched to their nearest neighbor(s). Columns added: nearest_neighbor_paths, nearest_neighbor_similarities."
+    except ValueError as e:
+        return f"Error: {str(e)}"
+    except Exception as e:
+        return f"Error computing semantic similarity: {str(e)}"
 
 
 @tool_registry.register

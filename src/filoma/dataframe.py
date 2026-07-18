@@ -37,6 +37,7 @@ cached view is refreshed.
 
 import datetime
 import json
+import math
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Union
 
@@ -698,6 +699,345 @@ class DataFrame:
 
         res = DataFrame(result, lineage=list(self._lineage))
         res.add_lineage_entry("add_corruption_cols")
+        return res
+
+    def add_embedding_cols(
+        self,
+        path: str = "path",
+        base_path: Optional[Union[str, Path]] = None,
+        max_chars: int = 4000,
+        inplace: bool = False,
+    ) -> "DataFrame":
+        """Add a semantic ``embedding`` column computed from each file's content.
+
+        Reuses the same embedding backend as filoma's RAG store
+        (``filoma.core.rag``): Ollama's ``nomic-embed-text`` model if reachable
+        on localhost, otherwise the ``sentence-transformers``
+        ``all-MiniLM-L6-v2`` fallback. Only files recognized as text/code (see
+        ``filoma.core.rag._is_text_file``) are embedded; the first
+        ``max_chars`` characters of content are used to keep this fast on
+        large files. Directories, binary files, and unreadable files get a
+        null embedding.
+
+        This turns "search files by meaning" (the RAG/``filoma ask`` feature)
+        into a column on the file table itself, so relationships between
+        files can be computed directly with plain DataFrame operations. Pair
+        with ``add_semantic_similarity_cols()`` to surface each file's
+        nearest neighbor by content.
+
+        Args:
+        ----
+            path: Name of the column containing file system paths.
+            base_path: Optional base path. Non-absolute paths in ``path`` are
+                resolved relative to this base.
+            max_chars: Number of leading characters read from each file
+                before embedding. Keeps large files fast to embed.
+            inplace: If True, modify this DataFrame in-place and return
+                ``self``.
+
+        Returns:
+        -------
+            New DataFrame with an ``embedding`` column (``list[float]`` or
+            null per row), or ``self`` when ``inplace=True``.
+
+        Raises:
+        ------
+            ValueError: If the specified path column does not exist.
+            ImportError: If no embedding backend (Ollama or
+                sentence-transformers) is available.
+
+        """
+        if path not in self._df.columns:
+            raise ValueError(f"Column '{path}' not found in DataFrame")
+
+        from .core.rag import _is_text_file, _resolve_embedder
+
+        embedder = _resolve_embedder()
+        base = Path(base_path) if base_path is not None else None
+
+        texts: List[Optional[str]] = []
+        for path_str in self._df[path].to_list():
+            try:
+                p = Path(path_str)
+                if base is not None and not p.is_absolute():
+                    p = base / p
+                if not p.is_file() or not _is_text_file(p):
+                    texts.append(None)
+                    continue
+                content = p.read_text(encoding="utf-8", errors="replace")[:max_chars]
+                texts.append(content if content.strip() else None)
+            except Exception:
+                texts.append(None)
+
+        # Embed only the non-null texts in a single batch call for efficiency.
+        idx_to_embed = [i for i, t in enumerate(texts) if t is not None]
+        vectors: List[Optional[List[float]]] = [None] * len(texts)
+        if idx_to_embed:
+            computed = embedder([texts[i] for i in idx_to_embed])
+            for i, vec in zip(idx_to_embed, computed):
+                vectors[i] = list(vec)
+
+        result = self._df.with_columns(pl.Series("embedding", vectors, dtype=pl.List(pl.Float64)))
+
+        if inplace:
+            self._df = result
+            self.invalidate_pandas_cache()
+            self.add_lineage_entry("add_embedding_cols", path_col=path, max_chars=max_chars)
+            return self
+
+        res = DataFrame(result, lineage=list(self._lineage))
+        res.add_lineage_entry("add_embedding_cols", path_col=path, max_chars=max_chars)
+        return res
+
+    def add_metadata_embedding_cols(
+        self,
+        columns: Optional[List[str]] = None,
+        max_categories: int = 20,
+        inplace: bool = False,
+    ) -> "DataFrame":
+        """Add a ``metadata_embedding`` column derived from structured file metadata.
+
+        Complements ``add_embedding_cols()`` (which embeds file *content*)
+        with a feature vector built from the DataFrame's own columns —
+        things like size, depth, extension, owner, or timestamps. The result
+        is an "uninterpretable" numeric fingerprint per row (normalized
+        numeric features concatenated with one-hot categorical features),
+        not meant to be read directly but to be combined with content
+        embeddings in ``add_semantic_similarity_cols(metadata_embedding_col=...)``
+        so that "similar files" can reflect shared metadata (same extension,
+        similar size, same owner, close modification time) alongside shared
+        meaning.
+
+        Args:
+        ----
+            columns: Explicit list of DataFrame columns to build the feature
+                vector from. If None (default), auto-selects from
+                ``["size_bytes", "depth", "suffix", "owner", "group",
+                "is_dir", "modified_time", "created_time"]`` — whichever of
+                these are already present (e.g. via ``add_file_stats_cols()``,
+                ``add_path_components()``, ``add_depth_col()``).
+            max_categories: For categorical columns, the number of distinct
+                values to one-hot encode individually; remaining values are
+                lumped into a single "_other" bucket. Keeps the vector length
+                bounded on high-cardinality columns (e.g. ``owner``).
+            inplace: If True, modify this DataFrame in-place and return
+                ``self``.
+
+        Returns:
+        -------
+            New DataFrame with a ``metadata_embedding`` column
+            (``list[float]`` per row), or ``self`` when ``inplace=True``.
+
+        Raises:
+        ------
+            ValueError: If no usable columns are found (neither explicitly
+                requested nor auto-detected).
+
+        """
+        default_numeric = ["size_bytes", "depth"]
+        default_datetime = ["modified_time", "created_time"]
+        default_categorical = ["suffix", "owner", "group", "is_dir"]
+
+        if columns is not None:
+            numeric_cols = [c for c in columns if c in default_numeric and c in self._df.columns]
+            datetime_cols = [c for c in columns if c in default_datetime and c in self._df.columns]
+            categorical_cols = [c for c in columns if c in default_categorical and c in self._df.columns]
+            missing = [c for c in columns if c not in self._df.columns]
+            if missing:
+                raise ValueError(f"Column(s) not found in DataFrame: {missing}")
+        else:
+            numeric_cols = [c for c in default_numeric if c in self._df.columns]
+            datetime_cols = [c for c in default_datetime if c in self._df.columns]
+            categorical_cols = [c for c in default_categorical if c in self._df.columns]
+
+        if not numeric_cols and not datetime_cols and not categorical_cols:
+            raise ValueError(
+                "No usable metadata columns found. Call add_file_stats_cols() "
+                "(for size_bytes/owner/group/is_dir/modified_time/created_time), "
+                "add_path_components() (for suffix), and/or add_depth_col() (for "
+                "depth) first, or pass explicit `columns`."
+            )
+
+        n_rows = len(self._df)
+        feature_columns: List[List[float]] = []  # each entry: one feature column's values across all rows
+
+        def _minmax_normalize(values: List[Optional[float]]) -> List[float]:
+            present = [v for v in values if v is not None]
+            if not present:
+                return [0.0] * len(values)
+            lo, hi = min(present), max(present)
+            if hi == lo:
+                return [0.5 if v is not None else 0.0 for v in values]
+            return [((v - lo) / (hi - lo)) if v is not None else 0.0 for v in values]
+
+        for col in numeric_cols:
+            raw = self._df[col].to_list()
+            if col == "size_bytes":
+                raw = [None if v is None else float(math.log1p(max(v, 0))) for v in raw]
+            feature_columns.append(_minmax_normalize(raw))
+
+        for col in datetime_cols:
+            raw_strs = self._df[col].to_list()
+            epochs: List[Optional[float]] = []
+            for s in raw_strs:
+                if not s:
+                    epochs.append(None)
+                    continue
+                try:
+                    epochs.append(datetime.datetime.fromisoformat(str(s)).timestamp())
+                except (ValueError, TypeError):
+                    epochs.append(None)
+            feature_columns.append(_minmax_normalize(epochs))
+
+        for col in categorical_cols:
+            raw = self._df[col].to_list()
+            str_vals = ["<null>" if v is None else str(v) for v in raw]
+            counts: Dict[str, int] = {}
+            for v in str_vals:
+                counts[v] = counts.get(v, 0) + 1
+            top_values = [v for v, _ in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:max_categories]]
+            top_set = set(top_values)
+            categories = top_values + (["_other"] if any(v not in top_set for v in str_vals) else [])
+            for cat in categories:
+                feature_columns.append([1.0 if (v == cat or (cat == "_other" and v not in top_set)) else 0.0 for v in str_vals])
+
+        vectors: List[List[float]] = [[col[i] for col in feature_columns] for i in range(n_rows)]
+
+        result = self._df.with_columns(pl.Series("metadata_embedding", vectors, dtype=pl.List(pl.Float64)))
+
+        used_columns = numeric_cols + datetime_cols + categorical_cols
+        if inplace:
+            self._df = result
+            self.invalidate_pandas_cache()
+            self.add_lineage_entry("add_metadata_embedding_cols", columns=used_columns)
+            return self
+
+        res = DataFrame(result, lineage=list(self._lineage))
+        res.add_lineage_entry("add_metadata_embedding_cols", columns=used_columns)
+        return res
+
+    def add_semantic_similarity_cols(
+        self,
+        embedding_col: str = "embedding",
+        top_k: int = 1,
+        metadata_embedding_col: Optional[str] = None,
+        content_weight: float = 0.6,
+        inplace: bool = False,
+    ) -> "DataFrame":
+        """Add nearest-neighbor columns derived from cosine similarity of embeddings.
+
+        Requires an embedding column (``list[float]`` per row), typically
+        produced by ``add_embedding_cols()``. Computes pairwise cosine
+        similarity between all rows with a non-null embedding and attaches,
+        for each row, the path(s) and similarity score(s) of its ``top_k``
+        closest other files — i.e. which files are semantically related,
+        independent of folder location or filename.
+
+        Optionally fuses this with a structured-metadata embedding (see
+        ``add_metadata_embedding_cols()``): when ``metadata_embedding_col``
+        is given, similarity between two rows becomes a weighted blend of
+        their content-embedding cosine similarity and their
+        metadata-embedding cosine similarity (``content_weight`` vs.
+        ``1 - content_weight``) — so "similar files" can reflect shared
+        metadata (extension, size, owner, timestamps) in addition to shared
+        meaning. Rows missing a metadata embedding fall back to content-only
+        similarity for pairs involving them.
+
+        This is an O(n^2) computation over rows with embeddings, so it is
+        best suited to per-folder or per-dataset analysis (hundreds to low
+        thousands of files), not entire filesystems.
+
+        Args:
+        ----
+            embedding_col: Column containing content embedding vectors.
+                Defaults to "embedding" (from ``add_embedding_cols``).
+            top_k: Number of nearest neighbors to attach per row.
+            metadata_embedding_col: Optional column containing metadata
+                embedding vectors (from ``add_metadata_embedding_cols``). If
+                given, similarity is blended with content similarity.
+            content_weight: Weight (0-1) given to content similarity when
+                ``metadata_embedding_col`` is provided; the remainder
+                (``1 - content_weight``) is given to metadata similarity.
+                Ignored if ``metadata_embedding_col`` is None.
+            inplace: If True, modify this DataFrame in-place and return
+                ``self``.
+
+        Returns:
+        -------
+            New DataFrame with two additional columns:
+            - ``nearest_neighbor_paths`` (``list[str]`` | null): paths of the
+              closest ``top_k`` other files, most similar first.
+            - ``nearest_neighbor_similarities`` (``list[float]`` | null):
+              matching similarity scores (higher = more similar).
+
+        Raises:
+        ------
+            ValueError: If ``embedding_col`` (or ``metadata_embedding_col``,
+                when given) is not found in the DataFrame.
+
+        """
+        if embedding_col not in self._df.columns:
+            raise ValueError(f"Column '{embedding_col}' not found. Call add_embedding_cols() first.")
+        if metadata_embedding_col is not None and metadata_embedding_col not in self._df.columns:
+            raise ValueError(f"Column '{metadata_embedding_col}' not found. Call add_metadata_embedding_cols() first.")
+
+        import numpy as np
+
+        if "path" in self._df.columns:
+            paths = [str(p) for p in self._df["path"].to_list()]
+        else:
+            paths = [str(i) for i in range(len(self._df))]
+        raw_vectors = self._df[embedding_col].to_list()
+
+        valid_idx = [i for i, v in enumerate(raw_vectors) if v is not None]
+        neighbor_paths: List[Optional[List[str]]] = [None] * len(raw_vectors)
+        neighbor_sims: List[Optional[List[float]]] = [None] * len(raw_vectors)
+
+        def _cosine_sim_matrix(vecs: List[List[float]]) -> "np.ndarray":
+            matrix = np.array(vecs, dtype=np.float64)
+            norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+            norms[norms == 0] = 1.0
+            normalized = matrix / norms
+            return normalized @ normalized.T
+
+        if len(valid_idx) > 1:
+            sims = _cosine_sim_matrix([raw_vectors[i] for i in valid_idx])
+
+            if metadata_embedding_col is not None:
+                raw_meta = self._df[metadata_embedding_col].to_list()
+                meta_for_valid = [raw_meta[i] for i in valid_idx]
+                has_meta = np.array([v is not None for v in meta_for_valid])
+                meta_matrix = [v if v is not None else [0.0] * len(next((m for m in meta_for_valid if m is not None), [0.0])) for v in meta_for_valid]
+                meta_sims = _cosine_sim_matrix(meta_matrix)
+                both_have_meta = np.outer(has_meta, has_meta)
+                blended = content_weight * sims + (1 - content_weight) * meta_sims
+                sims = np.where(both_have_meta, blended, sims)
+
+            k = min(top_k, len(valid_idx) - 1)
+            for row_pos, orig_i in enumerate(valid_idx):
+                if k <= 0:
+                    continue
+                row_sims = sims[row_pos].copy()
+                row_sims[row_pos] = -np.inf  # exclude self-similarity
+                top_positions = np.argsort(row_sims)[::-1][:k]
+                neighbor_paths[orig_i] = [paths[valid_idx[p]] for p in top_positions]
+                neighbor_sims[orig_i] = [float(row_sims[p]) for p in top_positions]
+
+        result = self._df.with_columns(
+            [
+                pl.Series("nearest_neighbor_paths", neighbor_paths, dtype=pl.List(pl.String)),
+                pl.Series("nearest_neighbor_similarities", neighbor_sims, dtype=pl.List(pl.Float64)),
+            ]
+        )
+
+        if inplace:
+            self._df = result
+            self.invalidate_pandas_cache()
+            self.add_lineage_entry("add_semantic_similarity_cols", embedding_col=embedding_col, top_k=top_k, metadata_embedding_col=metadata_embedding_col, content_weight=content_weight)
+            return self
+
+        res = DataFrame(result, lineage=list(self._lineage))
+        res.add_lineage_entry("add_semantic_similarity_cols", embedding_col=embedding_col, top_k=top_k, metadata_embedding_col=metadata_embedding_col, content_weight=content_weight)
         return res
 
     def add_depth_col(self, path: Optional[Union[str, Path]] = None, inplace: bool = False) -> "DataFrame":

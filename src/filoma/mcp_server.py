@@ -175,7 +175,7 @@ def _get_app() -> Any:
             instructions="""
 Filoma MCP Server - Powerful filesystem analysis tools for AI agents.
 
-This server provides 22 filesystem analysis capabilities organized into categories:
+This server provides 27 filesystem analysis capabilities organized into categories:
 
 DIRECTORY ANALYSIS:
 - count_files: Full recursive scan counting all files/folders
@@ -196,6 +196,9 @@ DATASET & DATAFRAME:
 - sort_dataframe_by_size: Sort by file size
 - add_duplicate_cols: Flag exact duplicate rows (by sha256) as columns
 - add_corruption_cols: Flag corrupt/zero-byte rows as columns
+- add_embedding_cols: Add a semantic `embedding` column from file content
+- add_metadata_embedding_cols: Add a `metadata_embedding` column from structured metadata
+- add_semantic_similarity_cols: Add nearest-neighbor columns from embeddings
 - dataframe_head: Show first N rows
 - summarize_dataframe: Get summary statistics
 - export_dataframe: Export to csv/json/parquet
@@ -297,6 +300,9 @@ _MCP_TOOL_NAMES = frozenset(
         "sort_dataframe_by_size",
         "add_duplicate_cols",
         "add_corruption_cols",
+        "add_embedding_cols",
+        "add_metadata_embedding_cols",
+        "add_semantic_similarity_cols",
         "dataframe_head",
         "summarize_dataframe",
         "export_dataframe",
@@ -319,6 +325,9 @@ _DATAFRAME_TOOLS = frozenset(
         "sort_dataframe_by_size",
         "add_duplicate_cols",
         "add_corruption_cols",
+        "add_embedding_cols",
+        "add_metadata_embedding_cols",
+        "add_semantic_similarity_cols",
     }
 )
 

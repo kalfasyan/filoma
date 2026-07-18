@@ -28,32 +28,39 @@ except ImportError:
 def _resolve_embedder():
     """Resolve an embedding function, trying Ollama first then sentence-transformers.
 
+    Ollama is only selected if the ``nomic-embed-text`` model is actually
+    pulled — a running Ollama server with other (non-embedding) models
+    installed falls through to sentence-transformers instead of failing
+    outright on the first real embed call.
+
     Returns:
         A callable ``(texts: list[str]) -> list[list[float]]``.
 
     """
-    # 1. Try Ollama
+    # 1. Try Ollama, but only commit to it if nomic-embed-text is pulled.
     try:
         import requests as _req
 
-        resp = _req.get("http://localhost:11434/", timeout=2)
+        resp = _req.get("http://localhost:11434/api/tags", timeout=2)
         if resp.status_code == 200:
+            models = {m.get("name", "").split(":")[0] for m in resp.json().get("models", [])}
+            if "nomic-embed-text" in models:
 
-            def _ollama_embed(texts: list[str]) -> list[list[float]]:
-                vectors: list[list[float]] = []
-                session = _req.Session()
-                for text in texts:
-                    r = session.post(
-                        "http://localhost:11434/api/embeddings",
-                        json={"model": "nomic-embed-text", "prompt": text},
-                        timeout=30,
-                    )
-                    r.raise_for_status()
-                    data = r.json()
-                    vectors.append(data["embedding"])
-                return vectors
+                def _ollama_embed(texts: list[str]) -> list[list[float]]:
+                    vectors: list[list[float]] = []
+                    session = _req.Session()
+                    for text in texts:
+                        r = session.post(
+                            "http://localhost:11434/api/embeddings",
+                            json={"model": "nomic-embed-text", "prompt": text},
+                            timeout=30,
+                        )
+                        r.raise_for_status()
+                        data = r.json()
+                        vectors.append(data["embedding"])
+                    return vectors
 
-            return _ollama_embed
+                return _ollama_embed
     except Exception:
         pass
 

@@ -21,6 +21,7 @@ Trigger on:
 - "give me a DataFrame of file metadata"
 - "how big is this directory?"
 - "what's the largest .jpg in this tree?"
+- "which files are semantically similar / related in content"
 - single-file metadata: "info about this file", "what kind of image is X"
 - free-form: "let me ask my filesystem things"
 
@@ -111,6 +112,58 @@ present (reads full file content \u2014 slow on huge datasets). Only exact
 (byte-identical) duplicates are covered today; visual near-duplicates
 (perceptual hash) and text near-duplicates (MinHash) are not yet
 columns here \u2014 use the `filoma-dedup` skill for those until that lands.
+
+### Semantic relationships between files
+
+Beyond exact/near-duplicate matching, you can attach content
+embeddings to the DataFrame and use them to find files that are
+related *by meaning* \u2014 useful for spotting near-duplicate docs,
+grouping dataset files by topic instead of folder, or flagging an
+outlier file:
+
+```python
+df = flm.probe_to_df(".", enrich=True)
+df = df.add_embedding_cols()                    # adds `embedding` (list[float] per row)
+df = df.add_semantic_similarity_cols(top_k=3)   # adds nearest_neighbor_paths / _similarities
+
+print(df.select("path", "nearest_neighbor_paths", "nearest_neighbor_similarities"))
+```
+
+`add_embedding_cols()` reuses the same embedding backend as filoma's
+RAG store (Ollama `nomic-embed-text`, else sentence-transformers
+`all-MiniLM-L6-v2`) and only embeds recognized text/code files \u2014
+binaries get a null embedding. `add_semantic_similarity_cols()` is
+O(n\u00b2) over embedded rows, so it's best for per-folder/per-dataset
+analysis rather than whole-filesystem scans. Both are also exposed as
+MCP/Filaraki tools (`add_embedding_cols`, `add_semantic_similarity_cols`)
+for agentic use via `filoma ask` or the MCP server.
+
+Content embeddings ignore everything already in the DataFrame (size,
+extension, owner, timestamps). Fuse metadata in too with
+`add_metadata_embedding_cols()` \u2014 it one-hot/normalizes columns like
+`suffix`, `owner`, `size_bytes`, `modified_time` into a second vector,
+so files with the same type/size/age rank as more similar:
+
+```python
+df = df.add_metadata_embedding_cols()  # adds `metadata_embedding` (list[float] per row)
+df = df.add_semantic_similarity_cols(
+    metadata_embedding_col="metadata_embedding",
+    content_weight=0.6,  # 60% content, 40% metadata
+)
+```
+
+Also exposed as the `add_metadata_embedding_cols` tool; the
+`add_semantic_similarity_cols` tool accepts the same
+`metadata_embedding_col`/`content_weight` parameters.
+
+**Whole-repo DataFrames can include tens of thousands of files** once
+`.venv/`, `target/`, `node_modules/`, and `.git/` are swept in \u2014
+embedding all of them would take a very long time. The `add_embedding_cols`
+*tool* (agent-facing only, not the raw DataFrame method) refuses above 500
+embeddable files and reports the count instead of hanging. If you hit that,
+narrow the DataFrame first (`filter_by_extension`, `filter_by_pattern`)
+before embedding, rather than passing `ignore_safety_limits=True` on a
+full repo.
 
 ## Single-file probing
 
