@@ -5,7 +5,7 @@ Filoma Filaraki provides an intelligent AI agent for filesystem analysis using [
 ## Features
 
 - **Interactive Chat**: Have natural conversations about your filesystem
-- **22 Powerful Tools**: Directory analysis, file operations, data quality checks, image analysis, and more
+- **30 Powerful Tools**: Directory analysis, file operations, data quality checks, image analysis, and more
 - **Smart DataFrames**: Automatically build and manipulate file metadata DataFrames
 - **Read-Only Safety**: Safe analysis that never modifies your files (except export)
 - **Multiple Backends**: Uses Rust (fastest), `fd`, or Python (fallback) for operations
@@ -204,7 +204,7 @@ uv run python -m filoma.mcp_server
 - `FILOMA_MCP_TRANSPORT`: Transport type - `stdio` (default) or `sse`
 - `FILOMA_MCP_PORT`: Port for SSE transport (default: 8000)
 
-## Available Tools (22 Total)
+## Available Tools (24 via MCP)
 
 ### Directory Analysis
 
@@ -226,6 +226,8 @@ uv run python -m filoma.mcp_server
 - **`filter_by_extension`** - Filter DataFrame by file extension(s)
 - **`filter_by_pattern`** - Filter DataFrame by regex pattern
 - **`sort_dataframe_by_size`** - Sort by file size (descending/ascending)
+- **`add_duplicate_cols`** - Flag exact duplicate rows (by SHA-256) as columns
+- **`add_corruption_cols`** - Flag corrupt/zero-byte rows as columns
 - **`dataframe_head`** - Show first N rows
 - **`summarize_dataframe`** - Get summary statistics
 - **`export_dataframe`** - Export to CSV/JSON/Parquet (only write operation)
@@ -245,6 +247,8 @@ uv run python -m filoma.mcp_server
 ### Utilities
 
 - **`list_available_tools`** - Show all available tools with descriptions
+
+The interactive chat agent (`flm.ask()`, `filoma filaraki chat`) has 6 more tools beyond the MCP set above — `verify_integrity`, `run_quality_check`, `list_directory`, `list_directory_all`, `index_for_rag`, and `search_rag` — 30 tools in total.
 
 ## AI Model Configuration
 
@@ -428,7 +432,7 @@ Filaraki: [displays largest Python file with line numbers]
 
 Filoma Filaraki consists of:
 
-- **`FilarakiAgent`** (`agent.py`): PydanticAI agent with 23 registered tools
+- **`FilarakiAgent`** (`agent.py`): PydanticAI agent with 30 registered tools
 - **Tools** (`tools.py`): Individual tool implementations with `RunContext` support
 - **CLI** (`cli.py`): Rich-based interactive chat interface
 - **MCP Server** (`mcp_server.py`): MCP server exposing tools to external agents

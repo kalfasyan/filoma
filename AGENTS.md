@@ -15,8 +15,8 @@ agent-facing surface: see [`src/filoma/skills/`](src/filoma/skills/).
 | -------------------------- | --------------------------------------------------------------------- |
 | `src/filoma/`              | Python source. `import filoma` is intentionally cheap (lazy imports). |
 | `src/*.rs`, `Cargo.toml`   | Rust backend, built via maturin.                                      |
-| `src/filoma/filaraki/`     | pydantic-ai agent + the 24 filesystem tools.                          |
-| `src/filoma/mcp_server.py` | MCP server exposing the same 24 tools.                                |
+| `src/filoma/filaraki/`     | pydantic-ai agent + its 30 filesystem tools.                          |
+| `src/filoma/mcp_server.py` | MCP server exposing a 24-tool subset of those.                        |
 | `src/filoma/skills/`       | Bundled SKILL.md directories shipped to other agents.                 |
 | `tests/`                   | pytest suite (`-m integration` for tests needing API keys).           |
 | `docs/`                    | mkdocs site published to filoma.readthedocs.io.                       |

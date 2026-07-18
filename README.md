@@ -25,24 +25,23 @@
 
 The key features are:
 
-- **Fast**: Scans 1M files in 7 seconds with the Rust backend. Auto-detected at runtime — no config needed.
+- **Fast**: Scans 1M files in 7 seconds with the Rust backend.\* Auto-detected at runtime — no config needed.
 - **DataFrame-native**: Polars-powered wrapper with enrichment, filter, sort, and multi-format export.
 - **Dedup**: Exact duplicates, text near-duplicates, and image near-duplicate detection.
 - **Integrity**: Snapshots, manifests, and SHA-256 verification for dataset versioning.
-- **CI-ready**: YAML quality gates (`filoma-gates.yml`) with pass/fail for your pipelines.
-- **Agentic**: 30 filesystem tools via chat, `flm.ask()`, MCP server, and schema proposals.
+- **CI-ready**: `filoma-gates.yml` quality gates with pass/fail exit codes, plus drift detection via `filoma watch`.
+- **Agentic**: Natural-language filesystem queries via `flm.ask()`, interactive chat, or an MCP server.
 - **Vector search**: LanceDB-backed RAG — search your files by meaning.
-- **Watch mode**: Snapshot → drift detect → gates check → JSON export.
 - **Extensible**: Third-party plugins via `filoma.tools` entry points and bundled skill workflows.
+
+<small>\* Benchmarked on a MacBook Air M4, local NVMe SSD. Your numbers will vary by hardware and filesystem — see [Benchmarks](docs/reference/benchmarks.md).</small>
 
 ---
 
 ## Installation
 
-```console
-$ pip install filoma
-
----> 100%
+```bash
+pip install filoma
 ```
 
 or with uv:
@@ -63,26 +62,6 @@ pip install "filoma[stats]"   # statistical analysis extras
 
 ---
 
-## Use with GitHub Copilot
-
-The fastest way to try filoma: plug it into GitHub Copilot (VS Code chat, Copilot CLI, or Copilot coding agent) — no Python code required.
-
-**Agent Skill** — teaches Copilot to drive filoma's CLI for you:
-
-```bash
-filoma skills install --scope vscode   # writes ./.github/skills/filoma-*/SKILL.md
-```
-
-**MCP server** — gives Copilot real, callable tools (`probe_directory`, `audit_dataset`, `search_files`, and more):
-
-```bash
-copilot mcp add filoma -- uvx -p 3.11 filoma mcp serve
-```
-
-Both work via `uvx` — no `pip install filoma` needed to try them out. See the [Filaraki guide](docs/guides/filaraki.md#using-filoma-with-github-copilot) for VS Code chat setup, nanobot, and other MCP clients.
-
----
-
 ## Example
 
 ### Your first scan
@@ -92,14 +71,14 @@ import filoma as flm
 
 # Scan a directory — the Rust backend kicks in automatically
 analysis = flm.probe("./my-dataset")
+analysis.print_summary()
 
 # Get a Polars DataFrame, enriched with depth, path components, and file stats
 df = flm.probe_to_df("./my-dataset")
 
 # Filter and explore
-images = df.filter("mime_type", "image/*")
-large = df.filter_size(5, "MB", "gt")
-print(df.summary())
+images = df.filter_by_extension([".png", ".jpg"])
+print(df.extension_counts())
 ```
 
 ### Run it
@@ -117,6 +96,26 @@ python -c "import filoma as flm; flm.probe('.').print_summary()"
 
 ---
 
+## Use with GitHub Copilot
+
+The fastest way to try filoma without writing Python: plug it into GitHub Copilot (VS Code chat, Copilot CLI, or Copilot coding agent).
+
+**Agent Skill** — teaches Copilot to drive filoma's CLI for you:
+
+```bash
+filoma skills install --scope vscode   # writes ./.github/skills/filoma-*/SKILL.md
+```
+
+**MCP server** — gives Copilot real, callable tools (`probe_directory`, `audit_dataset`, `search_files`, and more):
+
+```bash
+copilot mcp add filoma -- uvx -p 3.11 filoma mcp serve
+```
+
+Both work via `uvx` — no `pip install filoma` needed to try them out. See the [Filaraki guide](docs/guides/filaraki.md#using-filoma-with-github-copilot) for VS Code chat setup, nanobot, and other MCP clients.
+
+---
+
 ## Example Upgrade
 
 ### Audit a dataset (scan → enrich → verify → report)
@@ -129,7 +128,7 @@ flm.Pipeline("./data").scan().enrich().verify().report()
 ```
 
 ```bash
-filoma audit ./data --export report.html
+filoma audit ./data --export report.html --format html
 ```
 
 This produces an HTML audit report with file counts, type breakdowns, integrity status, and warnings.
@@ -149,27 +148,20 @@ filoma ask "find all python files modified in the last week"
 
 ### Validate in CI
 
-```python
-import filoma as flm
-
-ds = flm.Dataset("./data")
-ds.snap().verify().check_gates("gates.yml")
-```
-
 ```bash
-filoma watch ./data --snapshot baseline.json --gates gates.yml
+filoma audit ./data --gates filoma-gates.yml
 ```
 
-Define quality gates in `filoma-gates.yml`:
+Exits `0` on pass, `1` on any gate failure — wire it straight into a CI job. Track drift between runs with `filoma watch ./data --snapshot baseline.json`.
+
+Define gates in `filoma-gates.yml`:
 
 ```yaml
 gates:
-  - name: "max file count"
-    rule: "file_count <= 100000"
-  - name: "no corrupt images"
-    rule: "corrupt_images == 0"
-  - name: "allowed types only"
-    rule: 'mime_types in ["image/png", "application/json"]'
+  corrupted_files: 0
+  zero_byte_files: 0
+  duplicate_ratio_pct: 5
+  hygiene_score: 80
 ```
 
 ---
@@ -183,6 +175,8 @@ Filoma auto-detects the fastest available backend at runtime:
 | Rust       | 7.3s — 136K files/sec | 2.3s — 86K files/sec  |
 | fd / Async | 11.5s — 87K files/sec | 2.8s — 70K files/sec  |
 | Python     | 35.5s — 28K files/sec | 15.1s — 13K files/sec |
+
+<small>Measured on a MacBook Air M4 / local NVMe SSD (1M files) and a network NFS mount (200K files) — see [full methodology and hardware](docs/reference/benchmarks.md). Your results will vary by hardware, filesystem, and directory shape.</small>
 
 No configuration required — the fastest backend is selected for you.
 
@@ -220,7 +214,7 @@ Filoma stands on the shoulders of:
 | ML Engineer    | [Audit a Dataset](docs/use-cases/audit.md)     |
 | Data Engineer  | [Explore a Dataset](docs/use-cases/explore.md) |
 | Researcher     | [Talk to Your Data](docs/use-cases/agent.md)   |
-| DevOps / CI    | [Watch for Drift](docs/guides/cli.md)          |
+| DevOps / CI    | [Validate in CI](docs/use-cases/audit.md)      |
 | Package author | [Plugin Discovery](docs/roadmap/adoption.md)   |
 
 ---

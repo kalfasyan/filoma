@@ -176,10 +176,10 @@ Filaraki: sort_dataframe_by_size completed. Top 10:
 
 ## Available tools
 
-Filaraki has 24 tools covering directory analysis, file operations, DataFrame manipulation, image analysis, and data quality checks. The agent decides which tools to call based on your query — you don't need to know the tool names.
+Filaraki has 30 tools covering directory analysis, file operations, DataFrame manipulation, image analysis, and data quality checks. The agent decides which tools to call based on your query — you don't need to know the tool names.
 
 ## What to read next
 
-- [Filaraki guide](../guides/filaraki.md) — full reference: all 24 tools, environment config, troubleshooting, nanobot setup details
+- [Filaraki guide](../guides/filaraki.md) — full reference: all 30 tools (24 of which are also exposed via the MCP server), environment config, troubleshooting, nanobot setup details
 - [Audit a Dataset](audit.md) — the audit use case Filaraki can automate
 - [Explore a Dataset](explore.md) — understand the probe/DataFrame tools the agent uses under the hood
