@@ -17,6 +17,7 @@ from mcp.types import Tool
 import filoma.filaraki.tools  # noqa: F401 — ensures tools are registered
 from filoma.mcp_server import (
     _MCP_TOOL_NAMES,
+    _NO_SESSION,
     SimpleRunContext,
     _dataframe_state,
     _get_context,
@@ -33,7 +34,7 @@ class TestMCPServerImports:
 
     def test_imports(self):
         """Test that MCP server module imports correctly."""
-        assert len(_MCP_TOOL_NAMES) == 22
+        assert len(_MCP_TOOL_NAMES) == 24
 
     def test_all_tools_have_descriptions(self):
         """Verify all tools have descriptions and schemas."""
@@ -63,7 +64,7 @@ class TestToolRegistration:
     async def test_list_tools_returns_all_tools(self):
         """Test that list_tools returns all MCP tools."""
         tools = await list_tools()
-        assert len(tools) == 22
+        assert len(tools) == 24
         assert all(isinstance(t, Tool) for t in tools)
 
     @pytest.mark.asyncio
@@ -210,8 +211,9 @@ class TestDataFrameState:
         """Test that create_dataset_dataframe stores state."""
         result = await call_tool("create_dataset_dataframe", {"path": str(temp_dir), "enrich": False})
         assert len(result) == 1
-        # State should be saved
-        assert "current_df" in _dataframe_state
+        # State should be saved under the fallback "no live session" key
+        # (these tests call call_tool() directly, with no real MCP session)
+        assert "current_df" in _dataframe_state[_NO_SESSION]
 
     @pytest.mark.asyncio
     async def test_dataframe_head_requires_state(self, temp_dir):
@@ -244,7 +246,7 @@ class TestDataFrameState:
         result = await call_tool("search_files", {"path": str(temp_dir), "extension": "txt"})
         assert len(result) == 1
         # Should have created state
-        assert "current_df" in _dataframe_state
+        assert "current_df" in _dataframe_state[_NO_SESSION]
 
     @pytest.mark.asyncio
     async def test_filter_by_extension(self, temp_dir):
@@ -257,6 +259,84 @@ class TestDataFrameState:
         assert len(result) == 1
         text = result[0].text
         assert "filtered" in text.lower() or "txt" in text.lower()
+
+    @pytest.mark.asyncio
+    async def test_filter_by_extension_accepts_json_stringified_array(self, temp_dir):
+        """A client that JSON-encodes a real array as a string must still work.
+
+        Regression test for the bug where a schema that only advertised
+        "string" caused conforming clients to send '[".txt"]' (a string)
+        instead of a real array, which used to silently match zero files.
+        """
+        await call_tool("create_dataset_dataframe", {"path": str(temp_dir), "enrich": False})
+
+        result = await call_tool("filter_by_extension", {"extensions": '[".txt"]'})
+        text = result[0].text
+        assert "2 files" in text
+        df = _dataframe_state[_NO_SESSION]["current_df"]
+        assert len(df) == 2
+
+    @pytest.mark.asyncio
+    async def test_filter_by_extension_on_already_empty_dataframe_warns(self, temp_dir):
+        """Filtering an already-empty DataFrame should say so, not report a
+        fresh "successful" filter — that message previously masked the real
+        bug (a prior filter call had already zeroed out current_df) and cost
+        several confusing extra tool calls before the root cause was found.
+        """
+        await call_tool("create_dataset_dataframe", {"path": str(temp_dir), "enrich": False})
+
+        # First filter to a nonexistent extension: legitimately 0 rows.
+        first = await call_tool("filter_by_extension", {"extensions": "nonexistent"})
+        assert "0 files" in first[0].text
+
+        # Filtering again on the now-empty DataFrame must be called out
+        # explicitly instead of looking like an independent new result.
+        second = await call_tool("filter_by_extension", {"extensions": "txt"})
+        assert "already has 0 rows" in second[0].text
+
+    @pytest.mark.asyncio
+    async def test_filter_by_pattern_on_already_empty_dataframe_warns(self, temp_dir):
+        """filter_by_pattern must call out an already-empty DataFrame too."""
+        await call_tool("create_dataset_dataframe", {"path": str(temp_dir), "enrich": False})
+        await call_tool("filter_by_extension", {"extensions": "nonexistent"})
+
+        result = await call_tool("filter_by_pattern", {"pattern": r"\.txt$"})
+        assert "already has 0 rows" in result[0].text
+
+    @pytest.mark.asyncio
+    async def test_add_duplicate_cols(self, temp_dir):
+        """Test add_duplicate_cols flags exact duplicates in the stored DataFrame."""
+        (temp_dir / "dup1.txt").write_text("same bytes")
+        (temp_dir / "dup2.txt").write_text("same bytes")
+
+        await call_tool("create_dataset_dataframe", {"path": str(temp_dir), "enrich": False})
+
+        result = await call_tool("add_duplicate_cols", {})
+        assert len(result) == 1
+        text = result[0].text
+        assert "is_exact_duplicate" in text
+
+        df = _dataframe_state[_NO_SESSION]["current_df"]
+        assert "is_exact_duplicate" in df.to_polars().columns
+
+    @pytest.mark.asyncio
+    async def test_add_corruption_cols(self, temp_dir):
+        """Test add_corruption_cols flags zero-byte files in the stored DataFrame."""
+        (temp_dir / "empty.txt").write_text("")
+
+        await call_tool("create_dataset_dataframe", {"path": str(temp_dir), "enrich": False})
+
+        result = await call_tool("add_corruption_cols", {})
+        assert len(result) == 1
+        text = result[0].text
+        assert "is_corrupt" in text
+
+        df = _dataframe_state[_NO_SESSION]["current_df"]
+        pdf = df.to_polars()
+        assert "is_corrupt" in pdf.columns
+        reasons = dict(zip(pdf["path"].to_list(), pdf["corruption_reason"].to_list()))
+        expected_path = str((temp_dir / "empty.txt").resolve())
+        assert reasons[expected_path] == "zero_byte"
 
 
 class TestMCPDisconnectHandling:
@@ -349,9 +429,43 @@ class TestContextHelpers:
         # Save it
         _save_context(ctx)
 
-        # Verify state was saved
-        assert "current_df" in _dataframe_state
-        assert _dataframe_state["current_df"] is not None
+        # Verify state was saved under the fallback "no live session" key
+        assert "current_df" in _dataframe_state[_NO_SESSION]
+        assert _dataframe_state[_NO_SESSION]["current_df"] is not None
+
+    def test_dataframe_state_is_isolated_per_session(self, monkeypatch):
+        """Two distinct sessions must not see each other's cached DataFrame.
+
+        Regression test for the per-connection WeakKeyDictionary state: this
+        directly exercises the isolation property (not just the _NO_SESSION
+        fallback path that the other tests in this class cover).
+        """
+        import polars as pl
+
+        import filoma.mcp_server as mcp_module
+        from filoma.filaraki.agent import FilarakiDeps
+
+        class _FakeSession:
+            pass
+
+        session_a = _FakeSession()
+        session_b = _FakeSession()
+
+        # Session A stores a DataFrame.
+        monkeypatch.setattr(mcp_module, "_session_key", lambda: session_a)
+        deps_a = FilarakiDeps(working_dir="/tmp")
+        deps_a.current_df = pl.DataFrame({"path": ["/tmp/a"]})
+        mcp_module._save_context(SimpleRunContext(deps=deps_a))
+
+        # Session B must start with no DataFrame, even though A just saved one.
+        monkeypatch.setattr(mcp_module, "_session_key", lambda: session_b)
+        ctx_b = mcp_module._get_context(FilarakiDeps(working_dir="/tmp"))
+        assert ctx_b.deps.current_df is None
+
+        # Session A must still see its own DataFrame, unaffected by B.
+        monkeypatch.setattr(mcp_module, "_session_key", lambda: session_a)
+        ctx_a = mcp_module._get_context(FilarakiDeps(working_dir="/tmp"))
+        assert ctx_a.deps.current_df is not None
 
 
 if __name__ == "__main__":

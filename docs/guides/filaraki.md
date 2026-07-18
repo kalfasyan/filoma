@@ -87,20 +87,30 @@ Commit `.github/skills/` to your repo and it's picked up automatically for every
 
 ### Option 2 — MCP server (real tool calls, no `pip install filoma` required)
 
-Add a `.vscode/mcp.json` to any repo (commit it so colleagues get it too):
+**Copilot CLI — one command, nothing to write:**
+
+```bash
+copilot mcp add filoma -- uvx -p 3.11 filoma mcp serve
+```
+
+That's it. `copilot mcp list` immediately shows `filoma`, and Copilot can call `probe_directory`, `search_files`, `audit_dataset`, and the rest of the toolset right away — no restart needed. Remove it any time with `copilot mcp remove filoma`.
+
+**VS Code chat** — add a `.vscode/mcp.json` to any repo (commit it so colleagues get it too):
 
 ```json
 {
   "servers": {
     "filoma": {
       "command": "uvx",
-      "args": ["--python", ">=3.11", "filoma", "mcp", "serve"]
+      "args": ["--python", "3.11", "filoma", "mcp", "serve"]
     }
   }
 }
 ```
 
-`uvx` downloads and caches filoma on first use and runs it in an isolated environment, so nobody needs to `pip install filoma` into their project. Paste the same block into your user profile MCP config (Command Palette → **MCP: Open User Configuration**) to get filoma's tools in every workspace, or into [Copilot CLI's MCP config](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers) for the terminal agent.
+`uvx` downloads and caches filoma on first use and runs it in an isolated environment, so nobody needs to `pip install filoma` into their project. Paste the same block into your user profile MCP config (Command Palette → **MCP: Open User Configuration**) to get filoma's tools in every workspace.
+
+> Pin an exact Python version — `-p 3.11` (short for `--python 3.11`) — rather than a range like `>=3.11`. Filoma only publishes prebuilt wheels for cp311, so an exact pin guarantees `uvx` grabs the fast prebuilt wheel instead of silently falling back to a slower from-source build on whatever Python happens to be ambient by default.
 
 > This filoma repo ships its own `.vscode/mcp.json`, pointed at the local development build (`uv run filoma mcp serve`) instead of `uvx`, so contributors get the in-progress MCP server automatically when they open this workspace in Copilot Chat.
 
@@ -156,7 +166,7 @@ In `~/.nanobot/config.json`, find `"mcpServers": {}` and replace it with:
 "mcpServers": {
   "filoma": {
     "command": "uvx",
-    "args": ["--python", ">=3.11", "filoma", "mcp", "serve"]
+    "args": ["--python", "3.11", "filoma", "mcp", "serve"]
   }
 }
 ```
@@ -418,7 +428,7 @@ Filaraki: [displays largest Python file with line numbers]
 
 Filoma Filaraki consists of:
 
-- **`FilarakiAgent`** (`agent.py`): PydanticAI agent with 21 registered tools
+- **`FilarakiAgent`** (`agent.py`): PydanticAI agent with 23 registered tools
 - **Tools** (`tools.py`): Individual tool implementations with `RunContext` support
 - **CLI** (`cli.py`): Rich-based interactive chat interface
 - **MCP Server** (`mcp_server.py`): MCP server exposing tools to external agents

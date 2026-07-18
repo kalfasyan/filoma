@@ -32,6 +32,7 @@ import errno
 import io
 import os
 import sys
+import weakref
 from contextlib import asynccontextmanager, redirect_stdout
 from typing import TYPE_CHECKING, Any, AsyncIterator, List
 
@@ -78,10 +79,44 @@ class SimpleRunContext:
         self.deps = deps
 
 
-# Stateful storage for DataFrame operations across tool calls
-_dataframe_state: dict = {}
+# Per-connection DataFrame state. A long-lived server process can be shared by
+# more than one live connection (e.g. two Copilot Chat conversations attached
+# to the same workspace's MCP server, or multiple clients once a networked
+# transport like SSE exists) — a single shared dict would let one
+# conversation's cached DataFrame silently leak into, or get clobbered by,
+# another's. Keyed by the live ServerSession object (one per connection) via
+# a WeakKeyDictionary, so a closed connection's state is garbage-collected
+# automatically instead of leaking — or, worse, being inherited by an
+# unrelated future session if a raw id() were reused for the key instead.
+# `_NO_SESSION` is the fallback key for calls made outside of a live MCP
+# request context (e.g. tests/scripts calling call_tool() directly, bypassing
+# the real Server.run() dispatch loop that sets the per-request context).
+# It must be a plain class instance, not a bare object() — WeakKeyDictionary
+# keys must support weak references, and bare `object` instances don't.
+class _NoSession:
+    """Sentinel key for `_dataframe_state` when there is no live MCP session."""
+
+
+_NO_SESSION: Any = _NoSession()
+_dataframe_state: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
 # Application instance - created lazily
 _app: Any = None
+
+
+def _session_key() -> Any:
+    """Return a stable per-connection key for the in-flight MCP request.
+
+    Uses the active ServerSession (one instance per client connection) so
+    concurrent connections sharing this server process get independent
+    DataFrame state instead of clobbering each other. Falls back to
+    `_NO_SESSION` when there's no live request context to key on.
+    """
+    if _app is not None:
+        try:
+            return _app.request_context.session
+        except LookupError:
+            pass
+    return _NO_SESSION
 
 
 def _is_graceful_stdio_disconnect(exc: BaseException) -> bool:
@@ -159,6 +194,8 @@ DATASET & DATAFRAME:
 - filter_by_extension: Filter dataframe by file extension
 - filter_by_pattern: Filter dataframe by regex pattern
 - sort_dataframe_by_size: Sort by file size
+- add_duplicate_cols: Flag exact duplicate rows (by sha256) as columns
+- add_corruption_cols: Flag corrupt/zero-byte rows as columns
 - dataframe_head: Show first N rows
 - summarize_dataframe: Get summary statistics
 - export_dataframe: Export to csv/json/parquet
@@ -189,16 +226,17 @@ All tools support path expansion (~ for home directory) and validation.
 
 def _get_context(deps: FilarakiDeps) -> SimpleRunContext:
     """Create a SimpleRunContext with current state."""
-    # Restore DataFrame from state if exists
-    if "current_df" in _dataframe_state:
-        deps.current_df = _dataframe_state["current_df"]
+    # Restore DataFrame from this connection's own state, if any.
+    session_state = _dataframe_state.get(_session_key())
+    if session_state and "current_df" in session_state:
+        deps.current_df = session_state["current_df"]
     return SimpleRunContext(deps=deps)
 
 
 def _save_context(ctx: SimpleRunContext) -> None:
     """Save DataFrame state after tool execution."""
     if ctx.deps.current_df is not None:
-        _dataframe_state["current_df"] = ctx.deps.current_df
+        _dataframe_state.setdefault(_session_key(), {})["current_df"] = ctx.deps.current_df
 
 
 async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
@@ -257,6 +295,8 @@ _MCP_TOOL_NAMES = frozenset(
         "filter_by_extension",
         "filter_by_pattern",
         "sort_dataframe_by_size",
+        "add_duplicate_cols",
+        "add_corruption_cols",
         "dataframe_head",
         "summarize_dataframe",
         "export_dataframe",
@@ -277,6 +317,8 @@ _DATAFRAME_TOOLS = frozenset(
         "filter_by_extension",
         "filter_by_pattern",
         "sort_dataframe_by_size",
+        "add_duplicate_cols",
+        "add_corruption_cols",
     }
 )
 

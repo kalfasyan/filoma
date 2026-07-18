@@ -1,5 +1,7 @@
 """Tests for the ToolRegistry."""
 
+from typing import List, Optional, Union
+
 import filoma.filaraki.tools  # noqa: F401 — triggers @tool_registry.register decorators
 from filoma.tool_registry import ToolRegistry, ToolSpec, tool_registry
 
@@ -8,7 +10,7 @@ class TestToolRegistrySize:
     """Test that all expected tools are registered."""
 
     def test_registry_has_28_tools(self):
-        assert len(tool_registry) == 28
+        assert len(tool_registry) == 30
 
     def test_core_tools_registered(self):
         names = {spec.name for spec in tool_registry.list_specs()}
@@ -78,10 +80,23 @@ class TestToolSpecSchema:
         assert schema["required"] == ["path"]
 
     def test_filter_by_extension_type(self):
-        """filter_by_extension has Union[str, List[str]] → should flatten to string."""
+        """filter_by_extension's Union[str, List[str]] must expose BOTH accepted
+        shapes via oneOf, not flatten to a bare string.
+
+        Regression test: flattening to a single "string" type used to make
+        conforming MCP clients JSON-stringify a real array argument (since
+        the schema didn't advertise array support), which then silently
+        corrupted filter_by_extension's own comma/whitespace-splitting
+        fallback into matching zero files. See filaraki/tools.py::filter_by_extension.
+        """
         spec = tool_registry.get_spec("filter_by_extension")
         assert spec is not None
-        assert spec.param_schema["properties"]["extensions"]["type"] == "string"
+        prop = spec.param_schema["properties"]["extensions"]
+        assert "type" not in prop
+        assert prop["oneOf"] == [
+            {"type": "string"},
+            {"type": "array", "items": {"type": "string"}},
+        ]
 
 
 class TestDescriptionExtraction:
@@ -130,7 +145,7 @@ class TestRegistryAPI:
 
     def test_list_specs_returns_correct_count(self):
         specs = tool_registry.list_specs()
-        assert len(specs) == 28
+        assert len(specs) == 30
         assert all(isinstance(s, ToolSpec) for s in specs)
 
 
@@ -168,3 +183,45 @@ class TestFreshRegistry:
         # Type mapping
         assert spec.param_schema["properties"]["path"]["type"] == "string"
         assert spec.param_schema["properties"]["verbose"]["type"] == "boolean"
+
+    def test_union_str_list_param_exposes_oneof(self):
+        """A Union[str, List[str]] parameter must expose both shapes via oneOf."""
+        reg = ToolRegistry()
+
+        @reg.register
+        def dummy_tool(ctx, names: Union[str, List[str]]) -> str:
+            """A dummy tool with a str-or-list parameter.
+
+            Args:
+            ----
+                ctx: The run context.
+                names: One or more names.
+            """
+            return "ok"
+
+        prop = reg.get_spec("dummy_tool").param_schema["properties"]["names"]
+        assert "type" not in prop
+        assert prop["oneOf"] == [
+            {"type": "string"},
+            {"type": "array", "items": {"type": "string"}},
+        ]
+
+    def test_optional_list_int_param_keeps_item_type(self):
+        """Optional[List[int]] should still be a plain array of integers, not string."""
+        reg = ToolRegistry()
+
+        @reg.register
+        def dummy_tool(ctx, ids: Optional[List[int]] = None) -> str:
+            """A dummy tool with an optional list-of-int parameter.
+
+            Args:
+            ----
+                ctx: The run context.
+                ids: Optional numeric ids.
+            """
+            return "ok"
+
+        prop = reg.get_spec("dummy_tool").param_schema["properties"]["ids"]
+        assert prop["type"] == "array"
+        assert prop["items"] == {"type": "integer"}
+        assert "ids" not in reg.get_spec("dummy_tool").param_schema["required"]

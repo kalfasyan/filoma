@@ -30,7 +30,7 @@ The key features are:
 - **Dedup**: Exact duplicates, text near-duplicates, and image near-duplicate detection.
 - **Integrity**: Snapshots, manifests, and SHA-256 verification for dataset versioning.
 - **CI-ready**: YAML quality gates (`filoma-gates.yml`) with pass/fail for your pipelines.
-- **Agentic**: 28 filesystem tools via chat, `flm.ask()`, MCP server, and schema proposals.
+- **Agentic**: 30 filesystem tools via chat, `flm.ask()`, MCP server, and schema proposals.
 - **Vector search**: LanceDB-backed RAG — search your files by meaning.
 - **Watch mode**: Snapshot → drift detect → gates check → JSON export.
 - **Extensible**: Third-party plugins via `filoma.tools` entry points and bundled skill workflows.
@@ -51,11 +51,7 @@ or with uv:
 uv add filoma
 ```
 
-**Note**: Filoma auto-detects the fastest available backend. For maximum speed, build the Rust extension:
-
-```bash
-maturin develop --release
-```
+**Note**: The Rust extension (fastest backend) is bundled automatically by `pip`/`uv` above — no separate build step needed. See the [Installation guide](docs/getting-started/installation.md#optimization-optional) if filoma falls back to the fd/Python backend on your platform.
 
 Optional extras:
 
@@ -64,6 +60,26 @@ pip install "filoma[dedup]"   # near-duplicate detection
 pip install "filoma[rag]"     # LanceDB vector search
 pip install "filoma[stats]"   # statistical analysis extras
 ```
+
+---
+
+## Use with GitHub Copilot
+
+The fastest way to try filoma: plug it into GitHub Copilot (VS Code chat, Copilot CLI, or Copilot coding agent) — no Python code required.
+
+**Agent Skill** — teaches Copilot to drive filoma's CLI for you:
+
+```bash
+filoma skills install --scope vscode   # writes ./.github/skills/filoma-*/SKILL.md
+```
+
+**MCP server** — gives Copilot real, callable tools (`probe_directory`, `audit_dataset`, `search_files`, and more):
+
+```bash
+copilot mcp add filoma -- uvx -p 3.11 filoma mcp serve
+```
+
+Both work via `uvx` — no `pip install filoma` needed to try them out. See the [Filaraki guide](docs/guides/filaraki.md#using-filoma-with-github-copilot) for VS Code chat setup, nanobot, and other MCP clients.
 
 ---
 

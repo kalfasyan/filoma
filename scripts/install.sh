@@ -203,7 +203,7 @@ write_nanobot_config() {
   "mcpServers": {
     "filoma": {
       "command": "uvx",
-      "args": ["--python", ">=3.11", "filoma", "mcp", "serve"]
+      "args": ["--python", "3.11", "filoma", "mcp", "serve"]
     }
   }
 }
@@ -225,7 +225,7 @@ EOF
 
   "filoma": {
     "command": "uvx",
-    "args": ["--python", ">=3.11", "filoma", "mcp", "serve"]
+    "args": ["--python", "3.11", "filoma", "mcp", "serve"]
   }
 
 EOF
@@ -260,7 +260,7 @@ ollama.setdefault("apiBase", "http://localhost:11434/v1")
 mcp = cfg.setdefault("mcpServers", {})
 mcp["filoma"] = {
     "command": "uvx",
-    "args": ["--python", ">=3.11", "filoma", "mcp", "serve"],
+    "args": ["--python", "3.11", "filoma", "mcp", "serve"],
 }
 
 path.write_text(json.dumps(cfg, indent=2) + "\n")

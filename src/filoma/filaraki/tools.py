@@ -1407,11 +1407,32 @@ def filter_by_extension(ctx: RunContext[Any], extensions: Union[str, List[str]])
     if ctx.deps.current_df is None:
         return "Error: No DataFrame loaded. Please run 'search_files' or 'create_dataset_dataframe' first."
 
-    # Lazy import to avoid recursive dependencies
     df = ctx.deps.current_df
     try:
         if not extensions:
             return "Error: 'extensions' argument is required (e.g., 'jpg' or ['py', 'rs'])."
+
+        if len(df) == 0:
+            return (
+                "The current DataFrame already has 0 rows, so there is nothing to filter. "
+                "Call create_dataset_dataframe() or search_files() again to load data first."
+            )
+
+        if isinstance(extensions, str):
+            stripped = extensions.strip()
+            if stripped.startswith("[") and stripped.endswith("]"):
+                # Some MCP clients JSON-encode a real array argument as a
+                # string when they can't tell from the schema that an array
+                # is accepted. Recover the real list instead of letting the
+                # comma/whitespace split below treat the brackets and quotes
+                # as part of one bogus extension (which would silently match
+                # zero files).
+                try:
+                    parsed = json.loads(stripped)
+                    if isinstance(parsed, list):
+                        extensions = [str(e) for e in parsed]
+                except (json.JSONDecodeError, TypeError):
+                    pass
 
         if isinstance(extensions, str):
             # Split by comma or space if multiple extensions are provided in a string
@@ -1429,7 +1450,7 @@ def filter_by_extension(ctx: RunContext[Any], extensions: Union[str, List[str]])
 
 @tool_registry.register
 def filter_by_pattern(ctx: RunContext[Any], pattern: str) -> str:
-    """Filter the current DataFrame to only include files matching a regex pattern."""
+    r"""Filter the current DataFrame by a regex (not glob) pattern, e.g. '\.md$' not '*.md'."""
     if ctx.deps.current_df is None:
         return "Error: No DataFrame loaded. Please run 'search_files' or 'create_dataset_dataframe' first."
 
@@ -1437,6 +1458,12 @@ def filter_by_pattern(ctx: RunContext[Any], pattern: str) -> str:
         return "Error: 'pattern' argument is required."
 
     df = ctx.deps.current_df
+    if len(df) == 0:
+        return (
+            "The current DataFrame already has 0 rows, so there is nothing to filter. "
+            "Call create_dataset_dataframe() or search_files() again to load data first."
+        )
+
     try:
         df = df.filter_by_pattern(pattern)
         ctx.deps.current_df = df
@@ -1471,6 +1498,49 @@ def sort_dataframe_by_size(ctx: RunContext[Any], ascending: bool = False, top_n:
         return report
     except Exception as e:
         return f"Error sorting dataframe by size: {str(e)}"
+
+
+@tool_registry.register
+def add_duplicate_cols(ctx: RunContext[Any]) -> str:
+    """Flag exact duplicate rows in the current DataFrame by content hash (sha256).
+
+    Adds `is_exact_duplicate` (bool) and `exact_dup_group_id` (str) columns
+    so duplicates can be filtered/queried like any other column. Computes
+    sha256 hashes first if not already present \u2014 this reads every file's
+    full content and can be slow on large datasets.
+    """
+    if ctx.deps.current_df is None:
+        return "Error: No DataFrame loaded. Please run 'search_files' or 'create_dataset_dataframe' first."
+
+    df = ctx.deps.current_df
+    try:
+        df = df.add_duplicate_cols()
+        ctx.deps.current_df = df
+        dup_count = int(df.to_polars()["is_exact_duplicate"].sum())
+        return f"\u2705 Flagged exact duplicates: {dup_count} of {len(df)} rows share content with at least one other row. Columns added: is_exact_duplicate, exact_dup_group_id."
+    except Exception as e:
+        return f"Error flagging duplicate rows: {str(e)}"
+
+
+@tool_registry.register
+def add_corruption_cols(ctx: RunContext[Any]) -> str:
+    """Flag corrupt or zero-byte files in the current DataFrame with a per-row check.
+
+    Adds `is_corrupt` (bool) and `corruption_reason` (str) columns so
+    problem rows can be filtered/queried directly, checking for zero-byte
+    files and unreadable/corrupt images (.jpg/.jpeg/.png/.bmp).
+    """
+    if ctx.deps.current_df is None:
+        return "Error: No DataFrame loaded. Please run 'search_files' or 'create_dataset_dataframe' first."
+
+    df = ctx.deps.current_df
+    try:
+        df = df.add_corruption_cols()
+        ctx.deps.current_df = df
+        corrupt_count = int(df.to_polars()["is_corrupt"].sum())
+        return f"\u2705 Checked integrity: {corrupt_count} of {len(df)} rows are corrupt or zero-byte. Columns added: is_corrupt, corruption_reason."
+    except Exception as e:
+        return f"Error flagging corrupt rows: {str(e)}"
 
 
 @tool_registry.register
@@ -1533,7 +1603,7 @@ def search_files(
         ctx: The run context.
         path: The path to search in.
         pattern: Regex pattern to match filenames (e.g., 'README.md', 'test_.*\.py'). Use this for searching specific filenames.
-        extension: File extension to filter by (e.g., 'py', 'jpg'). Do NOT include the dot. Do NOT use this for full filenames.
+        extension: File extension to filter by (e.g., 'py', 'jpg'). A leading dot is optional ('py' and '.py' both work). Do NOT use this for full filenames.
         min_size: Minimum file size (e.g., '1M', '500K').
         max_depth: Maximum depth to search (default is None for unlimited).
         include_hidden: Whether to include hidden files (default False).

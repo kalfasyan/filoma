@@ -593,6 +593,113 @@ class DataFrame:
         res.add_lineage_entry("add_file_stats_cols", path_col=path, compute_hash=compute_hash)
         return res
 
+    def add_duplicate_cols(self, hash_column: str = "sha256", compute_hash: bool = True) -> "DataFrame":
+        """Flag exact duplicate rows by content hash.
+
+        Groups rows by ``hash_column`` (default: ``sha256``) and marks every
+        row that shares its hash with at least one other row as an exact
+        duplicate. Rows with a missing/null hash (directories, or hashes
+        that failed to compute) are never marked as duplicates.
+
+        Args:
+        ----
+            hash_column: Column to group rows by. Defaults to "sha256".
+            compute_hash: If True (default) and ``hash_column`` is missing,
+                compute it first via ``add_file_stats_cols(compute_hash=True)``.
+                Set to False to raise instead of silently computing hashes.
+
+        Returns:
+        -------
+            New DataFrame with two additional columns:
+            - ``is_exact_duplicate`` (bool): True if 2+ rows share the hash.
+            - ``exact_dup_group_id`` (str | null): the shared hash for
+              duplicate rows, null otherwise.
+
+        Raises:
+        ------
+            ValueError: If ``hash_column`` is missing and ``compute_hash=False``.
+
+        """
+        base = self
+        needs_recompute = hash_column not in base._df.columns or base._df[hash_column].null_count() > 0
+        if needs_recompute:
+            if hash_column != "sha256":
+                raise ValueError(f"Column '{hash_column}' not found or contains nulls, and only 'sha256' can be auto-computed. Populate '{hash_column}' first.")
+            if not compute_hash:
+                raise ValueError("Column 'sha256' not found or contains nulls. Call add_file_stats_cols(compute_hash=True) first, or leave compute_hash=True.")
+            base = base.add_file_stats_cols(compute_hash=True)
+
+        counts = base._df.group_by(hash_column).len().rename({"len": "_dup_count"})
+        joined = base._df.join(counts, on=hash_column, how="left")
+        is_dup = pl.col(hash_column).is_not_null() & (pl.col("_dup_count") > 1)
+        result = joined.with_columns(
+            [
+                is_dup.alias("is_exact_duplicate"),
+                pl.when(is_dup).then(pl.col(hash_column)).otherwise(None).alias("exact_dup_group_id"),
+            ]
+        ).drop("_dup_count")
+
+        res = DataFrame(result, lineage=list(base._lineage))
+        res.add_lineage_entry("add_duplicate_cols", hash_column=hash_column)
+        return res
+
+    def add_corruption_cols(self) -> "DataFrame":
+        """Flag corrupt or zero-byte files with a per-row integrity check.
+
+        Runs the same checks as
+        ``filoma.core.verifier.DatasetVerifier.check_integrity`` (zero-byte
+        files, and unreadable/corrupt ``.jpg``/``.jpeg``/``.png``/``.bmp``
+        images via Pillow), but attaches the result to each row instead of
+        returning a separate aggregate report. Reuses the ``size_bytes``
+        column when already present (from ``add_file_stats_cols``) to avoid
+        a redundant ``stat()`` call per file.
+
+        Returns
+        -------
+            New DataFrame with two additional columns:
+            - ``is_corrupt`` (bool)
+            - ``corruption_reason`` (str | null): "zero_byte",
+              "corrupt_or_unsupported", or null when the file is fine.
+
+        """
+        from PIL import Image
+
+        has_size = "size_bytes" in self._df.columns
+        paths = self._df["path"].to_list()
+        sizes = self._df["size_bytes"].to_list() if has_size else [None] * len(paths)
+        image_suffixes = (".jpg", ".jpeg", ".png", ".bmp")
+
+        def _check(path_str: str, known_size: Optional[int]) -> Optional[str]:
+            try:
+                p = Path(path_str)
+                if not p.is_file():
+                    return None
+                size = known_size if known_size is not None else p.stat().st_size
+                if size == 0:
+                    return "zero_byte"
+                if p.suffix.lower() in image_suffixes:
+                    try:
+                        with Image.open(p) as img:
+                            img.verify()
+                    except Exception:
+                        return "corrupt_or_unsupported"
+                return None
+            except Exception:
+                return None
+
+        reasons = [_check(p, s) for p, s in zip(paths, sizes)]
+
+        result = self._df.with_columns(
+            [
+                pl.Series("corruption_reason", reasons, dtype=pl.String),
+                pl.Series("is_corrupt", [r is not None for r in reasons], dtype=pl.Boolean),
+            ]
+        )
+
+        res = DataFrame(result, lineage=list(self._lineage))
+        res.add_lineage_entry("add_corruption_cols")
+        return res
+
     def add_depth_col(self, path: Optional[Union[str, Path]] = None, inplace: bool = False) -> "DataFrame":
         """Add a depth column showing the nesting level of each path.
 

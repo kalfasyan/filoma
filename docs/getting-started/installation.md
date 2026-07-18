@@ -31,7 +31,7 @@ pip install filoma
 
 ### Optimization (Optional)
 
-To ensure you have the **Fastest (Rust)** backend active, you should have the Rust toolchain installed when installing `filoma` so it can compile the extension:
+Most installs get the Rust backend for free: prebuilt wheels for Python 3.11 on macOS, Linux, and Windows bundle the compiled extension already, so there's nothing to do. If you're on a different Python version or platform, `pip`/`uv` builds the extension from source automatically during install, which needs a Rust toolchain — install one first if that build fails or you land on the fd/Python backend:
 
 ```bash
 # Install Rust toolchain

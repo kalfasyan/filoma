@@ -19,7 +19,7 @@ hand-rolled shell pipelines.
   current directory.
 - `filoma chat` — interactive REPL.
 - `filoma demo` — runs the full pipeline on a synthetic fixture.
-- `filoma mcp serve` — exposes 22 filesystem tools as an MCP server.
+- `filoma mcp serve` — exposes 24 filesystem tools as an MCP server.
 
 ## Python
 

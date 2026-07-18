@@ -91,6 +91,27 @@ Enriched columns include: `parent`, `name`, `stem`, `suffix`,
 `depth`. `sha256` and `xattrs` are populated only when explicitly
 requested.
 
+### Per-row quality columns
+
+Duplicate/corruption checks aren't just aggregate reports \u2014 they can be
+attached directly to the DataFrame as queryable columns, so you can
+filter/sort/count on them like any other column:
+
+```python
+df = flm.probe_to_df(".", enrich=True)
+df = df.add_duplicate_cols()    # adds is_exact_duplicate, exact_dup_group_id (sha256-based)
+df = df.add_corruption_cols()   # adds is_corrupt, corruption_reason (zero-byte / unreadable images)
+
+print(df.filter(pl.col("is_exact_duplicate")))   # only the duplicate rows
+print(df.filter(pl.col("is_corrupt")))           # only corrupt/zero-byte rows
+```
+
+`add_duplicate_cols()` computes sha256 automatically if not already
+present (reads full file content \u2014 slow on huge datasets). Only exact
+(byte-identical) duplicates are covered today; visual near-duplicates
+(perceptual hash) and text near-duplicates (MinHash) are not yet
+columns here \u2014 use the `filoma-dedup` skill for those until that lands.
+
 ## Single-file probing
 
 ```python

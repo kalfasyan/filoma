@@ -15,8 +15,8 @@ agent-facing surface: see [`src/filoma/skills/`](src/filoma/skills/).
 | -------------------------- | --------------------------------------------------------------------- |
 | `src/filoma/`              | Python source. `import filoma` is intentionally cheap (lazy imports). |
 | `src/*.rs`, `Cargo.toml`   | Rust backend, built via maturin.                                      |
-| `src/filoma/filaraki/`     | pydantic-ai agent + the 22 filesystem tools.                          |
-| `src/filoma/mcp_server.py` | MCP server exposing the same 22 tools.                                |
+| `src/filoma/filaraki/`     | pydantic-ai agent + the 24 filesystem tools.                          |
+| `src/filoma/mcp_server.py` | MCP server exposing the same 24 tools.                                |
 | `src/filoma/skills/`       | Bundled SKILL.md directories shipped to other agents.                 |
 | `tests/`                   | pytest suite (`-m integration` for tests needing API keys).           |
 | `docs/`                    | mkdocs site published to filoma.readthedocs.io.                       |
@@ -113,5 +113,14 @@ filoma mcp serve  # connect from any MCP client
 filoma skills list
 filoma skills install --scope project
 ```
+
+`.vscode/mcp.json` and `.mcp.json` (repo root) both point VS Code chat
+and Copilot CLI respectively at the local dev build (`uv run --directory
+. filoma mcp serve`), scoped to this workspace only — they don't touch
+your personal `~/.copilot/mcp-config.json` or global VS Code MCP config,
+which are separate, user-scoped, and shared across every repo you open.
+Run `copilot mcp list --json` from the repo root to confirm the workspace
+entry (`filoma-dev`) is picked up alongside any personal servers you've
+configured elsewhere.
 
 A change is only "done" when none of these are broken.

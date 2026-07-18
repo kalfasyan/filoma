@@ -132,23 +132,49 @@ _PY_TO_JSON_TYPE: dict[Any, str] = {
 }
 
 
-def _json_type_from_annotation(annotation: Any) -> str:
-    """Best-effort mapping from a Python type annotation to a JSON Schema type."""
+def _json_schema_for_annotation(annotation: Any) -> dict[str, Any]:
+    """Best-effort mapping from a Python type annotation to a JSON Schema fragment.
+
+    Returns e.g. ``{"type": "string"}`` for simple types, ``{"type": "array",
+    "items": {...}}`` for lists, or a ``{"oneOf": [...]}`` fragment for
+    multi-branch unions such as ``Union[str, List[str]]`` — a common "one or
+    many" parameter pattern in this codebase (e.g. ``filter_by_extension``).
+
+    Multi-branch unions used to flatten to a bare ``"string"`` type. That was
+    a real bug: MCP clients that dutifully passed a real JSON array for such
+    a parameter (as the tool's own docstring examples suggest they should)
+    would have it silently re-serialized to a string like ``'[".md"]'``
+    because the schema only advertised ``string``. That string then defeated
+    the tool's comma/whitespace-splitting fallback, corrupting the filter
+    into a value that could never match a real file and silently returning
+    zero results. Exposing the true ``oneOf`` shape lets a conforming client
+    send either a bare string or a real array correctly.
+    """
     if annotation is None or annotation is inspect.Parameter.empty:
-        return "string"
+        return {"type": "string"}
 
     # Strip Optional (Union[X, None])
     origin = get_origin(annotation)
     if origin is Union:
-        args = [a for a in get_args(annotation) if a is not type(None)]  # noqa: E721
-        if len(args) == 1:
-            return _json_type_from_annotation(args[0])
-        return "string"  # e.g. Union[str, List[str]] — flatten
+        branches = [a for a in get_args(annotation) if a is not type(None)]  # noqa: E721
+        if len(branches) == 1:
+            return _json_schema_for_annotation(branches[0])
+        # Multiple non-None branches (e.g. Union[str, List[str]]): expose
+        # each branch's real schema via oneOf instead of collapsing to a
+        # single lossy type.
+        schemas: list[dict[str, Any]] = []
+        for branch in branches:
+            schema = _json_schema_for_annotation(branch)
+            if schema not in schemas:
+                schemas.append(schema)
+        return schemas[0] if len(schemas) == 1 else {"oneOf": schemas}
 
     if origin is list:
-        return "array"
+        item_args = get_args(annotation)
+        item_schema = _json_schema_for_annotation(item_args[0]) if item_args else {"type": "string"}
+        return {"type": "array", "items": item_schema}
 
-    return _PY_TO_JSON_TYPE.get(annotation, "string")
+    return {"type": _PY_TO_JSON_TYPE.get(annotation, "string")}
 
 
 def _extract_description(func: Callable[..., Any]) -> str:
@@ -237,15 +263,10 @@ def _extract_param_schema(func: Callable[..., Any]) -> dict[str, Any]:
         if param.kind in (inspect.Parameter.VAR_POSITIONAL,):
             continue
 
-        json_type = _json_type_from_annotation(param.annotation)
-
-        prop: dict[str, Any] = {"type": json_type}
+        prop: dict[str, Any] = _json_schema_for_annotation(param.annotation)
         desc = param_descriptions.get(param_name, None)
         if desc:
             prop["description"] = desc
-
-        if json_type == "array":
-            prop["items"] = {"type": "string"}
 
         properties[param_name] = prop
 

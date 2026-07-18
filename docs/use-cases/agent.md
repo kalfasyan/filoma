@@ -60,11 +60,19 @@ asyncio.run(main())
 
 ## MCP server
 
-Filaraki can run as a Model Context Protocol server, exposing all 22 filesystem tools to any MCP-compatible client (nanobot, Claude Desktop, VS Code chat, etc.).
+Filaraki can run as a Model Context Protocol server, exposing all of filoma's filesystem tools to any MCP-compatible client (nanobot, Claude Desktop, VS Code chat, Copilot CLI, etc.).
 
 ```bash
 filoma mcp serve
 ```
+
+### Connect to Copilot CLI
+
+```bash
+copilot mcp add filoma -- uvx -p 3.11 filoma mcp serve
+```
+
+One command, no config file to write. See [Using Filoma with GitHub Copilot](../guides/filaraki.md#using-filoma-with-github-copilot) in the Filaraki guide for VS Code chat and Copilot coding agent setup too.
 
 ### Connect to nanobot
 
@@ -74,7 +82,7 @@ Add to `~/.nanobot/config.json`:
 "mcpServers": {
   "filoma": {
     "command": "uvx",
-    "args": ["--python", ">=3.11", "filoma", "mcp", "serve"]
+    "args": ["--python", "3.11", "filoma", "mcp", "serve"]
   }
 }
 ```
@@ -168,10 +176,10 @@ Filaraki: sort_dataframe_by_size completed. Top 10:
 
 ## Available tools
 
-Filaraki has 22 tools covering directory analysis, file operations, DataFrame manipulation, image analysis, and data quality checks. The agent decides which tools to call based on your query — you don't need to know the tool names.
+Filaraki has 24 tools covering directory analysis, file operations, DataFrame manipulation, image analysis, and data quality checks. The agent decides which tools to call based on your query — you don't need to know the tool names.
 
 ## What to read next
 
-- [Filaraki guide](../guides/filaraki.md) — full reference: all 22 tools, environment config, troubleshooting, nanobot setup details
+- [Filaraki guide](../guides/filaraki.md) — full reference: all 24 tools, environment config, troubleshooting, nanobot setup details
 - [Audit a Dataset](audit.md) — the audit use case Filaraki can automate
 - [Explore a Dataset](explore.md) — understand the probe/DataFrame tools the agent uses under the hood

@@ -70,3 +70,4 @@ tmp/audit_weeds3_v2.json
 
 # Shared MCP config (explicitly un-ignored despite the *.json rule above)
 !.vscode/mcp.json
+!.mcp.json
