@@ -1,6 +1,6 @@
 ---
 name: filoma-dedup
-description: Find duplicate files, duplicate images (perceptual hash), duplicate text files, and train/test data leakage in one or more directories using filoma. Use when the user mentions duplicate files, deduplicating a dataset, removing duplicates, finding identical or near-identical images, perceptual hashing, train/test leakage, cross-directory duplicate detection, or wants to deduplicate before training. Returns groups for three categories: exact (sha256), text (MinHash), and image (perceptual hash). Requires filoma installed.
+description: Find duplicate files, duplicate images (perceptual hash), duplicate text files, and train/test data leakage in one or more directories using filoma. Use when the user mentions duplicate files, deduplicating a dataset, removing duplicates, finding identical or near-identical images, perceptual hashing, train/test leakage, cross-directory duplicate detection, or wants to deduplicate before training. Returns groups for three categories — exact (sha256), text (MinHash), and image (perceptual hash). Requires filoma installed.
 ---
 
 # Filoma Dedup

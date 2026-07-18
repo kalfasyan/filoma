@@ -59,7 +59,10 @@ analysis.print_report()           # detailed: extensions + folder stats
 ```
 
 This is the right call when the user wants "overall stats" rather
-than per-file detail.
+than per-file detail. **Call `probe()` once and reuse the returned
+`analysis` object for both calls** — each `probe()` re-walks the
+entire directory tree, so invoking it twice (e.g. in two separate
+shell/python calls) doubles the scan cost for no benefit.
 
 ### 3. Enriched DataFrame (most powerful)
 
@@ -67,12 +70,20 @@ than per-file detail.
 import filoma as flm
 
 df = flm.probe_to_df(".", enrich=True)
-df.filter_by_extension([".py", ".rs"])    # in-place chainable
-df.extension_counts()                     # group-by extension
-df.directory_counts()                     # group-by parent dir
-df.sort("size_bytes", descending=True).head(5)
-df.pandas                                 # pandas conversion (free)
+print(df.filter_by_extension([".py", ".rs"]))    # returns a NEW DataFrame
+print(df.extension_counts())                       # group-by extension
+print(df.directory_counts())                       # group-by parent dir
+print(df.sort("size_bytes", descending=True).head(5))
+df.pandas                                          # pandas conversion (free)
 ```
+
+**Every filter / sort / group method above returns a new `DataFrame`
+— none of them mutate `df` in place.** A bare
+`df.filter_by_extension([...])` statement with no assignment or
+`print(...)` silently does nothing to `df` and produces no visible
+output; always do `df = df.filter_by_extension([...])` or chain /
+print the return value directly, especially when running a snippet
+as a one-shot script (e.g. `python3 -c "..."`).
 
 Enriched columns include: `parent`, `name`, `stem`, `suffix`,
 `size_bytes`, `modified_time`, `created_time`, `is_file`, `is_dir`,
@@ -109,17 +120,20 @@ Only mention backends if the user asks why something is slow.
 df = flm.probe_to_df("data/", enrich=True)
 
 # Largest 10 .npy files
-(df.filter_by_extension([".npy"])
-   .sort("size_bytes", descending=True)
-   .head(10))
+largest_npy = (df.filter_by_extension([".npy"])
+                 .sort("size_bytes", descending=True)
+                 .head(10))
+print(largest_npy)
 
 # Files owned by a specific user
-df.filter_by_pattern(r".*\.log$").filter(pl.col("owner") == "alice")
+alice_logs = df.filter_by_pattern(r".*\.log$").filter(pl.col("owner") == "alice")
+print(alice_logs)
 
 # Files modified in the last week
 import datetime as dt
 cutoff = dt.datetime.now() - dt.timedelta(days=7)
-df.filter(pl.col("modified_time") > cutoff)
+recent = df.filter(pl.col("modified_time") > cutoff)
+print(recent)
 ```
 
 ## Performance tips

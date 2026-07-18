@@ -119,7 +119,7 @@ def count_files(ctx: RunContext[Any], path: str) -> str:
 
 
 @tool_registry.register
-def audit_corrupted_files(ctx: RunContext[Any], path: str) -> str:
+def audit_corrupted_files(ctx: RunContext[Any], path: str, include_hidden: bool = True) -> str:
     """Perform a corrupted file audit and return a structured report.
 
     This tool checks for zero-byte files, corrupt images, and other integrity issues.
@@ -127,6 +127,8 @@ def audit_corrupted_files(ctx: RunContext[Any], path: str) -> str:
     Args:
         ctx: The run context.
         path: Path to the directory to audit.
+        include_hidden: Whether to include hidden (dot-prefixed) directories
+            such as .git, .venv, .pixi in the audit. Defaults to True.
 
     Returns:
         JSON-formatted audit report with findings and recommendations.
@@ -141,7 +143,7 @@ def audit_corrupted_files(ctx: RunContext[Any], path: str) -> str:
         from filoma.core.verifier import DatasetVerifier
 
         # Run integrity checks
-        verifier = DatasetVerifier(str(p))
+        verifier = DatasetVerifier(str(p), include_hidden=include_hidden)
         results = verifier.check_integrity()
 
         # Derive total scanned files for accurate success-rate semantics
@@ -218,7 +220,7 @@ def audit_corrupted_files(ctx: RunContext[Any], path: str) -> str:
 
 
 @tool_registry.register
-def generate_hygiene_report(ctx: RunContext[Any], path: str) -> str:
+def generate_hygiene_report(ctx: RunContext[Any], path: str, include_hidden: bool = True) -> str:
     """Generate a dataset hygiene report with quality metrics.
 
     This tool analyzes dataset quality including duplicates, class balance,
@@ -227,6 +229,8 @@ def generate_hygiene_report(ctx: RunContext[Any], path: str) -> str:
     Args:
         ctx: The run context.
         path: Path to the dataset directory.
+        include_hidden: Whether to include hidden (dot-prefixed) directories
+            such as .git, .venv, .pixi in the report. Defaults to True.
 
     Returns:
         JSON-formatted hygiene report with metrics and issues.
@@ -241,7 +245,7 @@ def generate_hygiene_report(ctx: RunContext[Any], path: str) -> str:
         from filoma.core.verifier import DatasetVerifier
 
         # Run quality checks
-        verifier = DatasetVerifier(str(p))
+        verifier = DatasetVerifier(str(p), include_hidden=include_hidden)
         results = verifier.run_all()
 
         # Process metrics
@@ -366,7 +370,7 @@ def generate_hygiene_report(ctx: RunContext[Any], path: str) -> str:
 
 
 @tool_registry.register
-def assess_migration_readiness(ctx: RunContext[Any], path: str) -> str:
+def assess_migration_readiness(ctx: RunContext[Any], path: str, include_hidden: bool = True) -> str:
     """Assess dataset migration readiness with structured analysis.
 
     Evaluates dataset stability, structure, and readiness for migration.
@@ -374,6 +378,8 @@ def assess_migration_readiness(ctx: RunContext[Any], path: str) -> str:
     Args:
         ctx: The run context.
         path: Path to the dataset directory.
+        include_hidden: Whether to include hidden (dot-prefixed) directories
+            such as .git, .venv, .pixi in the integrity check. Defaults to True.
 
     Returns:
         JSON-formatted migration readiness report.
@@ -388,7 +394,7 @@ def assess_migration_readiness(ctx: RunContext[Any], path: str) -> str:
         from filoma.core.verifier import DatasetVerifier
 
         # Run verification to check integrity
-        verifier = DatasetVerifier(str(p))
+        verifier = DatasetVerifier(str(p), include_hidden=include_hidden)
         integrity_results = verifier.check_integrity()
 
         # Items evaluation
@@ -528,6 +534,7 @@ def audit_dataset(
     export_path: Optional[str] = None,
     export_format: str = "json",
     dataframe: Any = None,
+    include_hidden: bool = True,
 ) -> str:
     """Run a full dataset audit workflow in one call.
 
@@ -541,6 +548,10 @@ def audit_dataset(
     When *dataframe* is provided (a pre-computed filoma DataFrame), the
     function skips the internal ``probe_to_df`` call and uses the cached
     frame for extension/split distribution profiling.
+
+    Set *include_hidden* to False to exclude hidden (dot-prefixed)
+    directories such as ``.git``, ``.venv``, ``.pixi`` from every stage of
+    the audit. Defaults to True (scan everything).
     """
     p = Path(path).expanduser().resolve()
     if not p.exists():
@@ -556,9 +567,9 @@ def audit_dataset(
 
     import re
 
-    corruption_report = audit_corrupted_files(ctx, str(p))
-    hygiene_report = generate_hygiene_report(ctx, str(p))
-    readiness_report = assess_migration_readiness(ctx, str(p))
+    corruption_report = audit_corrupted_files(ctx, str(p), include_hidden=include_hidden)
+    hygiene_report = generate_hygiene_report(ctx, str(p), include_hidden=include_hidden)
+    readiness_report = assess_migration_readiness(ctx, str(p), include_hidden=include_hidden)
 
     corruption_data = _extract_json_payload(corruption_report)
     hygiene_data = _extract_json_payload(hygiene_report)

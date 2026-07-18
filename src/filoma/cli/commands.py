@@ -258,6 +258,7 @@ def audit_command(
     format: str = typer.Option("json", "--format", "-f", help="Report format: json, md, or html"),
     mode: str = typer.Option("concise", "--mode", "-m", help="Audit mode: concise or verbose"),
     show_evidence: bool = typer.Option(False, "--show-evidence", help="Include detailed evidence in report"),
+    exclude_hidden: bool = typer.Option(False, "--exclude-hidden", help="Exclude hidden (dot-prefixed) directories like .git, .venv, .pixi from the audit"),
 ) -> None:
     """Audit a dataset for corruption, hygiene, and migration readiness.
 
@@ -309,6 +310,7 @@ def audit_command(
             show_evidence=show_evidence,
             export_path=str(json_path),
             export_format="json",
+            include_hidden=not exclude_hidden,
         )
     except Exception as e:
         console.print(f"[red]Audit execution failed: {e}[/red]")
@@ -468,13 +470,14 @@ def verify(
 @app.command()
 def quality(
     path: str = typer.Argument(..., help="Dataset path for quality check"),
+    exclude_hidden: bool = typer.Option(False, "--exclude-hidden", help="Exclude hidden (dot-prefixed) directories like .git, .venv, .pixi from the checks"),
 ) -> None:
     """Run data quality analysis on a dataset."""
     from filoma.core.verifier import DatasetVerifier
 
     console.print(f"[bold blue]Running quality checks on {path}...[/bold blue]")
     try:
-        verifier = DatasetVerifier(path)
+        verifier = DatasetVerifier(path, include_hidden=not exclude_hidden)
         verifier.run_all()
         verifier.print_summary()
     except Exception as e:

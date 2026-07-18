@@ -13,6 +13,7 @@ import pytest
 from typer.testing import CliRunner
 
 from filoma.cli import app
+from filoma.cli.skills import _extract_skill_description
 from filoma.skills import BUNDLED_SKILLS, iter_bundled_skills
 
 
@@ -34,6 +35,23 @@ def test_bundled_skills_have_skill_md():
         assert "description:" in body, f"{name}: missing 'description' frontmatter field"
 
     assert seen == set(BUNDLED_SKILLS), f"BUNDLED_SKILLS list out of sync: declared {set(BUNDLED_SKILLS)}, found {seen}"
+
+
+def test_bundled_skills_frontmatter_is_valid_yaml():
+    """Regression test: a bare ``: `` inside an unquoted description breaks
+    the YAML frontmatter for real YAML parsers (VS Code, Copilot CLI, Claude),
+    even though filoma's own lightweight text-scan parser tolerates it and
+    the CLI keeps working — which is exactly how ``filoma-dedup``'s skill
+    silently failed to load in Copilot CLI ("Failed to load 1 skill") while
+    `filoma skills list` looked completely fine.
+    """
+    for name, skill_dir in iter_bundled_skills():
+        description = _extract_skill_description(skill_dir / "SKILL.md")
+        assert description is not None, f"{name}: could not extract description"
+        assert ": " not in description, (
+            f"{name}: description contains a bare ': ' which breaks YAML frontmatter "
+            "parsing for agents that do strict YAML parsing (use an em dash — or comma instead)"
+        )
 
 
 def test_skills_list_command(runner: CliRunner):

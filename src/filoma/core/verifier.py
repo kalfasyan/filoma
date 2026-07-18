@@ -1,8 +1,9 @@
 """Dataset verification utilities."""
 
 import json
+import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterator, Optional
 
 from PIL import Image
 from rich.console import Console
@@ -16,11 +17,40 @@ from filoma.core.snapshot import verify as verify_snapshot
 class DatasetVerifier:
     """Orchestrator for dataset integrity and quality checks."""
 
-    def __init__(self, root_dir: str):
-        """Initialize the DatasetVerifier with the root directory to verify."""
+    def __init__(self, root_dir: str, include_hidden: bool = True):
+        """Initialize the DatasetVerifier with the root directory to verify.
+
+        Args:
+        ----
+            root_dir: Directory to verify.
+            include_hidden: Whether hidden (dot-prefixed) files and
+                directories are included in every check. Defaults to True,
+                matching filoma's existing scan-everything default elsewhere
+                (e.g. ``probe``/``probe_to_df``). Set to False to skip
+                dot-directories such as ``.git``, ``.venv``, ``.pixi``, etc.
+                — useful when auditing a project checkout rather than a
+                pure dataset folder.
+
+        """
         self.root_dir = Path(root_dir)
+        self.include_hidden = include_hidden
         self.console = Console()
         self.results = {}
+
+    def _iter_files(self) -> Iterator[Path]:
+        """Yield every file under ``root_dir``.
+
+        When ``include_hidden`` is False, hidden directories are pruned
+        from the walk entirely (not just filtered from the results), so
+        excluding e.g. a huge ``.pixi``/``.venv`` tree also avoids the cost
+        of descending into it.
+        """
+        for dirpath, dirnames, filenames in os.walk(self.root_dir):
+            if not self.include_hidden:
+                dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+            for filename in filenames:
+                if self.include_hidden or not filename.startswith("."):
+                    yield Path(dirpath) / filename
 
     def run_all(self, label_source: str = "auto"):
         """Run all verification checks."""
@@ -37,17 +67,16 @@ class DatasetVerifier:
     def check_integrity(self) -> Dict[str, Any]:
         """Check for zero-byte files and corrupt images."""
         failed_files = []
-        for path in self.root_dir.rglob("*"):
-            if path.is_file():
-                if path.stat().st_size == 0:
-                    failed_files.append({"path": str(path), "reason": "zero_byte"})
-                    continue
-                if path.suffix.lower() in [".jpg", ".jpeg", ".png", ".bmp"]:
-                    try:
-                        with Image.open(path) as img:
-                            img.verify()
-                    except Exception:
-                        failed_files.append({"path": str(path), "reason": "corrupt_or_unsupported"})
+        for path in self._iter_files():
+            if path.stat().st_size == 0:
+                failed_files.append({"path": str(path), "reason": "zero_byte"})
+                continue
+            if path.suffix.lower() in [".jpg", ".jpeg", ".png", ".bmp"]:
+                try:
+                    with Image.open(path) as img:
+                        img.verify()
+                except Exception:
+                    failed_files.append({"path": str(path), "reason": "corrupt_or_unsupported"})
         return {"failed_files": failed_files}
 
     def check_dimensions(self) -> Dict[str, Any]:
@@ -55,7 +84,7 @@ class DatasetVerifier:
         from collections import Counter
 
         dimensions = []
-        for path in self.root_dir.rglob("*"):
+        for path in self._iter_files():
             if path.suffix.lower() in [".jpg", ".jpeg", ".png", ".bmp"]:
                 try:
                     with Image.open(path) as img:
@@ -80,7 +109,7 @@ class DatasetVerifier:
         """Find near-duplicate images."""
         hashes = {}
         duplicates = []
-        for path in self.root_dir.rglob("*"):
+        for path in self._iter_files():
             if path.suffix.lower() in [".jpg", ".jpeg", ".png", ".bmp"]:
                 try:
                     h = dedup.dhash_image(str(path))
@@ -103,7 +132,9 @@ class DatasetVerifier:
 
         # 1. Try CSV
         if label_source in ["auto", "csv"]:
-            for path in self.root_dir.rglob("*.csv"):
+            for path in self._iter_files():
+                if path.suffix.lower() != ".csv":
+                    continue
                 try:
                     df = pd.read_csv(path)
                     # Check for common column names: 'label', 'class', etc.
@@ -117,8 +148,8 @@ class DatasetVerifier:
 
         # 2. If no csv, fallback to directory structure
         if not counts and label_source in ["auto", "folder"]:
-            for path in self.root_dir.rglob("*"):
-                if path.is_file() and path.suffix.lower() in [".jpg", ".jpeg", ".png", ".bmp"]:
+            for path in self._iter_files():
+                if path.suffix.lower() in [".jpg", ".jpeg", ".png", ".bmp"]:
                     # Assume structure: root/split/class/filename or root/class/filename
                     # We'll take the parent directory name as the class
                     counts[path.parent.name] += 1
@@ -130,8 +161,8 @@ class DatasetVerifier:
         from collections import defaultdict
 
         files_per_split = defaultdict(set)
-        for path in self.root_dir.rglob("*"):
-            if path.is_file() and path.suffix.lower() in [".jpg", ".jpeg", ".png", ".bmp"]:
+        for path in self._iter_files():
+            if path.suffix.lower() in [".jpg", ".jpeg", ".png", ".bmp"]:
                 # Assume dir structure root/split/filename
                 split = path.parent.name
                 if split in ["train", "valid", "test"]:
@@ -152,7 +183,7 @@ class DatasetVerifier:
         import numpy as np
 
         anomalous_files = []
-        for path in self.root_dir.rglob("*"):
+        for path in self._iter_files():
             if path.suffix.lower() in [".jpg", ".jpeg", ".png", ".bmp"]:
                 try:
                     with Image.open(path) as img:

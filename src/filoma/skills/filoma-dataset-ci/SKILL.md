@@ -47,8 +47,24 @@ For a real dataset at `<path>`:
 
 ```bash
 # CLI — most common
-filoma audit <path>                 # exits 0 on pass, non-zero on fail (CI-ready)
+filoma audit <path>                                         # terminal summary only, exits 0/non-zero (CI-ready)
+filoma audit <path> --export audit.html --format html       # summary + HTML report in ONE pass
+filoma audit <path> --exclude-hidden --export audit.html --format html   # skip .git/.venv/.pixi/etc.
 ```
+
+**If a report file is wanted, pass `--export`/`--format` on this same
+command.** Don't run a plain `filoma audit <path>` first and then a
+separate export step afterwards (CLI again, or the `audit_dataset`
+Python call below) — both run the full corruption + hygiene +
+readiness pipeline, so doing both repeats the entire (expensive)
+audit for no benefit.
+
+**Auditing a project checkout instead of a pure dataset folder?** Pass
+`--exclude-hidden` (CLI) / `include_hidden=False` (Python) so dependency
+and VCS directories like `.git`, `.venv`, `.pixi`, `.pytest_cache` don't
+show up as "corrupted"/"zero-byte" findings — by default filoma scans
+everything under `<path>`, hidden directories included, matching
+`probe()`'s own default.
 
 Or, equivalently, from Python:
 
@@ -85,10 +101,16 @@ to a PR comment in CI.
 
 ## Programmatic export
 
+Use this from Python **instead of** `filoma audit`, not as a follow-up
+to it — running both repeats the full audit pipeline a second time:
+
 ```python
 from filoma.filaraki.tools import audit_dataset
 audit_dataset(None, "<path>", export_path="audit.html", export_format="html")
 audit_dataset(None, "<path>", export_path="audit.json", export_format="json")
+
+# Exclude hidden directories (.git, .venv, .pixi, ...) from every stage:
+audit_dataset(None, "<path>", export_path="audit.html", export_format="html", include_hidden=False)
 ```
 
 ## Targeted sub-audits
