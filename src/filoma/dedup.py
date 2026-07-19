@@ -6,6 +6,9 @@ This module provides:
 - optional MinHash if `datasketch` is installed (`minhash_signature`)
 - image perceptual hashes: aHash and dHash (`ahash_image`, `dhash_image`) using Pillow when available
 - high-level `find_duplicates` that can detect exact, near-duplicate text and image files
+- `summarize_duplicate_directories` to roll file-level duplicate groups up into
+  directory-pair overlap stats, for spotting near-duplicate/mirrored folder
+  trees without reading a report listing every individual duplicate file
 
 The implementation avoids hard dependencies; Pillow and datasketch are optional.
 """
@@ -15,8 +18,10 @@ from __future__ import annotations
 import hashlib
 import os
 import re
-from collections import defaultdict
-from typing import Dict, Iterable, List, Set
+from collections import Counter, defaultdict
+from itertools import combinations
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 try:
     from PIL import Image
@@ -252,6 +257,79 @@ def find_duplicates(
             image_groups.append(group)
 
     return {"exact": exact, "text": text_groups, "image": image_groups}
+
+
+def summarize_duplicate_directories(
+    duplicate_groups: Iterable[Iterable[str]],
+    all_paths: Optional[Iterable[str]] = None,
+    min_shared: int = 1,
+) -> List[Dict[str, Any]]:
+    """Aggregate file-level duplicate groups into directory-pair overlap counts.
+
+    Answers "are these two folders near-duplicates of each other?" from a
+    duplicate-file report without reading every individual file pair — a
+    report that can balloon to tens of thousands of lines / megabytes of
+    output on a dataset with thousands of duplicate files (e.g. a dataset
+    export nested inside its own augmented copy), which is expensive for an
+    agent to page through and often the *real* question being asked.
+
+    For each duplicate group, every pair of distinct parent directories
+    among its files gets its shared-file count incremented by one. The
+    result is a compact, directory-count-sized report (not file-count-sized)
+    regardless of how many duplicate files exist.
+
+    Args:
+    ----
+        duplicate_groups: Groups of duplicate file paths, e.g. from
+            ``find_duplicates(...)["exact"]``.
+        all_paths: Optional full list of scanned paths (not just
+            duplicates), used to compute each directory's total file count
+            so an ``overlap_pct`` can be reported alongside the raw
+            shared-file count. If omitted, the ``*_total_files``/
+            ``overlap_pct`` fields are left as ``None``.
+        min_shared: Only report directory pairs sharing at least this many
+            duplicate files (default 1 — every pair found).
+
+    Returns:
+    -------
+        A list of dicts, one per directory pair, sorted by ``shared_files``
+        descending: ``{"dir_a", "dir_b", "shared_files", "dir_a_total_files",
+        "dir_b_total_files", "overlap_pct"}``. ``overlap_pct`` is
+        ``shared_files / min(dir_a_total_files, dir_b_total_files) * 100``,
+        rounded to 1 decimal (``None`` if ``all_paths`` wasn't given, or
+        either directory's total is unknown/zero).
+
+    """
+    pair_counts: Dict[Tuple[str, str], int] = defaultdict(int)
+    for group in duplicate_groups:
+        dirs = sorted({str(Path(p).parent) for p in group})
+        for dir_a, dir_b in combinations(dirs, 2):
+            pair_counts[(dir_a, dir_b)] += 1
+
+    dir_totals: Dict[str, int] = {}
+    if all_paths is not None:
+        dir_totals = dict(Counter(str(Path(p).parent) for p in all_paths))
+
+    results: List[Dict[str, Any]] = []
+    for (dir_a, dir_b), shared in pair_counts.items():
+        if shared < min_shared:
+            continue
+        total_a = dir_totals.get(dir_a)
+        total_b = dir_totals.get(dir_b)
+        overlap_pct = round(shared / min(total_a, total_b) * 100, 1) if total_a and total_b else None
+        results.append(
+            {
+                "dir_a": dir_a,
+                "dir_b": dir_b,
+                "shared_files": shared,
+                "dir_a_total_files": total_a,
+                "dir_b_total_files": total_b,
+                "overlap_pct": overlap_pct,
+            }
+        )
+
+    results.sort(key=lambda r: r["shared_files"], reverse=True)
+    return results
 
 
 if __name__ == "__main__":

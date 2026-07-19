@@ -185,6 +185,59 @@ class TestToolExecution:
         text = result[0].text
         assert "Hello" in text
 
+    @pytest.fixture
+    def mirrored_dir(self):
+        """Two directories that are near-perfect mirrors of each other."""
+        with tempfile.TemporaryDirectory() as td:
+            temp_path = Path(td)
+            original = temp_path / "original"
+            mirror = temp_path / "mirror"
+            original.mkdir()
+            mirror.mkdir()
+            for i in range(5):
+                content = f"identical content {i}"
+                (original / f"file{i}.txt").write_text(content)
+                (mirror / f"file{i}.txt").write_text(content)
+            # One unique file so the dirs aren't a 100% byte-for-byte match.
+            (original / "unique.txt").write_text("only in original")
+            yield temp_path
+
+    @pytest.mark.asyncio
+    async def test_find_duplicates_flags_near_duplicate_directories(self, mirrored_dir):
+        """The default report should proactively call out the mirrored directory pair."""
+        result = await call_tool("find_duplicates", {"path": str(mirrored_dir), "ignore_safety_limits": True})
+        assert len(result) == 1
+        text = result[0].text
+        assert "NEAR-DUPLICATE" in text
+        assert "original" in text and "mirror" in text
+
+    @pytest.mark.asyncio
+    async def test_find_duplicates_group_by_directory_is_compact(self, mirrored_dir):
+        """group_by_directory=True must return a directory-pair summary, not every file."""
+        result = await call_tool("find_duplicates", {"path": str(mirrored_dir), "ignore_safety_limits": True, "group_by_directory": True})
+        assert len(result) == 1
+        text = result[0].text
+        assert "DIRECTORY-PAIR OVERLAP" in text
+        assert "5" in text  # 5 shared files
+        # Must NOT enumerate individual file paths/groups the way the default report does.
+        assert "Group 1:" not in text
+
+    @pytest.mark.asyncio
+    async def test_find_duplicates_caps_group_listing(self, tmp_path, monkeypatch):
+        """The default (non-grouped) report must cap how many full groups it lists."""
+        monkeypatch.setattr("filoma.filaraki.tools._DUPLICATE_GROUPS_DISPLAY_LIMIT", 2)
+
+        big_dir = tmp_path / "many_dupes"
+        big_dir.mkdir()
+        for i in range(5):
+            (big_dir / f"a{i}.txt").write_text(f"same content {i}")
+            (big_dir / f"b{i}.txt").write_text(f"same content {i}")
+
+        result = await call_tool("find_duplicates", {"path": str(big_dir), "ignore_safety_limits": True})
+        text = result[0].text
+        assert text.count("Group ") <= 2
+        assert "more duplicate groups not shown" in text
+
 
 class TestDataFrameState:
     """Test DataFrame state management across tool calls."""

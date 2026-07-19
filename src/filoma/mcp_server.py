@@ -181,7 +181,7 @@ DIRECTORY ANALYSIS:
 - count_files: Full recursive scan counting all files/folders
 - probe_directory: Scan directory for summary statistics
 - get_directory_tree: List immediate directory contents
-- find_duplicates: Find duplicate files
+- find_duplicates: Find duplicate files (pass group_by_directory=True for a compact near-duplicate-folder summary)
 
 FILE OPERATIONS:
 - get_file_info: Detailed file metadata

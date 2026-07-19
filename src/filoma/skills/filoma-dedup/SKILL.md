@@ -20,6 +20,7 @@ Trigger on:
 - "is there leakage between my train and validation sets?"
 - "find near-duplicate / similar images" (perceptual hash)
 - "find files that contain the same text" (MinHash on text)
+- "are these two folders near-duplicates / mirrors of each other?"
 
 Do **not** use this skill for:
 
@@ -93,6 +94,36 @@ dupes = df.evaluate_duplicates(cross_dir_paths=["train/", "valid/"])
   priority finding. Recommend the user remove duplicates from the
   validation set, not the training set, to preserve the held-out
   property of the eval set.
+
+## Are two whole folders near-duplicates? (cheap, no huge report)
+
+A dataset directory that contains a full copy of itself nested
+somewhere (e.g. an "augmented" export that also bundles the original
+images) produces thousands of exact-duplicate groups — reading that
+file-by-file burns a lot of tokens for a question that's really "are
+these two folders mirrors of each other?".
+
+Use `group_by_directory=True` on the `find_duplicates` agent/MCP tool
+instead of the default file-level report:
+
+```
+find_duplicates(path="./data", group_by_directory=True)
+```
+
+This returns a handful of directory-pair lines (`shared_files`,
+`overlap_pct`) instead of every file, e.g.:
+
+```
+DIRECTORY-PAIR OVERLAP (sorted by shared files):
+  - data/test  <->  data/mirror/test: 8,408 shared files (99.9% overlap)
+```
+
+The default (non-grouped) report also proactively surfaces this: it
+caps the file listing at 50 groups and prints a **"POSSIBLE
+NEAR-DUPLICATE / MIRRORED DIRECTORIES"** section up top whenever a
+pair has ≥90% overlap, so you often don't need `group_by_directory`
+at all to notice a mirrored folder. Programmatically, the same
+rollup is `filoma.dedup.summarize_duplicate_directories(groups, all_paths=...)`.
 
 ## Performance notes
 

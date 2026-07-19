@@ -112,7 +112,13 @@ That's it. `copilot mcp list` immediately shows `filoma`, and Copilot can call `
 
 > Pin an exact Python version — `-p 3.11` (short for `--python 3.11`) — rather than a range like `>=3.11`. Filoma only publishes prebuilt wheels for cp311, so an exact pin guarantees `uvx` grabs the fast prebuilt wheel instead of silently falling back to a slower from-source build on whatever Python happens to be ambient by default.
 
+<!-- -->
+
 > This filoma repo ships its own `.vscode/mcp.json`, pointed at the local development build (`uv run filoma mcp serve`) instead of `uvx`, so contributors get the in-progress MCP server automatically when they open this workspace in Copilot Chat.
+
+<!-- -->
+
+> ⚠️ **Contributing to filoma and also use the global `filoma` server above?** You now have two MCP servers exposing the same tool names — the workspace one (dev build, this exact checkout, uncommitted changes included) and the global one (`uvx`, whatever was last published to PyPI). They're separate processes; a fix you just made locally is invisible to the global one until it's released. If a tool call behaves like an older version of filoma, that's usually why — check `copilot mcp list --json` for both entries, and prefer the workspace one (often named `filoma-dev` in Copilot CLI) while iterating on unreleased changes.
 
 ## MCP Server Configuration with Nanobot
 

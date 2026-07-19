@@ -42,6 +42,20 @@ _EMBED_SAFETY_LIMIT = 500
 # tighter accordingly.
 _IMAGE_EMBED_SAFETY_LIMIT = 300
 
+# Cap on how many full duplicate groups (every file path listed) `find_duplicates`
+# prints by default. A dataset containing a mirrored/augmented copy of
+# itself can have thousands of duplicate groups — listing every file in
+# every group can balloon to megabytes of output that's slow and expensive
+# for an agent to read, when a handful of directory-pair overlap stats
+# (`group_by_directory=True`) usually answers the real question. See
+# docs/guides/dedup.md.
+_DUPLICATE_GROUPS_DISPLAY_LIMIT = 50
+
+# Minimum overlap_pct (see filoma.dedup.summarize_duplicate_directories) for
+# a directory pair to be proactively flagged as a likely near-duplicate/
+# mirrored folder in find_duplicates' report header.
+_NEAR_DUPLICATE_DIR_OVERLAP_PCT = 90.0
+
 
 def _is_mcp_stdio_mode() -> bool:
     """Return True when running under MCP stdio transport."""
@@ -1309,6 +1323,7 @@ def find_duplicates(
     path: str,
     ignore_safety_limits: bool = False,
     strategy: str = "exact",
+    group_by_directory: bool = False,
 ) -> str:
     """Find duplicate files in a directory via exact content matching.
 
@@ -1316,12 +1331,25 @@ def find_duplicates(
     strategy is accepted for compatibility but ignored — duplicates are
     always matched by SHA-256 content hash.
 
+    For "do I have two near-duplicate/mirrored folders?" questions, pass
+    `group_by_directory=True`: instead of listing every individual
+    duplicate file (which can be tens of thousands of lines on a dataset
+    that contains a mirrored/augmented copy of itself), this returns a
+    compact per-directory-pair summary (shared file count + overlap %),
+    sized by directory count rather than file count. The default
+    (`group_by_directory=False`) report also caps at
+    `_DUPLICATE_GROUPS_DISPLAY_LIMIT` groups and always includes a short
+    "possible near-duplicate directories" hint up top when the data
+    suggests it, so you don't have to ask a follow-up question to find out.
+
     Args:
     ----
         ctx: The run context.
         path: The path to the directory to check for duplicates.
         ignore_safety_limits: If True, allows deep scanning for duplicates.
         strategy: Ignored — duplicates are always matched by exact hash.
+        group_by_directory: If True, return a compact directory-pair
+            overlap summary instead of listing every duplicate file.
 
     """
     try:
@@ -1341,6 +1369,11 @@ def find_duplicates(
         exact_groups = dupes.get("exact", [])
         exact_count = sum(len(g) for g in exact_groups) if exact_groups else 0
 
+        from filoma.dedup import summarize_duplicate_directories
+
+        all_paths = [str(fp) for fp in df.to_polars()["path"].to_list() if Path(fp).is_file()] if "path" in df.columns else []
+        dir_overlap = summarize_duplicate_directories(exact_groups, all_paths=all_paths, min_shared=2)
+
         report = (
             f"DUPLICATE REPORT FOR: {p}\n"
             f"--------------------------------------------------\n"
@@ -1349,10 +1382,42 @@ def find_duplicates(
             f"--------------------------------------------------\n"
         )
 
-        for i, group in enumerate(exact_groups):
+        # Proactively surface directory-level overlap — "are these two
+        # folders near-duplicates?" is usually the real question behind a
+        # large duplicate report.
+        strong_overlap = [d for d in dir_overlap if d["shared_files"] >= 3 and (d["overlap_pct"] or 0) >= _NEAR_DUPLICATE_DIR_OVERLAP_PCT]
+        if strong_overlap:
+            report += "\nPOSSIBLE NEAR-DUPLICATE / MIRRORED DIRECTORIES:\n"
+            for d in strong_overlap[:5]:
+                pct = f"{d['overlap_pct']}%" if d["overlap_pct"] is not None else "?"
+                report += f"  - {d['dir_a']}  <->  {d['dir_b']}: {d['shared_files']:,} shared files ({pct} overlap)\n"
+            report += "  (pass group_by_directory=True for the full directory-pair breakdown)\n"
+            report += "--------------------------------------------------\n"
+
+        if group_by_directory:
+            if not dir_overlap:
+                return report + "\nNo directory pairs share 2+ duplicate files."
+            report += "\nDIRECTORY-PAIR OVERLAP (sorted by shared files):\n"
+            for d in dir_overlap[:_DUPLICATE_GROUPS_DISPLAY_LIMIT]:
+                pct = f"{d['overlap_pct']}%" if d["overlap_pct"] is not None else "?"
+                report += f"  - {d['dir_a']}  <->  {d['dir_b']}: {d['shared_files']:,} shared files ({pct} overlap)\n"
+            if len(dir_overlap) > _DUPLICATE_GROUPS_DISPLAY_LIMIT:
+                report += f"  ... and {len(dir_overlap) - _DUPLICATE_GROUPS_DISPLAY_LIMIT:,} more directory pairs.\n"
+            return report
+
+        displayed_groups = exact_groups[:_DUPLICATE_GROUPS_DISPLAY_LIMIT]
+        for i, group in enumerate(displayed_groups):
             report += f"\nGroup {i + 1}:\n"
             for file_path in group:
                 report += f"  - {file_path}\n"
+
+        if len(exact_groups) > _DUPLICATE_GROUPS_DISPLAY_LIMIT:
+            report += (
+                f"\n... and {len(exact_groups) - _DUPLICATE_GROUPS_DISPLAY_LIMIT:,} more duplicate groups not shown "
+                f"(showing the first {_DUPLICATE_GROUPS_DISPLAY_LIMIT}). Re-run with group_by_directory=True for a "
+                "compact directory-level summary, or export_dataframe() after add_duplicate_cols() for the full "
+                "file-level list."
+            )
 
         return report
 

@@ -123,4 +123,27 @@ Run `copilot mcp list --json` from the repo root to confirm the workspace
 entry (`filoma-dev`) is picked up alongside any personal servers you've
 configured elsewhere.
 
+> ⚠️ **`filoma` vs `filoma-dev` — these are two different processes with
+> two different codebases**, and it's easy to silently call the wrong one:
+>
+> - `filoma-dev` (workspace-scoped, from `.mcp.json`/`.vscode/mcp.json`)
+>   runs `uv run --directory . filoma mcp serve` — this exact working
+>   tree, including uncommitted local changes. Any tool/param you just
+>   added or fixed here is only available through this one.
+> - `filoma` (user-scoped, e.g. via `copilot mcp add filoma -- uvx -p 3.11
+filoma mcp serve`) runs the **published PyPI package** in an isolated
+>   `uvx` environment — a separate process, frozen at whatever version was
+>   last released, unaffected by anything in this working tree until a new
+>   version is published.
+>
+> If both are configured (common for contributors who also followed the
+> "Use with GitHub Copilot" README instructions in some other repo), an
+> agent choosing between two identically-shaped tools can pick either one
+> per call, with no visible indication of which — a fix made here can
+> appear to silently "not work" because the call actually went to the
+> stale published `filoma`. To verify which one served a call, diff the
+> tool's description via `list_available_tools` between the two servers,
+> or temporarily `copilot mcp remove filoma` while iterating on unreleased
+> changes.
+
 A change is only "done" when none of these are broken.
