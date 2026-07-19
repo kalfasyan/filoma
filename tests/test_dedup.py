@@ -45,6 +45,61 @@ def test_image_hashing_optional():
         assert len(res["image"]) >= 1
 
 
+def test_mode_exact_skips_text_and_image_detection():
+    """mode='exact' must not compute (or return) text/image near-duplicates.
+
+    Regression test: `mode` used to be a dead parameter — text and image
+    near-duplicate detection (both O(n^2)) ran unconditionally regardless
+    of what was requested, which could turn a cheap exact-only lookup into
+    a call that takes a very long time on a dataset with many images/text
+    files.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        p1 = os.path.join(td, "a.txt")
+        p2 = os.path.join(td, "b.txt")
+        with open(p1, "w") as f:
+            f.write("hello world")
+        with open(p2, "w") as f:
+            f.write("hello world")
+
+        res = dedup.find_duplicates([p1, p2], mode="exact", text_threshold=0.0)
+        assert len(res["exact"]) == 1
+        # text_threshold=0.0 would otherwise group these as near-duplicate
+        # text too; mode="exact" must skip that computation entirely.
+        assert res["text"] == []
+        assert res["image"] == []
+
+
+def test_mode_text_skips_image_detection():
+    if dedup.Image is None:
+        return
+    from PIL import Image
+
+    with tempfile.TemporaryDirectory() as td:
+        p1 = os.path.join(td, "a.png")
+        p2 = os.path.join(td, "b.png")
+        img = Image.new("RGB", (16, 16), color=(255, 0, 0))
+        img.save(p1)
+        img.save(p2)
+
+        res = dedup.find_duplicates([p1, p2], mode="text")
+        assert res["image"] == []
+
+
+def test_mode_auto_computes_all_categories():
+    """Default behavior (mode='auto') must be unchanged: all three categories computed."""
+    with tempfile.TemporaryDirectory() as td:
+        p1 = os.path.join(td, "a.txt")
+        p2 = os.path.join(td, "b.txt")
+        with open(p1, "w") as f:
+            f.write("the quick brown fox jumps over the lazy dog")
+        with open(p2, "w") as f:
+            f.write("the quick brown fox jumped over the lazy dog")
+
+        res = dedup.find_duplicates([p1, p2], text_threshold=0.5)
+        assert len(res["text"]) >= 1
+
+
 def test_summarize_duplicate_directories_finds_mirrored_folders():
     """Two directory trees that mirror each other should surface as one high-overlap pair."""
     groups = [

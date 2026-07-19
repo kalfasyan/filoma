@@ -489,20 +489,45 @@ def quality(
 def dedup(
     paths: List[str] = typer.Argument(..., help="Path(s) to check for duplicates"),
     cross_dir: bool = typer.Option(False, "--cross-dir", help="Only check for duplicates across provided paths"),
+    mode: str = typer.Option(
+        "auto",
+        "--mode",
+        help="Which categories to check: 'exact' (sha256 only — fast, O(n)), 'text', 'image', or 'auto' (all three, default).",
+    ),
 ) -> None:
-    """Find and report duplicate files in one or more directories."""
+    """Find and report duplicate files in one or more directories.
+
+    Text and image near-duplicate detection (the 'text'/'image' categories
+    under the default --mode auto) are O(n^2) over their respective
+    candidate files — every text/code file gets read and shingled, every
+    image gets perceptual-hashed and compared pairwise. On a large dataset
+    (thousands of images or text files), this can take a very long time.
+    Pass --mode exact for a fast, sha256-only pass when that's all you need.
+    """
     import filoma
+
+    mode = (mode or "auto").strip().lower()
+    if mode not in {"exact", "text", "image", "auto", "mixed"}:
+        console.print(f"[red]Error: --mode must be one of exact, text, image, auto (got '{mode}').[/red]")
+        raise typer.Exit(1)
 
     console.print(f"[bold blue]Checking for duplicates in {', '.join(paths)}...[/bold blue]")
     try:
         combined_dfs = [filoma.probe_to_df(p) for p in paths]
-        combined_df = combined_dfs[0]
-        for df in combined_dfs[1:]:
-            combined_df = combined_df.vstack(df.to_polars())
+        # Always reduce to a raw Polars DataFrame before re-wrapping below —
+        # with a single path (the common case: `filoma dedup <one dir>`) this
+        # loop never runs, so `combined_dfs[0]` (a filoma.DataFrame wrapper,
+        # not a raw polars.DataFrame) was previously passed straight into
+        # `filoma.DataFrame(...)`, which only accepts a polars.DataFrame /
+        # dict / list of paths / None — crashing with "data must be a Polars
+        # DataFrame..." on every single-directory dedup call.
+        combined_pl = combined_dfs[0].to_polars()
+        for extra_df in combined_dfs[1:]:
+            combined_pl = combined_pl.vstack(extra_df.to_polars())
 
-        df = filoma.DataFrame(combined_df)
+        df = filoma.DataFrame(combined_pl)
         cross_dir_paths = paths if cross_dir else None
-        dupes = df.evaluate_duplicates(show_table=True, cross_dir_paths=cross_dir_paths)
+        dupes = df.evaluate_duplicates(show_table=True, cross_dir_paths=cross_dir_paths, mode=mode)
 
         for category in ["exact", "text", "image"]:
             groups = dupes.get(category, [])

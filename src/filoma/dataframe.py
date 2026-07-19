@@ -1566,20 +1566,46 @@ class DataFrame:
         text_k: int = 3,
         show_table: bool = True,
         cross_dir_paths: Optional[List[str]] = None,
+        mode: str = "auto",
     ) -> dict:
         """Evaluate duplicates among files in the DataFrame.
 
         Scans the `path_col` column, runs exact, text and image duplicate
         detectors. Optionally filters to show only duplicates that cross
         directory boundaries (requires `cross_dir_paths` to define boundaries).
+
+        Args:
+        ----
+            path_col: Name of the column containing file system paths.
+            text_threshold: Jaccard similarity threshold for grouping text duplicates.
+            image_max_distance: Maximum Hamming distance to consider images duplicates.
+            text_k: Shingle size used for text similarity.
+            show_table: Whether to print a Rich summary table.
+            cross_dir_paths: Optional directory prefixes; when given, only
+                duplicate groups spanning 2+ of them are kept.
+            mode: Which categories to compute — ``"exact"`` (sha256 only,
+                cheap), ``"text"``, ``"image"``, or ``"auto"``/``"mixed"``
+                (all three, the default). Text and image near-duplicate
+                detection are O(n^2) over their respective candidate files,
+                so pass ``"exact"`` when that's all you need — e.g. on a
+                dataset with thousands of images/text files, computing
+                unused text/image near-duplicates can turn a fast call into
+                one that takes a very long time.
+
         """
         if path_col not in self._df.columns:
             raise ValueError(f"Column '{path_col}' not found in DataFrame")
 
-        # filter for files only
-        paths = [str(p) for p in self._df[path_col].to_list() if Path(p).is_file()]
+        # Filter for files only. Reuse an existing `is_file` column (from
+        # add_file_stats_cols()) when present to avoid a second full
+        # filesystem stat pass over every path.
+        if "is_file" in self._df.columns:
+            paths = [str(p) for p, is_f in zip(self._df[path_col].to_list(), self._df["is_file"].to_list()) if is_f]
+        else:
+            paths = [str(p) for p in self._df[path_col].to_list() if Path(p).is_file()]
         res = _dedup.find_duplicates(
             paths,
+            mode=mode,
             text_k=text_k,
             text_threshold=text_threshold,
             image_max_distance=image_max_distance,

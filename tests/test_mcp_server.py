@@ -238,6 +238,28 @@ class TestToolExecution:
         assert text.count("Group ") <= 2
         assert "more duplicate groups not shown" in text
 
+    @pytest.mark.asyncio
+    async def test_find_duplicates_only_computes_exact_mode(self, mirrored_dir, monkeypatch):
+        """find_duplicates must request mode='exact' — it never surfaces text/image results.
+
+        Regression test: text/image near-duplicate detection is O(n^2) over
+        every candidate file. Computing it here despite never being used
+        could turn a fast exact-only lookup into one that never returns on
+        a large dataset (e.g. thousands of images).
+        """
+        seen_modes = []
+        original = __import__("filoma.dedup", fromlist=["find_duplicates"]).find_duplicates
+
+        def _spy(paths, mode="auto", **kwargs):
+            seen_modes.append(mode)
+            return original(paths, mode=mode, **kwargs)
+
+        monkeypatch.setattr("filoma.dedup.find_duplicates", _spy)
+
+        await call_tool("find_duplicates", {"path": str(mirrored_dir), "ignore_safety_limits": True})
+
+        assert seen_modes == ["exact"]
+
 
 class TestDataFrameState:
     """Test DataFrame state management across tool calls."""

@@ -19,6 +19,40 @@ def test_dataframe_evaluate_duplicates_text():
         assert len(res["text"]) >= 1
 
 
+def test_dataframe_evaluate_duplicates_mode_exact_skips_text():
+    """mode='exact' must skip the O(n^2) text near-duplicate pass entirely."""
+    with tempfile.TemporaryDirectory() as td:
+        p1 = os.path.join(td, "a.txt")
+        p2 = os.path.join(td, "b.txt")
+        with open(p1, "w") as f:
+            f.write("the quick brown fox jumps over the lazy dog")
+        with open(p2, "w") as f:
+            f.write("the quick brown fox jumped over the lazy dog")
+
+        df = DataFrame([p1, p2])
+        res = df.evaluate_duplicates(text_threshold=0.4, show_table=False, mode="exact")
+        assert res["text"] == []
+        assert res["image"] == []
+
+
+def test_dataframe_evaluate_duplicates_reuses_is_file_column():
+    """When an `is_file` column already exists, it must be reused instead of re-stat'ing every path."""
+    with tempfile.TemporaryDirectory() as td:
+        p1 = os.path.join(td, "a.txt")
+        p2 = os.path.join(td, "b.txt")
+        with open(p1, "w") as f:
+            f.write("same content")
+        with open(p2, "w") as f:
+            f.write("same content")
+
+        df = DataFrame([p1, p2]).add_file_stats_cols()
+        assert "is_file" in df.columns
+
+        res = df.evaluate_duplicates(show_table=False, mode="exact")
+        assert len(res["exact"]) == 1
+        assert set(res["exact"][0]) == {p1, p2}
+
+
 def test_add_duplicate_cols_flags_exact_duplicates():
     with tempfile.TemporaryDirectory() as td:
         p1 = os.path.join(td, "a.txt")

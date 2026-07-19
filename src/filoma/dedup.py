@@ -173,7 +173,16 @@ def find_duplicates(
     paths : Iterable[str]
         Iterable of filesystem paths to inspect.
     mode : str
-        Search mode: 'auto', 'exact', 'text', 'image', or 'mixed'.
+        Which categories to compute: ``"exact"`` (sha256 only — cheap,
+        O(n)), ``"text"`` (exact + text near-duplicates), ``"image"``
+        (exact + image near-duplicates), or ``"auto"``/``"mixed"``/any
+        other value (all three — the default, and the only mode prior to
+        this parameter actually being honored). Text and image near-dup
+        detection are O(n^2) over their respective candidate files (every
+        text file is read and shingled; every image is perceptual-hashed),
+        so on a dataset with thousands of images/text files, requesting
+        only ``"exact"`` when that's all the caller needs can be the
+        difference between milliseconds and a call that never returns.
     text_k : int
         Shingle size used for text similarity.
     text_threshold : float
@@ -198,9 +207,12 @@ def find_duplicates(
     text_groups: List[List[str]] = []
     image_groups: List[List[str]] = []
 
+    want_text = mode in ("text", "auto", "mixed")
+    want_image = mode in ("image", "auto", "mixed")
+
     # Prepare lists
-    text_candidates = [p for p in paths if not is_image_path(p)]
-    image_candidates = [p for p in paths if is_image_path(p)]
+    text_candidates = [p for p in paths if not is_image_path(p)] if want_text else []
+    image_candidates = [p for p in paths if is_image_path(p)] if want_image else []
 
     # Text similarity (shingle + Jaccard)
     shingles_map = {}

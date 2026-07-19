@@ -320,12 +320,40 @@ def generate_hygiene_report(ctx: RunContext[Any], path: str, include_hidden: boo
 
         # Duplicates as issues
         if dup_count > 0:
+            all_groups = dups.get("duplicates", [])
+            duplicate_file_count = int(dups.get("duplicate_file_count", sum(len(g) for g in all_groups if isinstance(g, list))))
+            largest_group_size = max((len(g) for g in all_groups if isinstance(g, list)), default=0)
+
+            # Estimate wasted space as size*(n-1) per group, using the first
+            # readable file as a size reference. Computed over the FULL group
+            # list (not just the small sample below) so it reflects the real
+            # dataset, not an arbitrary 5-group slice.
+            estimated_space_waste_bytes = 0
+            for group in all_groups:
+                if not isinstance(group, list) or len(group) < 2:
+                    continue
+                group_size = 0
+                for fp in group:
+                    try:
+                        group_size = Path(str(fp)).stat().st_size
+                        if group_size > 0:
+                            break
+                    except Exception:
+                        continue
+                estimated_space_waste_bytes += max(0, len(group) - 1) * group_size
+
             issue = AuditFinding(
                 id="hygiene-duplicates",
                 severity="high",
                 category="quality",
-                description=f"Found {dup_count} duplicate file groups",
-                evidence={"duplicate_count": dup_count, "duplicates": dups.get("duplicates", [])[:5]},  # Limit evidence
+                description=f"Found {dup_count} duplicate file groups ({duplicate_file_count} files total)",
+                evidence={
+                    "duplicate_count": dup_count,
+                    "duplicate_file_count": duplicate_file_count,
+                    "largest_duplicate_group_size": largest_group_size,
+                    "estimated_space_waste_bytes": estimated_space_waste_bytes,
+                    "duplicates": all_groups[:5],  # Sample only, for display — see the *_count/*_bytes fields above for full-dataset totals.
+                },
                 confidence=0.9,
                 recommendation="Remove duplicate files to improve dataset quality",
                 affected_paths=[],
@@ -681,40 +709,23 @@ def audit_dataset(
                             evidence_section.append(f"- Group {i}: {', '.join(map(str, group_files))}")
                 break
 
-    # Duplicate impact metrics from hygiene evidence
+    # Duplicate impact metrics — read directly from the hygiene evidence,
+    # which `generate_hygiene_report` computes over the FULL duplicate-group
+    # list. Do NOT recompute these from `evidence["duplicates"]` here: that
+    # field is deliberately truncated to a 5-group display sample, and
+    # summing over it would silently under-report (e.g. "10 duplicate files"
+    # on a dataset that actually has thousands).
     duplicate_files_total = 0
     largest_duplicate_group_size = 0
     estimated_space_waste_bytes = 0
-    try:
-        dup_groups: list[list[str]] = []
-        if hygiene_data:
-            for issue in hygiene_data.get("issues", []):
-                if issue.get("id") == "hygiene-duplicates":
-                    evidence = issue.get("evidence", {})
-                    dup_groups = evidence.get("duplicates", []) or []
-                    break
-
-        if dup_groups:
-            duplicate_files_total = sum(len(group) for group in dup_groups if isinstance(group, list))
-            largest_duplicate_group_size = max(len(group) for group in dup_groups if isinstance(group, list))
-
-            # Estimate waste as size*(n-1) per group using first readable file as reference size
-            for group in dup_groups:
-                if not isinstance(group, list) or len(group) < 2:
-                    continue
-                group_size = 0
-                for fp in group:
-                    try:
-                        group_size = Path(str(fp)).stat().st_size
-                        if group_size > 0:
-                            break
-                    except Exception:
-                        continue
-                estimated_space_waste_bytes += max(0, len(group) - 1) * group_size
-    except Exception:
-        duplicate_files_total = 0
-        largest_duplicate_group_size = 0
-        estimated_space_waste_bytes = 0
+    if hygiene_data:
+        for issue in hygiene_data.get("issues", []):
+            if issue.get("id") == "hygiene-duplicates":
+                evidence = issue.get("evidence", {})
+                duplicate_files_total = int(evidence.get("duplicate_file_count", 0))
+                largest_duplicate_group_size = int(evidence.get("largest_duplicate_group_size", 0))
+                estimated_space_waste_bytes = int(evidence.get("estimated_space_waste_bytes", 0))
+                break
 
     if readiness_data:
         readiness_score = readiness_data.get("overall_readiness")
@@ -1329,7 +1340,12 @@ def find_duplicates(
 
     Accepts path, ignore_safety_limits, and strategy.
     strategy is accepted for compatibility but ignored — duplicates are
-    always matched by SHA-256 content hash.
+    always matched by SHA-256 content hash. Only exact (byte-identical)
+    matching is computed — the expensive O(n^2) text/image near-duplicate
+    detection that `evaluate_duplicates()` can also do is intentionally
+    skipped here, since this tool never surfaces those results anyway, and
+    on a dataset with thousands of images/text files that extra work can
+    turn a fast call into one that never returns.
 
     For "do I have two near-duplicate/mirrored folders?" questions, pass
     `group_by_directory=True`: instead of listing every individual
@@ -1364,14 +1380,19 @@ def find_duplicates(
             max_depth = 2
 
         df = _cached_probe_to_df(ctx, str(p), max_depth=max_depth)
-        dupes = df.evaluate_duplicates(show_table=False)
+        dupes = df.evaluate_duplicates(show_table=False, mode="exact")
 
         exact_groups = dupes.get("exact", [])
         exact_count = sum(len(g) for g in exact_groups) if exact_groups else 0
 
         from filoma.dedup import summarize_duplicate_directories
 
-        all_paths = [str(fp) for fp in df.to_polars()["path"].to_list() if Path(fp).is_file()] if "path" in df.columns else []
+        if "is_file" in df.columns:
+            all_paths = [str(fp) for fp, is_f in zip(df.to_polars()["path"].to_list(), df.to_polars()["is_file"].to_list()) if is_f]
+        elif "path" in df.columns:
+            all_paths = [str(fp) for fp in df.to_polars()["path"].to_list() if Path(fp).is_file()]
+        else:
+            all_paths = []
         dir_overlap = summarize_duplicate_directories(exact_groups, all_paths=all_paths, min_shared=2)
 
         report = (

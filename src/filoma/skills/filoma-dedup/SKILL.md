@@ -45,6 +45,17 @@ Returns three groups:
 Each group is a list of paths that match each other. The user picks
 which to keep.
 
+Text and image near-duplicate detection are both O(n²) over their
+respective candidate files, unlike exact matching (O(n)). On a large
+dataset (thousands of images/text files) this can take a very long
+time. Pass `--mode exact` for a fast, sha256-only pass when that's all
+you need — `--mode` accepts `exact`, `text`, `image`, or `auto`
+(default, all three):
+
+```bash
+filoma dedup ./data --mode exact
+```
+
 ## Cross-directory dedup (train/test leakage)
 
 This is the killer use-case. Two folders, find rows that appear in
@@ -75,7 +86,7 @@ dupes = ds.dedup()
 
 # Or via a DataFrame already in memory
 df = flm.probe_to_df("./my_data", enrich=True)
-dupes = df.evaluate_duplicates(show_table=True)
+dupes = df.evaluate_duplicates(show_table=True, mode="exact")  # mode: exact/text/image/auto (default)
 
 # Cross-directory leakage
 df = flm.probe_to_df(["train/", "valid/"])  # combine multiple paths

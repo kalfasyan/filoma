@@ -2,8 +2,9 @@
 
 import json
 import os
+from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 from PIL import Image
 from rich.console import Console
@@ -106,21 +107,37 @@ class DatasetVerifier:
         }
 
     def find_duplicates(self) -> Dict[str, Any]:
-        """Find near-duplicate images."""
-        hashes = {}
-        duplicates = []
+        """Find near-duplicate images (by exact dHash match), grouped by shared hash.
+
+        Returns a dict with:
+
+        - ``duplicate_count``: number of duplicate *groups* found (matches
+          how this is described/labeled everywhere it's surfaced, e.g.
+          "Found N duplicate file groups").
+        - ``duplicate_file_count``: total number of files across all groups
+          (i.e. the sum of every group's size) — the number to use for
+          "how many files are affected" / ratio calculations, not
+          ``duplicate_count``.
+        - ``duplicates``: the groups themselves, each a list of every path
+          sharing that hash (length ≥ 2).
+        """
+        hashes: Dict[str, List[str]] = defaultdict(list)
         for path in self._iter_files():
             if path.suffix.lower() in [".jpg", ".jpeg", ".png", ".bmp"]:
                 try:
                     h = dedup.dhash_image(str(path))
-                    if h in hashes:
-                        duplicates.append((str(path), hashes[h]))
-                    else:
-                        hashes[h] = str(path)
+                    hashes[h].append(str(path))
                 except Exception:
                     pass
 
-        return {"duplicate_count": len(duplicates), "duplicates": duplicates}
+        groups = [paths for paths in hashes.values() if len(paths) > 1]
+        duplicate_file_count = sum(len(g) for g in groups)
+
+        return {
+            "duplicate_count": len(groups),
+            "duplicate_file_count": duplicate_file_count,
+            "duplicates": groups,
+        }
 
     def check_class_balance(self, label_source: str = "auto") -> Dict[str, Any]:
         """Check class balance from CSV files."""

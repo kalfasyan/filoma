@@ -18,6 +18,21 @@ print(res["text"])   # near-duplicate text groups
 print(res["image"])  # near-duplicate image groups
 ```
 
+**Performance — request only what you need.** Text and image near-duplicate detection are both O(n²) over their respective candidate files (every text file is read and shingled; every image is perceptual-hashed and compared pairwise), unlike exact matching which is O(n). On a dataset with thousands of images or text files, computing near-duplicates you don't actually need can turn a sub-second call into one that never returns. Pass `mode` to skip what you don't need:
+
+```
+res = dedup.find_duplicates(files, mode="exact")  # sha256 only — fast, O(n)
+res = dedup.find_duplicates(files, mode="text")   # exact + text near-dup
+res = dedup.find_duplicates(files, mode="image")  # exact + image near-dup
+res = dedup.find_duplicates(files)                # mode="auto" (default): all three
+```
+
+The `find_duplicates` agent/MCP tool and `DataFrame.evaluate_duplicates()` accept the same `mode` — `find_duplicates` always uses `mode="exact"` internally since it never surfaces text/image results anyway. The `filoma dedup` CLI command also accepts `--mode` (default `auto`, matching its documented all-three-categories behavior):
+
+```bash
+filoma dedup ./data --mode exact   # fast, sha256-only
+```
+
 Optional dependencies:
 
 - `Pillow` — recommended for image hashing.
