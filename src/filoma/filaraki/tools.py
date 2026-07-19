@@ -36,6 +36,12 @@ class ProbeResult(BaseModel):
 # silently try to embed tens of thousands of files. See docs/guides/rag.md.
 _EMBED_SAFETY_LIMIT = 500
 
+# Safety cap for `add_image_embedding_cols`: image CLIP embedding decodes
+# and runs a vision model per file, which is slower than the text path
+# above (especially the larger clip-vit-l14 model) — keep the default cap
+# tighter accordingly.
+_IMAGE_EMBED_SAFETY_LIMIT = 300
+
 
 def _is_mcp_stdio_mode() -> bool:
     """Return True when running under MCP stdio transport."""
@@ -1552,7 +1558,8 @@ def add_embedding_cols(ctx: RunContext[Any], max_chars: int = 4000, ignore_safet
     backend as filoma's RAG store (Ollama `nomic-embed-text` if reachable,
     else sentence-transformers `all-MiniLM-L6-v2`). Only the first
     `max_chars` characters of each file are embedded. Directories, binary
-    files, and unreadable files get a null embedding. Follow up with
+    files, and unreadable files get a null embedding (this includes images —
+    for those, use `add_image_embedding_cols` instead). Follow up with
     `add_semantic_similarity_cols` to find each file's nearest neighbor by
     content.
 
@@ -1587,8 +1594,11 @@ def add_embedding_cols(ctx: RunContext[Any], max_chars: int = 4000, ignore_safet
                     f"\u26a0\ufe0f This DataFrame has {embeddable_count:,} files that look embeddable, which exceeds the "
                     f"safety limit of {_EMBED_SAFETY_LIMIT:,} (embedding is CPU/model-bound and can take a long time at this scale). "
                     "This often happens when the DataFrame covers an entire repo, including build artifacts or "
-                    "vendored dependencies (.venv, target/, node_modules, .git). Narrow it first with "
-                    "filter_by_extension() / filter_by_pattern(), or re-run with ignore_safety_limits=True to embed anyway."
+                    "vendored dependencies (.venv, target/, node_modules, .git), or a dataset where every image has a sidecar "
+                    "text/XML/JSON annotation file. Narrow it first with filter_by_extension() / filter_by_pattern() (this tool "
+                    "only counts/embeds text/code files, never images — if you want image embeddings, call "
+                    "add_image_embedding_cols instead, which filters to images automatically), or re-run with "
+                    "ignore_safety_limits=True to embed anyway."
                 )
 
         df = df.add_embedding_cols(max_chars=max_chars)
@@ -1599,6 +1609,82 @@ def add_embedding_cols(ctx: RunContext[Any], max_chars: int = 4000, ignore_safet
         return f"Error: RAG/embedding dependencies not available. Install with 'pip install filoma[rag]'. Details: {e}"
     except Exception as e:
         return f"Error computing embeddings: {str(e)}"
+
+
+@tool_registry.register
+def add_image_embedding_cols(ctx: RunContext[Any], model: str = "clip-vit-b32", device: Optional[str] = None, ignore_safety_limits: bool = False) -> str:
+    """Add an `image_embedding` column to the current DataFrame, computed from each image's pixel content.
+
+    Uses a CLIP vision encoder (via sentence-transformers, already a core
+    filoma dependency — no extra install needed) to turn each image into a
+    general-purpose visual-semantic feature vector (subject/scene/
+    composition), not just a pixel or perceptual hash. Only files with a
+    recognized image extension that Pillow can open are embedded;
+    everything else (text, XML/JSON annotations, code, etc.) gets a null
+    embedding automatically — no need to pre-filter the DataFrame to images
+    yourself, and the safety limit below only ever counts actual image
+    files, never the rest of the DataFrame. For text/code files, use
+    `add_embedding_cols` instead. Follow up with
+    `add_semantic_similarity_cols(embedding_col="image_embedding")` to build
+    a visual similarity ranking / near-duplicate matrix.
+
+    Model choices, fastest to slowest:
+    - `clip-vit-b32` (default): fastest, 512-dim vectors. Good default for
+      large batches or quick similarity checks.
+    - `clip-vit-b16`: sharper features, ~3-4x slower than b32.
+    - `clip-vit-l14`: largest and slowest, most accurate.
+
+    A GPU is used automatically whenever one is available — by default
+    (`device` unset), sentence-transformers auto-selects CUDA, then Apple
+    Silicon MPS, then CPU. Pass `device` explicitly (e.g. `"cpu"`, `"cuda"`,
+    `"cuda:1"`, `"mps"`) to override that choice; the device actually used
+    is reported back in this tool's response.
+
+    Image embedding is CPU/model-bound and decodes every image, so a safety
+    limit applies: if the DataFrame has more than `_IMAGE_EMBED_SAFETY_LIMIT`
+    image files, this refuses to run unless `ignore_safety_limits=True`.
+    Narrow the DataFrame first with `filter_by_extension` / `filter_by_pattern`.
+
+    Args:
+        ctx: The run context.
+        model: Which CLIP model to use (`clip-vit-b32`, `clip-vit-b16`, or
+            `clip-vit-l14`), or any sentence-transformers image model id.
+        device: Torch device to run on (`cpu`, `cuda`, `cuda:1`, `mps`, ...).
+            If unset, the fastest available device is auto-selected.
+        ignore_safety_limits: If True, embed regardless of how many image
+            files that implies. ONLY set to True if the user explicitly
+            asked to embed everything / a large dataset.
+
+    """
+    if ctx.deps.current_df is None:
+        return "Error: No DataFrame loaded. Please run 'search_files' or 'create_dataset_dataframe' first."
+
+    df = ctx.deps.current_df
+    try:
+        if not ignore_safety_limits and "path" in df.columns:
+            from filoma.dedup import is_image_path
+
+            embeddable_count = sum(1 for p in df.to_polars()["path"].to_list() if is_image_path(str(p)))
+            if embeddable_count > _IMAGE_EMBED_SAFETY_LIMIT:
+                return (
+                    f"\u26a0\ufe0f This DataFrame has {embeddable_count:,} image files, which exceeds the safety limit of "
+                    f"{_IMAGE_EMBED_SAFETY_LIMIT:,} (image embedding decodes and runs a vision model per file, which can take a "
+                    "long time at this scale). Narrow it first with filter_by_extension() / filter_by_pattern(), or re-run with "
+                    "ignore_safety_limits=True to embed anyway."
+                )
+
+        df = df.add_image_embedding_cols(model=model, device=device)
+        ctx.deps.current_df = df
+        embedded_count = int(df.to_polars()["image_embedding"].is_not_null().sum())
+        used_device = df.lineage[-1]["parameters"].get("device") if df.lineage else None
+        device_note = f" on {used_device}" if used_device else ""
+        return f"\u2705 Embedded {embedded_count} of {len(df)} rows using '{model}'{device_note} (non-image/unreadable files are skipped). Column added: image_embedding."
+    except ImportError as e:
+        return f"Error: sentence-transformers not available. Install with 'pip install filoma[rag]'. Details: {e}"
+    except ValueError as e:
+        return f"Error: {str(e)}"
+    except Exception as e:
+        return f"Error computing image embeddings: {str(e)}"
 
 
 @tool_registry.register
@@ -1644,30 +1730,45 @@ def add_metadata_embedding_cols(ctx: RunContext[Any], columns: Optional[List[str
 def add_semantic_similarity_cols(
     ctx: RunContext[Any],
     top_k: int = 1,
+    embedding_col: str = "embedding",
     metadata_embedding_col: Optional[str] = None,
     content_weight: float = 0.6,
 ) -> str:
     """Add nearest-neighbor columns to the current DataFrame using cosine similarity of embeddings.
 
-    Requires `add_embedding_cols` to have been called first. Adds
+    Requires an embedding column to already exist \u2014 `add_embedding_cols`
+    (text/code content, column `embedding`), `add_image_embedding_cols`
+    (image content, column `image_embedding`), or
+    `add_metadata_embedding_cols` (structured metadata, column
+    `metadata_embedding`) alone if you want metadata-only similarity. Adds
     `nearest_neighbor_paths` and `nearest_neighbor_similarities` (list
     columns, most similar first) showing which other files are
     semantically related to each row \u2014 independent of folder or filename.
     Best suited to per-folder/per-dataset analysis (hundreds to low
     thousands of rows); this is an O(n^2) computation.
 
-    Optionally blends in structured-metadata similarity: pass
-    `metadata_embedding_col="metadata_embedding"` (after calling
-    `add_metadata_embedding_cols` first) to weight content similarity
-    against metadata similarity (extension, size, owner, timestamps) via
-    `content_weight` (default 0.6 content / 0.4 metadata).
+    Optionally blends in structured-metadata similarity on top of
+    `embedding_col`: pass `metadata_embedding_col="metadata_embedding"`
+    (after calling `add_metadata_embedding_cols` first) to weight
+    `embedding_col` similarity against metadata similarity (extension,
+    size, owner, timestamps) via `content_weight` (default 0.6 content /
+    0.4 metadata).
 
     Args:
         ctx: The run context.
         top_k: Number of nearest neighbors to attach per row (default 1).
+        embedding_col: Which embedding column to compute similarity over.
+            Defaults to `embedding` (from `add_embedding_cols`); pass
+            `image_embedding` (from `add_image_embedding_cols`) for visual
+            similarity, or `metadata_embedding` (from
+            `add_metadata_embedding_cols`) for metadata-only similarity when
+            no content embedding is available.
         metadata_embedding_col: Optional column from
-            `add_metadata_embedding_cols` to blend with content similarity.
-        content_weight: Weight (0-1) given to content similarity when
+            `add_metadata_embedding_cols` to blend with `embedding_col`
+            similarity. Leave unset if `embedding_col` is already
+            `metadata_embedding` \u2014 blending a column with itself is a
+            no-op.
+        content_weight: Weight (0-1) given to `embedding_col` similarity when
             `metadata_embedding_col` is provided; ignored otherwise.
 
     """
@@ -1676,10 +1777,13 @@ def add_semantic_similarity_cols(
 
     df = ctx.deps.current_df
     try:
-        df = df.add_semantic_similarity_cols(top_k=top_k, metadata_embedding_col=metadata_embedding_col, content_weight=content_weight)
+        df = df.add_semantic_similarity_cols(embedding_col=embedding_col, top_k=top_k, metadata_embedding_col=metadata_embedding_col, content_weight=content_weight)
         ctx.deps.current_df = df
         matched_count = int(df.to_polars()["nearest_neighbor_paths"].is_not_null().sum())
-        return f"\u2705 Computed semantic similarity: {matched_count} of {len(df)} rows matched to their nearest neighbor(s). Columns added: nearest_neighbor_paths, nearest_neighbor_similarities."
+        return (
+            f"\u2705 Computed semantic similarity over '{embedding_col}': {matched_count} of {len(df)} rows matched to their nearest "
+            "neighbor(s). Columns added: nearest_neighbor_paths, nearest_neighbor_similarities."
+        )
     except ValueError as e:
         return f"Error: {str(e)}"
     except Exception as e:
@@ -2011,8 +2115,51 @@ def analyze_dataframe(ctx: RunContext[Any], operation: str, **kwargs) -> str:
 
 
 @tool_registry.register
+def load_dataframe(ctx: RunContext[Any], path: str, format: Optional[str] = None) -> str:
+    """Load a DataFrame from a file, e.g. one previously saved via `export_dataframe`, into the current session.
+
+    The counterpart to `export_dataframe`. Use this to resume analysis on a
+    DataFrame you already built and saved (with embeddings, similarity
+    columns, corruption/duplicate flags, etc.) instead of recomputing
+    everything from scratch — especially useful right after connecting (no
+    DataFrame is loaded yet in a fresh session) or when picking up work
+    saved by an earlier session, since an agent/MCP session's DataFrame
+    only lives in that one connection's memory and doesn't survive a
+    restart or reconnect.
+
+    Args:
+        ctx: The run context.
+        path: Path to the file to load.
+        format: `csv`, `json`, or `parquet`. If omitted, inferred from the
+            file extension.
+
+    """
+    from filoma.dataframe import DataFrame
+
+    try:
+        df = DataFrame.load(path, format=format)
+    except ValueError as e:
+        return f"Error: {str(e)}"
+    except Exception as e:
+        return f"Error loading DataFrame: {str(e)}"
+
+    ctx.deps.current_df = df
+    return (
+        f"\u2705 Loaded DataFrame from {path}: {len(df):,} rows, {len(df.columns)} columns.\n"
+        f"\U0001f4cb Available columns: {', '.join(df.columns)}\n\n"
+        "You can now use filter_by_extension(), add_semantic_similarity_cols(), summarize_dataframe(), etc. on it directly."
+    )
+
+
+@tool_registry.register
 def export_dataframe(ctx: RunContext[Any], path: str, format: str = "csv") -> str:
     """Export the current DataFrame to a file.
+
+    Pair with `load_dataframe` to resume this exact DataFrame (including
+    any embedding/similarity/corruption columns already computed) in a
+    later session without recomputing anything — parquet is the best
+    format for this since it preserves list/nested columns (e.g.
+    `embedding`, `nearest_neighbor_paths`) exactly, unlike CSV.
 
     Args:
     ----

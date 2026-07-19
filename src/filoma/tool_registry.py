@@ -132,6 +132,32 @@ _PY_TO_JSON_TYPE: dict[Any, str] = {
 }
 
 
+def _make_nullable(schema: dict[str, Any]) -> dict[str, Any]:
+    """Widen a JSON Schema fragment to also accept a literal ``null``.
+
+    Used for ``Optional[X]`` (``Union[X, None]``) parameters. Without this,
+    a parameter like ``Optional[str] = None`` was advertised as a bare
+    ``{"type": "string"}`` — technically true for the non-null case, but it
+    meant a conforming MCP client that explicitly sent ``null`` for an
+    unset optional argument (rather than omitting the key entirely) got
+    rejected with a schema validation error like ``"None is not of type
+    'string'"``, even though ``None`` is exactly what the Python default
+    means. Widening ``type`` to include ``"null"`` (or adding a ``{"type":
+    "null"}`` branch to an existing ``oneOf``) makes both forms valid.
+    """
+    if "oneOf" in schema:
+        if {"type": "null"} not in schema["oneOf"]:
+            schema["oneOf"].append({"type": "null"})
+        return schema
+    if "type" in schema:
+        current = schema["type"]
+        types = list(current) if isinstance(current, list) else [current]
+        if "null" not in types:
+            types.append("null")
+        schema["type"] = types
+    return schema
+
+
 def _json_schema_for_annotation(annotation: Any) -> dict[str, Any]:
     """Best-effort mapping from a Python type annotation to a JSON Schema fragment.
 
@@ -149,25 +175,34 @@ def _json_schema_for_annotation(annotation: Any) -> dict[str, Any]:
     into a value that could never match a real file and silently returning
     zero results. Exposing the true ``oneOf`` shape lets a conforming client
     send either a bare string or a real array correctly.
+
+    ``Optional[X]`` (``Union[X, None]``) additionally widens the resulting
+    schema to accept a literal ``null`` (see ``_make_nullable``), since the
+    Python default of ``None`` for these parameters is a legitimate value a
+    client may send explicitly, not just omit.
     """
     if annotation is None or annotation is inspect.Parameter.empty:
         return {"type": "string"}
 
-    # Strip Optional (Union[X, None])
+    # Strip Optional (Union[X, None]), remembering whether None was a branch.
     origin = get_origin(annotation)
     if origin is Union:
-        branches = [a for a in get_args(annotation) if a is not type(None)]  # noqa: E721
+        all_args = get_args(annotation)
+        has_none = any(a is type(None) for a in all_args)  # noqa: E721
+        branches = [a for a in all_args if a is not type(None)]  # noqa: E721
         if len(branches) == 1:
-            return _json_schema_for_annotation(branches[0])
-        # Multiple non-None branches (e.g. Union[str, List[str]]): expose
-        # each branch's real schema via oneOf instead of collapsing to a
-        # single lossy type.
-        schemas: list[dict[str, Any]] = []
-        for branch in branches:
-            schema = _json_schema_for_annotation(branch)
-            if schema not in schemas:
-                schemas.append(schema)
-        return schemas[0] if len(schemas) == 1 else {"oneOf": schemas}
+            schema = _json_schema_for_annotation(branches[0])
+        else:
+            # Multiple non-None branches (e.g. Union[str, List[str]]): expose
+            # each branch's real schema via oneOf instead of collapsing to a
+            # single lossy type.
+            schemas: list[dict[str, Any]] = []
+            for branch in branches:
+                branch_schema = _json_schema_for_annotation(branch)
+                if branch_schema not in schemas:
+                    schemas.append(branch_schema)
+            schema = schemas[0] if len(schemas) == 1 else {"oneOf": schemas}
+        return _make_nullable(schema) if has_none else schema
 
     if origin is list:
         item_args = get_args(annotation)

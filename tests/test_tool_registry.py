@@ -10,7 +10,7 @@ class TestToolRegistrySize:
     """Test that all expected tools are registered."""
 
     def test_registry_has_28_tools(self):
-        assert len(tool_registry) == 33
+        assert len(tool_registry) == 35
 
     def test_core_tools_registered(self):
         names = {spec.name for spec in tool_registry.list_specs()}
@@ -145,7 +145,7 @@ class TestRegistryAPI:
 
     def test_list_specs_returns_correct_count(self):
         specs = tool_registry.list_specs()
-        assert len(specs) == 33
+        assert len(specs) == 35
         assert all(isinstance(s, ToolSpec) for s in specs)
 
 
@@ -222,6 +222,41 @@ class TestFreshRegistry:
             return "ok"
 
         prop = reg.get_spec("dummy_tool").param_schema["properties"]["ids"]
-        assert prop["type"] == "array"
+        assert prop["type"] == ["array", "null"]
         assert prop["items"] == {"type": "integer"}
         assert "ids" not in reg.get_spec("dummy_tool").param_schema["required"]
+
+    def test_optional_str_param_schema_accepts_null(self):
+        """Optional[str] must advertise "null" as a valid type, not just "string".
+
+        Regression test: an MCP client that explicitly sends `null` for an
+        unset optional string argument (rather than omitting the key) used
+        to get rejected with "None is not of type 'string'", even though
+        None is exactly what the Python default means. See
+        add_semantic_similarity_cols's `metadata_embedding_col` param.
+        """
+        reg = ToolRegistry()
+
+        @reg.register
+        def dummy_tool(ctx, label: Optional[str] = None) -> str:
+            """A dummy tool with an optional string parameter.
+
+            Args:
+            ----
+                ctx: The run context.
+                label: Optional label.
+            """
+            return "ok"
+
+        prop = reg.get_spec("dummy_tool").param_schema["properties"]["label"]
+        assert prop["type"] == ["string", "null"]
+        assert "label" not in reg.get_spec("dummy_tool").param_schema["required"]
+
+    def test_add_semantic_similarity_cols_exposes_embedding_col(self):
+        """embedding_col must be selectable, so image/metadata embeddings can be used as the primary column."""
+        spec = tool_registry.get_spec("add_semantic_similarity_cols")
+        assert spec is not None
+        props = spec.param_schema["properties"]
+        assert "embedding_col" in props
+        assert props["embedding_col"]["type"] == "string"
+        assert props["metadata_embedding_col"]["type"] == ["string", "null"]

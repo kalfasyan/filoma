@@ -175,7 +175,7 @@ def _get_app() -> Any:
             instructions="""
 Filoma MCP Server - Powerful filesystem analysis tools for AI agents.
 
-This server provides 27 filesystem analysis capabilities organized into categories:
+This server provides 29 filesystem analysis capabilities organized into categories:
 
 DIRECTORY ANALYSIS:
 - count_files: Full recursive scan counting all files/folders
@@ -196,12 +196,14 @@ DATASET & DATAFRAME:
 - sort_dataframe_by_size: Sort by file size
 - add_duplicate_cols: Flag exact duplicate rows (by sha256) as columns
 - add_corruption_cols: Flag corrupt/zero-byte rows as columns
-- add_embedding_cols: Add a semantic `embedding` column from file content
+- add_embedding_cols: Add a semantic `embedding` column from file content (text/code only, never images)
+- add_image_embedding_cols: Add an `image_embedding` column from image pixel content (CLIP; auto-filters to images)
 - add_metadata_embedding_cols: Add a `metadata_embedding` column from structured metadata
 - add_semantic_similarity_cols: Add nearest-neighbor columns from embeddings
 - dataframe_head: Show first N rows
 - summarize_dataframe: Get summary statistics
 - export_dataframe: Export to csv/json/parquet
+- load_dataframe: Load a previously exported csv/json/parquet file back into the session
 
 IMAGE ANALYSIS:
 - analyze_image: Get image shape, dtype, statistics
@@ -301,11 +303,13 @@ _MCP_TOOL_NAMES = frozenset(
         "add_duplicate_cols",
         "add_corruption_cols",
         "add_embedding_cols",
+        "add_image_embedding_cols",
         "add_metadata_embedding_cols",
         "add_semantic_similarity_cols",
         "dataframe_head",
         "summarize_dataframe",
         "export_dataframe",
+        "load_dataframe",
         "analyze_image",
         "preview_image",
         "audit_corrupted_files",
@@ -326,8 +330,10 @@ _DATAFRAME_TOOLS = frozenset(
         "add_duplicate_cols",
         "add_corruption_cols",
         "add_embedding_cols",
+        "add_image_embedding_cols",
         "add_metadata_embedding_cols",
         "add_semantic_similarity_cols",
+        "load_dataframe",
     }
 )
 

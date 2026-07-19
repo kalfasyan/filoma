@@ -117,7 +117,7 @@ columns here \u2014 use the `filoma-dedup` skill for those until that lands.
 
 Beyond exact/near-duplicate matching, you can attach content
 embeddings to the DataFrame and use them to find files that are
-related *by meaning* \u2014 useful for spotting near-duplicate docs,
+related _by meaning_ \u2014 useful for spotting near-duplicate docs,
 grouping dataset files by topic instead of folder, or flagging an
 outlier file:
 
@@ -137,7 +137,21 @@ O(n\u00b2) over embedded rows, so it's best for per-folder/per-dataset
 analysis rather than whole-filesystem scans. Both are also exposed as
 MCP/Filaraki tools (`add_embedding_cols`, `add_semantic_similarity_cols`)
 for agentic use via `filoma ask` or the MCP server.
+For images, use `add_image_embedding_cols()` instead — it runs a CLIP
+vision encoder (via sentence-transformers, already a core filoma
+dependency) to turn each image's pixels into a general-purpose
+visual-semantic vector (subject/scene/composition), not just a pixel
+or perceptual hash:
 
+```python
+df = df.add_image_embedding_cols()              # adds `image_embedding`
+df = df.add_semantic_similarity_cols(embedding_col="image_embedding", top_k=3)
+```
+
+Pick a model with `model=` to trade speed for accuracy — `clip-vit-b32`
+(default, fastest), `clip-vit-b16` (sharper, ~3-4x slower), or
+`clip-vit-l14` (largest/slowest, most accurate). Also exposed as the
+`add_image_embedding_cols` MCP/Filaraki tool.
 Content embeddings ignore everything already in the DataFrame (size,
 extension, owner, timestamps). Fuse metadata in too with
 `add_metadata_embedding_cols()` \u2014 it one-hot/normalizes columns like
@@ -159,11 +173,32 @@ Also exposed as the `add_metadata_embedding_cols` tool; the
 **Whole-repo DataFrames can include tens of thousands of files** once
 `.venv/`, `target/`, `node_modules/`, and `.git/` are swept in \u2014
 embedding all of them would take a very long time. The `add_embedding_cols`
-*tool* (agent-facing only, not the raw DataFrame method) refuses above 500
+_tool_ (agent-facing only, not the raw DataFrame method) refuses above 500
 embeddable files and reports the count instead of hanging. If you hit that,
 narrow the DataFrame first (`filter_by_extension`, `filter_by_pattern`)
 before embedding, rather than passing `ignore_safety_limits=True` on a
 full repo.
+
+### Resuming a DataFrame across sessions
+
+Embeddings (especially image/CLIP ones) can be slow to (re)compute, and
+an agent/MCP session's DataFrame only lives in that one connection's
+memory — it's gone once the connection restarts. Save it once, resume
+later instead of recomputing:
+
+```python
+df.save_parquet("dataset_with_embeddings.parquet")   # preserves list/embedding columns exactly
+
+# ...later, in a fresh session:
+df = DataFrame.load("dataset_with_embeddings.parquet")
+```
+
+Parquet is the right format for this — CSV can't represent list
+columns like `embedding` or `nearest_neighbor_paths`. Also exposed as
+the `export_dataframe` / `load_dataframe` MCP/Filaraki tools — export
+once after building/embedding a DataFrame, then `load_dataframe` at
+the start of a new session instead of re-running
+`create_dataset_dataframe` + `add_image_embedding_cols` from scratch.
 
 ## Single-file probing
 

@@ -34,7 +34,7 @@ class TestMCPServerImports:
 
     def test_imports(self):
         """Test that MCP server module imports correctly."""
-        assert len(_MCP_TOOL_NAMES) == 27
+        assert len(_MCP_TOOL_NAMES) == 29
 
     def test_all_tools_have_descriptions(self):
         """Verify all tools have descriptions and schemas."""
@@ -64,7 +64,7 @@ class TestToolRegistration:
     async def test_list_tools_returns_all_tools(self):
         """Test that list_tools returns all MCP tools."""
         tools = await list_tools()
-        assert len(tools) == 27
+        assert len(tools) == 29
         assert all(isinstance(t, Tool) for t in tools)
 
     @pytest.mark.asyncio
@@ -460,6 +460,54 @@ class TestDataFrameState:
 
         df = _dataframe_state[_NO_SESSION]["current_df"]
         assert "embedding" in df.to_polars().columns
+
+    @pytest.mark.asyncio
+    async def test_export_then_load_dataframe_roundtrip(self, temp_dir, tmp_path):
+        """load_dataframe must be able to resume a DataFrame saved via export_dataframe."""
+        await call_tool("create_dataset_dataframe", {"path": str(temp_dir), "enrich": True})
+        original_rows = len(_dataframe_state[_NO_SESSION]["current_df"])
+        original_columns = set(_dataframe_state[_NO_SESSION]["current_df"].columns)
+
+        export_path = tmp_path / "saved.parquet"
+        export_result = await call_tool("export_dataframe", {"path": str(export_path), "format": "parquet"})
+        assert export_path.exists()
+        assert "export" in export_result[0].text.lower() or "success" in export_result[0].text.lower()
+
+        # Simulate a fresh session: no DataFrame loaded.
+        _dataframe_state.pop(_NO_SESSION, None)
+        missing = await call_tool("dataframe_head", {})
+        assert "no dataframe" in missing[0].text.lower()
+
+        load_result = await call_tool("load_dataframe", {"path": str(export_path)})
+        assert len(load_result) == 1
+        text = load_result[0].text
+        assert "loaded" in text.lower()
+
+        df = _dataframe_state[_NO_SESSION]["current_df"]
+        assert len(df) == original_rows
+        assert set(df.columns) == original_columns
+
+    @pytest.mark.asyncio
+    async def test_load_dataframe_missing_file(self, tmp_path):
+        """load_dataframe must surface a clear error for a nonexistent file, not crash."""
+        result = await call_tool("load_dataframe", {"path": str(tmp_path / "does_not_exist.parquet")})
+        assert len(result) == 1
+        assert "error" in result[0].text.lower()
+
+    @pytest.mark.asyncio
+    async def test_load_dataframe_infers_format_from_extension(self, tmp_path):
+        """format is optional and should be inferred from the file suffix."""
+        from filoma.dataframe import DataFrame
+
+        df = DataFrame({"path": ["a.txt", "b.txt"]})
+        csv_path = tmp_path / "saved.csv"
+        df.save_csv(csv_path)
+
+        result = await call_tool("load_dataframe", {"path": str(csv_path)})
+        assert "loaded" in result[0].text.lower()
+
+        loaded = _dataframe_state[_NO_SESSION]["current_df"]
+        assert len(loaded) == 2
 
 
 class TestMCPDisconnectHandling:

@@ -716,8 +716,9 @@ class DataFrame:
         ``all-MiniLM-L6-v2`` fallback. Only files recognized as text/code (see
         ``filoma.core.rag._is_text_file``) are embedded; the first
         ``max_chars`` characters of content are used to keep this fast on
-        large files. Directories, binary files, and unreadable files get a
-        null embedding.
+        large files. Directories, binary files, and unreadable files
+        (including images) get a null embedding — for images, use
+        ``add_image_embedding_cols()`` instead.
 
         This turns "search files by meaning" (the RAG/``filoma ask`` feature)
         into a column on the file table itself, so relationships between
@@ -787,6 +788,114 @@ class DataFrame:
 
         res = DataFrame(result, lineage=list(self._lineage))
         res.add_lineage_entry("add_embedding_cols", path_col=path, max_chars=max_chars)
+        return res
+
+    def add_image_embedding_cols(
+        self,
+        path: str = "path",
+        base_path: Optional[Union[str, Path]] = None,
+        model: str = "clip-vit-b32",
+        device: Optional[str] = None,
+        inplace: bool = False,
+    ) -> "DataFrame":
+        """Add an ``image_embedding`` column computed from each row's image content.
+
+        Reuses sentence-transformers' bundled CLIP support (already a core
+        filoma dependency) to turn each image's pixels into a general-purpose
+        visual-semantic feature vector — capturing subject/scene/composition,
+        not just raw pixel or perceptual-hash similarity. Only files with a
+        recognized image extension (see ``filoma.dedup.IMAGE_EXTS``) that
+        Pillow can open are embedded; everything else (directories,
+        non-images, unreadable/corrupt files) gets a null embedding
+        automatically — there's no need to pre-filter the DataFrame to just
+        images yourself. For text/code files, use ``add_embedding_cols()``
+        instead.
+
+        Pair with ``add_semantic_similarity_cols(embedding_col="image_embedding")``
+        to build a similarity matrix / nearest-neighbor ranking over the
+        images in the DataFrame — useful for spotting visual near-duplicates,
+        clustering a dataset by visual content, or flagging an outlier image.
+
+        Args:
+        ----
+            path: Name of the column containing file system paths.
+            base_path: Optional base path. Non-absolute paths in ``path`` are
+                resolved relative to this base.
+            model: Which CLIP model to use — a short alias or any
+                sentence-transformers image model id:
+
+                - ``"clip-vit-b32"`` (default): fastest, 512-dim vectors.
+                  Best choice for large batches / quick similarity checks.
+                - ``"clip-vit-b16"``: sharper features, ~3-4x slower than
+                  b32.
+                - ``"clip-vit-l14"``: largest and slowest, most accurate.
+
+                Models are cached per-process after first use, so repeated
+                calls in the same session don't reload weights.
+            device: Torch device to run on, e.g. ``"cpu"``, ``"cuda"``,
+                ``"cuda:1"``, ``"mps"``. If None (default), a GPU is used
+                automatically whenever one is available — sentence-transformers
+                auto-selects CUDA, then Apple Silicon MPS, then CPU.
+            inplace: If True, modify this DataFrame in-place and return
+                ``self``.
+
+        Returns:
+        -------
+            New DataFrame with an ``image_embedding`` column (``list[float]``
+            or null per row), or ``self`` when ``inplace=True``.
+
+        Raises:
+        ------
+            ValueError: If the specified path column does not exist, or the
+                requested model fails to load.
+            ImportError: If sentence-transformers is not installed.
+
+        """
+        if path not in self._df.columns:
+            raise ValueError(f"Column '{path}' not found in DataFrame")
+
+        from PIL import Image
+
+        from filoma.dedup import is_image_path
+
+        from .core.vision import _resolve_image_embedder
+
+        embedder = _resolve_image_embedder(model, device=device)
+        base = Path(base_path) if base_path is not None else None
+
+        images: List[Any] = []
+        row_indices: List[int] = []
+        for i, path_str in enumerate(self._df[path].to_list()):
+            try:
+                p = Path(path_str)
+                if base is not None and not p.is_absolute():
+                    p = base / p
+                if not p.is_file() or not is_image_path(str(p)):
+                    continue
+                img = Image.open(p).convert("RGB")
+                images.append(img)
+                row_indices.append(i)
+            except Exception:
+                continue
+
+        # Embed only the images we could open, in a single batch call for efficiency.
+        vectors: List[Optional[List[float]]] = [None] * len(self._df)
+        if images:
+            computed = embedder(images)
+            for i, vec in zip(row_indices, computed):
+                vectors[i] = list(vec)
+
+        resolved_device = getattr(embedder, "device", device)
+        result = self._df.with_columns(pl.Series("image_embedding", vectors, dtype=pl.List(pl.Float64)))
+
+        if inplace:
+            self._df = result
+            self.invalidate_pandas_cache()
+            self.add_lineage_entry("add_image_embedding_cols", path_col=path, model=model, device=resolved_device)
+            return self
+
+        res = DataFrame(result, lineage=list(self._lineage))
+        res.add_lineage_entry("add_image_embedding_cols", path_col=path, model=model, device=resolved_device)
         return res
 
     def add_metadata_embedding_cols(
@@ -950,7 +1059,9 @@ class DataFrame:
         Args:
         ----
             embedding_col: Column containing content embedding vectors.
-                Defaults to "embedding" (from ``add_embedding_cols``).
+                Defaults to "embedding" (from ``add_embedding_cols``). Pass
+                ``"image_embedding"`` to build a similarity ranking over
+                image content instead (from ``add_image_embedding_cols``).
             top_k: Number of nearest neighbors to attach per row.
             metadata_embedding_col: Optional column containing metadata
                 embedding vectors (from ``add_metadata_embedding_cols``). If
@@ -1257,6 +1368,56 @@ class DataFrame:
         # Convert via Polars for internal consistency
         pl_df = pl.from_pandas(df)
         return cls(pl_df)
+
+    @classmethod
+    def load(cls, path: Union[str, Path], format: Optional[str] = None) -> "DataFrame":
+        """Load a DataFrame previously saved with ``save_csv()`` / ``save_parquet()`` (or ``write_json``).
+
+        The counterpart to ``save_csv()``/``save_parquet()`` — lets a
+        DataFrame built (and possibly enriched with embeddings, similarity
+        columns, etc.) in one session be persisted to disk and picked back
+        up later, without recomputing anything. Particularly useful for
+        agent/MCP sessions, where the in-memory DataFrame only lives as long
+        as that one connection: save once with ``save_parquet()`` (or the
+        ``export_dataframe`` tool), then resume with ``load()`` (or the
+        ``load_dataframe`` tool) in a fresh session instead of rebuilding
+        from scratch.
+
+        Args:
+        ----
+            path: Path to the file to load.
+            format: ``"csv"``, ``"json"``, or ``"parquet"``. If None
+                (default), inferred from the file extension.
+
+        Returns:
+        -------
+            A new DataFrame wrapping the loaded data. Lineage starts fresh
+            (recorded as a single ``"load"`` entry) since this isn't a
+            transformation of an existing in-memory DataFrame.
+
+        Raises:
+        ------
+            ValueError: If the file doesn't exist, or the format can't be
+                inferred/is unsupported.
+
+        """
+        p = Path(path).expanduser()
+        if not p.is_file():
+            raise ValueError(f"File not found: {p}")
+
+        resolved_format = (format or p.suffix.lstrip(".")).lower()
+        if resolved_format in ("parquet", "pq"):
+            pl_df = pl.read_parquet(p)
+        elif resolved_format == "csv":
+            pl_df = pl.read_csv(p)
+        elif resolved_format == "json":
+            pl_df = pl.read_json(p)
+        else:
+            raise ValueError(f"Unsupported format '{resolved_format}'. Use 'parquet', 'csv', or 'json' (or a matching file extension).")
+
+        res = cls(pl_df)
+        res.add_lineage_entry("load", path=str(p), format=resolved_format)
+        return res
 
     def to_dict(self) -> Dict[str, List]:
         """Convert to a dictionary."""

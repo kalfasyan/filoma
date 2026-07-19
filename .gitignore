@@ -74,3 +74,6 @@ tmp/audit_weeds3_v2.json
 .gemini/
 .codebuddy/
 .kiro/
+data/
+*.parquet
+*.csv
