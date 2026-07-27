@@ -714,5 +714,45 @@ class TestContextHelpers:
         assert ctx_a.deps.current_df is not None
 
 
+class TestLifespan:
+    """Test that the Server's lifespan context manager is actually wired up.
+
+    Regression test: `app_lifespan` used to be defined but never passed to
+    `Server(...)`, so it silently never ran and its logged startup/shutdown
+    messages never appeared.
+    """
+
+    def test_server_is_constructed_with_lifespan(self):
+        """The low-level Server instance must be given the app_lifespan manager."""
+        import filoma.mcp_server as mcp_module
+
+        mcp_module._app = None  # force re-creation
+        app = mcp_module._get_app()
+        # mcp.server.Server stores the provided lifespan as `self.lifespan`.
+        assert app.lifespan is not None
+
+    @pytest.mark.asyncio
+    async def test_lifespan_yields_filaraki_deps(self):
+        """Entering the lifespan context manager should yield a FilarakiDeps."""
+        import filoma.mcp_server as mcp_module
+        from filoma.filaraki.agent import FilarakiDeps
+
+        mcp_module._app = None
+        app = mcp_module._get_app()
+        async with app.lifespan(app) as deps:
+            assert isinstance(deps, FilarakiDeps)
+            assert deps.working_dir
+
+    def test_get_lifespan_deps_falls_back_without_request_context(self):
+        """Outside of a live request, a fresh FilarakiDeps should be returned."""
+        import filoma.mcp_server as mcp_module
+        from filoma.filaraki.agent import FilarakiDeps
+
+        mcp_module._app = None
+        mcp_module._get_app()
+        deps = mcp_module._get_lifespan_deps()
+        assert isinstance(deps, FilarakiDeps)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
