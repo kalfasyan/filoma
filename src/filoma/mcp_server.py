@@ -257,6 +257,10 @@ def _get_lifespan_deps() -> FilarakiDeps:
     """
     if _app is not None:
         try:
+            # `request_context` (mcp.server.lowlevel.server.request_ctx.get())
+            # raises exactly `LookupError` when accessed outside a live
+            # request, per the MCP SDK — the same pattern `_session_key()`
+            # above relies on. Anything else should propagate.
             return _app.request_context.lifespan_context
         except LookupError:
             pass

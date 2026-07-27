@@ -724,7 +724,7 @@ class TestLifespan:
 
     @pytest.fixture(autouse=True)
     def reset_app(self, monkeypatch):
-        """Force `_get_app()` to rebuild the Server for each test, and restore it after (even on failure)."""
+        """Force `_get_app()` to rebuild the Server for each test (pytest's fixture cleanup restores state automatically)."""
         import filoma.mcp_server as mcp_module
 
         monkeypatch.setattr(mcp_module, "_app", None)
