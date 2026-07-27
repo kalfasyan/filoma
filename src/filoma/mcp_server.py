@@ -172,6 +172,7 @@ def _get_app() -> Any:
 
         _app = Server(
             "filoma",
+            lifespan=app_lifespan,
             instructions="""
 Filoma MCP Server - Powerful filesystem analysis tools for AI agents.
 
@@ -244,9 +245,31 @@ def _save_context(ctx: SimpleRunContext) -> None:
         _dataframe_state.setdefault(_session_key(), {})["current_df"] = ctx.deps.current_df
 
 
+def _get_lifespan_deps() -> FilarakiDeps:
+    """Return the shared `FilarakiDeps` created by `app_lifespan`, if any.
+
+    Falls back to a fresh instance when there's no live request context
+    (e.g. tests/scripts calling `call_tool()` directly, bypassing the real
+    `Server.run()` dispatch loop that populates the lifespan context). This
+    fallback intentionally mirrors `app_lifespan`'s own construction
+    (`FilarakiDeps(working_dir=os.getcwd())`) exactly, so both paths produce
+    equivalent, freshly-initialized dependencies.
+    """
+    if _app is not None:
+        try:
+            # `request_context` (mcp.server.lowlevel.server.request_ctx.get())
+            # raises exactly `LookupError` when accessed outside a live
+            # request, per the MCP SDK — the same pattern `_session_key()`
+            # above relies on. Anything else should propagate.
+            return _app.request_context.lifespan_context
+        except LookupError:
+            pass
+    return FilarakiDeps(working_dir=os.getcwd())
+
+
 async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
     """Execute a tool with the provided arguments, using the ToolRegistry."""
-    deps = FilarakiDeps(working_dir=os.getcwd())
+    deps = _get_lifespan_deps()
     ctx = _get_context(deps)
 
     mcp = _get_mcp_imports()
