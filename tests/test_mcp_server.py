@@ -723,14 +723,11 @@ class TestLifespan:
     """
 
     @pytest.fixture(autouse=True)
-    def reset_app(self):
-        """Force `_get_app()` to rebuild the Server for each test, and restore it after."""
+    def reset_app(self, monkeypatch):
+        """Force `_get_app()` to rebuild the Server for each test, and restore it after (even on failure)."""
         import filoma.mcp_server as mcp_module
 
-        original_app = mcp_module._app
-        mcp_module._app = None
-        yield
-        mcp_module._app = original_app
+        monkeypatch.setattr(mcp_module, "_app", None)
 
     def test_server_is_constructed_with_lifespan(self):
         """The low-level Server instance must be given the app_lifespan manager."""
