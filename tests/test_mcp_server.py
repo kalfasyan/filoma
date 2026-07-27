@@ -722,11 +722,20 @@ class TestLifespan:
     messages never appeared.
     """
 
+    @pytest.fixture(autouse=True)
+    def reset_app(self):
+        """Force `_get_app()` to rebuild the Server for each test, and restore it after."""
+        import filoma.mcp_server as mcp_module
+
+        original_app = mcp_module._app
+        mcp_module._app = None
+        yield
+        mcp_module._app = original_app
+
     def test_server_is_constructed_with_lifespan(self):
         """The low-level Server instance must be given the app_lifespan manager."""
         import filoma.mcp_server as mcp_module
 
-        mcp_module._app = None  # force re-creation
         app = mcp_module._get_app()
         # mcp.server.Server stores the provided lifespan as `self.lifespan`.
         assert app.lifespan is not None
@@ -737,7 +746,6 @@ class TestLifespan:
         import filoma.mcp_server as mcp_module
         from filoma.filaraki.agent import FilarakiDeps
 
-        mcp_module._app = None
         app = mcp_module._get_app()
         async with app.lifespan(app) as deps:
             assert isinstance(deps, FilarakiDeps)
@@ -748,10 +756,45 @@ class TestLifespan:
         import filoma.mcp_server as mcp_module
         from filoma.filaraki.agent import FilarakiDeps
 
-        mcp_module._app = None
         mcp_module._get_app()
         deps = mcp_module._get_lifespan_deps()
         assert isinstance(deps, FilarakiDeps)
+
+    @pytest.mark.asyncio
+    async def test_call_tool_uses_lifespan_deps_during_real_dispatch(self, tmp_path):
+        """A tool invoked through the actual Server.run() dispatch path should see the lifespan-managed deps.
+
+        Exercises the real request lifecycle (lifespan entered, `request_ctx`
+        populated for the duration of the call) rather than calling
+        `_call_tool_impl` directly, which bypasses `request_context` entirely.
+        """
+        from mcp.server.lowlevel.server import request_ctx
+        from mcp.shared.context import RequestContext
+
+        import filoma.mcp_server as mcp_module
+
+        class _FakeSession:
+            pass
+
+        app = mcp_module._get_app()
+
+        async with app.lifespan(app) as lifespan_deps:
+            token = request_ctx.set(
+                RequestContext(
+                    request_id="test-request",
+                    meta=None,
+                    session=_FakeSession(),
+                    lifespan_context=lifespan_deps,
+                )
+            )
+            try:
+                deps = mcp_module._get_lifespan_deps()
+                assert deps is lifespan_deps
+                result = await mcp_module.call_tool("get_directory_tree", {"path": str(tmp_path)})
+            finally:
+                request_ctx.reset(token)
+
+        assert result[0].type == "text"
 
 
 if __name__ == "__main__":

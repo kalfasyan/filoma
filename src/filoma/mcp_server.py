@@ -250,7 +250,10 @@ def _get_lifespan_deps() -> FilarakiDeps:
 
     Falls back to a fresh instance when there's no live request context
     (e.g. tests/scripts calling `call_tool()` directly, bypassing the real
-    `Server.run()` dispatch loop that populates the lifespan context).
+    `Server.run()` dispatch loop that populates the lifespan context). This
+    fallback intentionally mirrors `app_lifespan`'s own construction
+    (`FilarakiDeps(working_dir=os.getcwd())`) exactly, so both paths produce
+    equivalent, freshly-initialized dependencies.
     """
     if _app is not None:
         try:
