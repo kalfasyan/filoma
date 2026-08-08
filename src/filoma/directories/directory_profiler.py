@@ -1065,6 +1065,7 @@ class DirectoryProfiler:
                         follow_links=follow,
                         search_hidden=hidden,
                         no_ignore=no_ignore,
+                        return_paths=self.build_dataframe,
                     )
                 elif self.use_parallel and RUST_PARALLEL_AVAILABLE:
                     result = probe_directory_rust_parallel(
@@ -1075,6 +1076,7 @@ class DirectoryProfiler:
                         follow_links=follow,
                         search_hidden=hidden,
                         no_ignore=no_ignore,
+                        return_paths=self.build_dataframe,
                     )
                 else:
                     result = probe_directory_rust(
@@ -1084,6 +1086,7 @@ class DirectoryProfiler:
                         follow_links=follow,
                         search_hidden=hidden,
                         no_ignore=no_ignore,
+                        return_paths=self.build_dataframe,
                     )
 
             # Update progress to show completion
@@ -1238,6 +1241,15 @@ class DirectoryProfiler:
                             depth = len(current_path.relative_to(path_root).parts)
                         except ValueError:
                             depth = 0
+
+                        # lstat semantics: symlinks are reported but not
+                        # counted or followed (parity with the Rust engines
+                        # and fd, which all exclude symlinks by default).
+                        try:
+                            if current_path.is_symlink():
+                                continue
+                        except (OSError, PermissionError):
+                            continue
 
                         # Skip if beyond max depth (match Rust implementation logic)
                         if max_depth is not None:

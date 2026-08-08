@@ -338,9 +338,11 @@ mod sequential {
     pub fn probe_directory_sequential(
         path_root: &Path,
         config: &AnalysisConfig,
-    ) -> Result<DirectoryStats, String> {
+        collect_paths: bool,
+    ) -> Result<(DirectoryStats, Vec<String>), String> {
         let start_time = Instant::now();
         let mut stats = DirectoryStats::new();
+        let mut paths: Vec<String> = Vec::new();
         // Pre-compute absolute root for canonicalized paths (when follow_links=true)
         let root_abs = path_root
             .canonicalize()
@@ -394,16 +396,17 @@ mod sequential {
                     *stats.folder_names.entry(name.to_string()).or_insert(0) += 1;
                 }
 
+                let dir_abs =
+                    make_absolute_path_str(entry.path(), path_root, &root_abs, config.follow_links);
+
                 // Initialize folder file count
-                stats
-                    .files_per_folder
-                    .entry(make_absolute_path_str(
-                        entry.path(),
-                        path_root,
-                        &root_abs,
-                        config.follow_links,
-                    ))
-                    .or_insert(0);
+                stats.files_per_folder.entry(dir_abs.clone()).or_insert(0);
+
+                // The root is counted in the stats but excluded from the
+                // returned paths, matching the rglob-based DataFrame view.
+                if collect_paths && depth > 0 {
+                    paths.push(dir_abs);
+                }
             } else if entry.file_type().is_file() {
                 stats.total_files += 1;
 
@@ -430,13 +433,22 @@ mod sequential {
                         ))
                         .or_insert(0) += 1;
                 }
+
+                if collect_paths {
+                    paths.push(make_absolute_path_str(
+                        entry.path(),
+                        path_root,
+                        &root_abs,
+                        config.follow_links,
+                    ));
+                }
             }
         }
 
         let elapsed = start_time.elapsed();
         stats.set_timing(elapsed.as_secs_f64());
 
-        Ok(stats)
+        Ok((stats, paths))
     }
 }
 
@@ -447,9 +459,11 @@ mod parallel {
     pub fn probe_directory_parallel(
         path_root: &Path,
         config: &AnalysisConfig,
-    ) -> Result<DirectoryStats, String> {
+        collect_paths: bool,
+    ) -> Result<(DirectoryStats, Vec<String>), String> {
         let start_time = Instant::now();
         let stats = Arc::new(ParallelDirectoryStats::new());
+        let mut paths: Vec<String> = Vec::new();
 
         // Compute absolute root for canonicalized paths (when follow_links=true)
         let root_abs = path_root
@@ -466,24 +480,41 @@ mod parallel {
             subdirs.len() > 4 && estimate_total_size(&subdirs) > config.parallel_threshold;
 
         if should_parallelize && subdirs.len() > 1 {
-            // Process subdirectories in parallel
+            // Process subdirectories in parallel; each subtree collects its
+            // own paths so no locking is needed.
             let root_clone = path_root.to_path_buf();
             let root_abs_clone = root_abs.clone();
-            subdirs.par_iter().for_each(|subdir| {
-                let _ = probe_subdirectory_recursive(
-                    subdir,
-                    &stats,
-                    config,
-                    1,
-                    &root_clone,
-                    &root_abs_clone,
-                );
-            });
+            let per_subdir: Vec<Vec<String>> = subdirs
+                .par_iter()
+                .map(|subdir| {
+                    let mut subtree_paths: Vec<String> = Vec::new();
+                    let _ = probe_subdirectory_recursive(
+                        subdir,
+                        &stats,
+                        config,
+                        1,
+                        &root_clone,
+                        &root_abs_clone,
+                        &mut subtree_paths,
+                        collect_paths,
+                    );
+                    subtree_paths
+                })
+                .collect();
+            paths.extend(per_subdir.into_iter().flatten());
         } else {
             // Fall back to sequential processing for small directories
             for subdir in subdirs {
-                let _ =
-                    probe_subdirectory_recursive(&subdir, &stats, config, 1, path_root, &root_abs);
+                let _ = probe_subdirectory_recursive(
+                    &subdir,
+                    &stats,
+                    config,
+                    1,
+                    path_root,
+                    &root_abs,
+                    &mut paths,
+                    collect_paths,
+                );
             }
         }
 
@@ -491,7 +522,7 @@ mod parallel {
         let mut result = stats.to_directory_stats();
         result.set_timing(elapsed.as_secs_f64());
 
-        Ok(result)
+        Ok((result, paths))
     }
 
     fn probe_root_directory(
@@ -512,6 +543,7 @@ mod parallel {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn probe_subdirectory_recursive(
         dir_path: &Path,
         stats: &Arc<ParallelDirectoryStats>,
@@ -519,6 +551,8 @@ mod parallel {
         current_depth: u32,
         root: &Path,
         root_abs: &Path,
+        paths: &mut Vec<String>,
+        collect_paths: bool,
     ) -> Result<(), String> {
         // Check depth limit
         if let Some(max_depth) = config.max_depth {
@@ -559,12 +593,12 @@ mod parallel {
                 let is_empty = is_empty_directory(&entry);
 
                 if let Some(name) = entry.file_name().to_str() {
-                    stats.add_folder(
-                        name.to_string(),
-                        is_empty,
-                        make_absolute_path_str(entry.path(), root, root_abs, config.follow_links),
-                        absolute_depth,
-                    );
+                    let dir_abs =
+                        make_absolute_path_str(entry.path(), root, root_abs, config.follow_links);
+                    stats.add_folder(name.to_string(), is_empty, dir_abs.clone(), absolute_depth);
+                    if collect_paths {
+                        paths.push(dir_abs);
+                    }
                 }
             } else if entry.file_type().is_file() {
                 let ext = get_file_extension(entry.path());
@@ -588,6 +622,14 @@ mod parallel {
                     .map(|p| make_absolute_path_str(p, root, root_abs, config.follow_links))
                     .unwrap_or_default();
                 stats.add_file(size, ext, parent_path, config.fast_path_only);
+                if collect_paths {
+                    paths.push(make_absolute_path_str(
+                        entry.path(),
+                        root,
+                        root_abs,
+                        config.follow_links,
+                    ));
+                }
             }
         }
 
@@ -604,7 +646,8 @@ mod parallel {
 
 /// Python interface functions
 #[pyfunction]
-#[pyo3(signature = (path_root, max_depth=None, fast_path_only=None, follow_links=None, search_hidden=None, no_ignore=None))]
+#[allow(clippy::too_many_arguments)]
+#[pyo3(signature = (path_root, max_depth=None, fast_path_only=None, follow_links=None, search_hidden=None, no_ignore=None, return_paths=None))]
 fn probe_directory_rust(
     path_root: &str,
     max_depth: Option<u32>,
@@ -612,6 +655,7 @@ fn probe_directory_rust(
     follow_links: Option<bool>,
     search_hidden: Option<bool>,
     no_ignore: Option<bool>,
+    return_paths: Option<bool>,
 ) -> PyResult<PyObject> {
     probe_directory_rust_with_config(
         path_root,
@@ -621,11 +665,13 @@ fn probe_directory_rust(
         follow_links,
         search_hidden,
         no_ignore,
+        return_paths,
     )
 }
 
 #[pyfunction]
-#[pyo3(signature = (path_root, max_depth=None, parallel_threshold=None, fast_path_only=None, follow_links=None, search_hidden=None, no_ignore=None))]
+#[allow(clippy::too_many_arguments)]
+#[pyo3(signature = (path_root, max_depth=None, parallel_threshold=None, fast_path_only=None, follow_links=None, search_hidden=None, no_ignore=None, return_paths=None))]
 fn probe_directory_rust_parallel(
     path_root: &str,
     max_depth: Option<u32>,
@@ -634,6 +680,7 @@ fn probe_directory_rust_parallel(
     follow_links: Option<bool>,
     search_hidden: Option<bool>,
     no_ignore: Option<bool>,
+    return_paths: Option<bool>,
 ) -> PyResult<PyObject> {
     probe_directory_rust_with_config(
         path_root,
@@ -643,9 +690,11 @@ fn probe_directory_rust_parallel(
         follow_links,
         search_hidden,
         no_ignore,
+        return_paths,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn probe_directory_rust_with_config(
     path_root: &str,
     max_depth: Option<u32>,
@@ -654,6 +703,7 @@ fn probe_directory_rust_with_config(
     follow_links: Option<bool>,
     search_hidden: Option<bool>,
     no_ignore: Option<bool>,
+    return_paths: Option<bool>,
 ) -> PyResult<PyObject> {
     let root = Path::new(path_root);
 
@@ -684,6 +734,8 @@ fn probe_directory_rust_with_config(
         fast_path_only: fast_path_only.unwrap_or(false),
     };
 
+    let collect_paths = return_paths.unwrap_or(false);
+
     // Choose analysis method based on configuration and directory size
     // Use canonicalized root only when follow_links is true
     let root_for_output = if config.follow_links {
@@ -692,14 +744,21 @@ fn probe_directory_rust_with_config(
         root.to_path_buf()
     };
     let stats = if should_use_parallel_analysis(root, &config) {
-        parallel::probe_directory_parallel(root, &config)
+        parallel::probe_directory_parallel(root, &config, collect_paths)
     } else {
-        sequential::probe_directory_sequential(root, &config)
+        sequential::probe_directory_sequential(root, &config, collect_paths)
     };
 
-    let stats = stats.map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
+    let (stats, paths) = stats.map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
 
-    Python::with_gil(|py| stats.to_py_dict(py, root_for_output.to_string_lossy().as_ref()))
+    Python::with_gil(|py| {
+        let dict = stats.to_py_dict(py, root_for_output.to_string_lossy().as_ref())?;
+        if collect_paths {
+            dict.downcast_bound::<pyo3::types::PyDict>(py)?
+                .set_item("paths", paths)?;
+        }
+        Ok(dict)
+    })
 }
 
 /// Intelligent decision making for when to use parallel processing

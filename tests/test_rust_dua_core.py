@@ -324,3 +324,39 @@ class TestDuaCoreProbeToDf:
         df_dua = flm.probe_to_df(test_directory, search_backend="rust", walker="dua-core", enrich=False)
         df_walkdir = flm.probe_to_df(test_directory, search_backend="rust", walker="walkdir", enrich=False)
         assert len(df_dua) == len(df_walkdir)
+
+    def test_probe_to_df_symlink_consistency(self):
+        # The walkdir engine now returns engine paths too (no rglob fallback),
+        # so its DataFrame must match dua-core's: root and symlinks excluded.
+        import filoma as flm
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            (tmp_path / "real.txt").write_text("x")
+            try:
+                (tmp_path / "link.txt").symlink_to(tmp_path / "real.txt")
+            except OSError:
+                pytest.skip("symlinks not supported on this platform")
+
+            df_dua = flm.probe_to_df(tmp_dir, search_backend="rust", walker="dua-core", enrich=False)
+            df_walkdir = flm.probe_to_df(tmp_dir, search_backend="rust", walker="walkdir", enrich=False)
+            assert len(df_dua) == 1  # only real.txt (root and link excluded)
+            assert len(df_walkdir) == 1
+            assert str(Path(df_walkdir["path"][0]).name) == "real.txt"
+
+    def test_python_backend_symlink_parity(self):
+        # Python backend must use lstat semantics like the Rust engines.
+        import filoma as flm
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            (tmp_path / "real.txt").write_text("x")
+            try:
+                (tmp_path / "link.txt").symlink_to(tmp_path / "real.txt")
+            except OSError:
+                pytest.skip("symlinks not supported on this platform")
+
+            py = flm.probe(tmp_dir, search_backend="python")
+            rust = flm.probe(tmp_dir, search_backend="rust", walker="dua-core")
+            assert py["summary"]["total_files"] == rust["summary"]["total_files"] == 1
+            assert py["summary"]["total_folders"] == rust["summary"]["total_folders"]

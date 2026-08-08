@@ -89,7 +89,8 @@ pub async fn probe_directory_async_internal(
     concurrency_limit: usize,
     timeout_ms: u64,
     retries: u8,
-) -> Result<crate::DirectoryStats, String> {
+    collect_paths: bool,
+) -> Result<(crate::DirectoryStats, Vec<String>), String> {
     let start = Instant::now();
 
     // Use the ParallelDirectoryStats structure for thread-safe aggregation
@@ -97,6 +98,8 @@ pub async fn probe_directory_async_internal(
     // Semaphore limits concurrent I/O operations (read_dir calls)
     let sem = Arc::new(Semaphore::new(concurrency_limit));
     let metrics = Arc::new(ScanMetrics::new());
+    // Paths of every counted entry (root excluded), shared across workers
+    let paths: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
 
     // Count the root directory only if it is non-empty
     if let Some(name) = path_root.file_name().and_then(|n| n.to_str()) {
@@ -139,6 +142,7 @@ pub async fn probe_directory_async_internal(
         let worker_sem = sem.clone();
         let worker_metrics = metrics.clone();
         let worker_pending = pending_work.clone();
+        let worker_paths = paths.clone();
 
         let handle = tokio::spawn(async move {
             loop {
@@ -172,6 +176,8 @@ pub async fn probe_directory_async_internal(
                     &worker_sem,
                     &worker_metrics,
                     &proc_config,
+                    &worker_paths,
+                    collect_paths,
                 )
                 .await;
 
@@ -216,7 +222,12 @@ pub async fn probe_directory_async_internal(
         eprintln!("[filoma async] {}", metrics.summary());
     }
 
-    Ok(result)
+    let paths = match Arc::try_unwrap(paths) {
+        Ok(mutex) => mutex.into_inner().unwrap_or_default(),
+        Err(_) => Vec::new(),
+    };
+
+    Ok((result, paths))
 }
 
 /// Configuration for processing a directory
@@ -226,6 +237,7 @@ struct ProcessDirectoryConfig {
 }
 
 /// Process a single directory and return list of subdirectories to scan
+#[allow(clippy::too_many_arguments)]
 async fn process_directory(
     dir: &PathBuf,
     current_depth: u32,
@@ -234,6 +246,8 @@ async fn process_directory(
     sem: &Arc<Semaphore>,
     metrics: &Arc<ScanMetrics>,
     proc_config: &ProcessDirectoryConfig,
+    paths: &Arc<std::sync::Mutex<Vec<String>>>,
+    collect_paths: bool,
 ) -> Vec<PathBuf> {
     // Respect max_depth
     if let Some(max_d) = config.max_depth {
@@ -325,6 +339,11 @@ async fn process_directory(
                         current_depth,
                     );
                 }
+                if collect_paths {
+                    if let Ok(mut paths_guard) = paths.lock() {
+                        paths_guard.push(path.to_string_lossy().to_string());
+                    }
+                }
                 // Queue for parallel processing
                 subdirs.push(path);
             } else if md.is_file() {
@@ -335,6 +354,11 @@ async fn process_directory(
                     .map(|p| p.to_string_lossy().to_string())
                     .unwrap_or_default();
                 stats.add_file(size, ext, parent, config.fast_path_only);
+                if collect_paths {
+                    if let Ok(mut paths_guard) = paths.lock() {
+                        paths_guard.push(path.to_string_lossy().to_string());
+                    }
+                }
             }
         } else {
             metrics.record_skipped_entry();
@@ -357,7 +381,7 @@ async fn process_directory(
 }
 
 #[pyfunction]
-#[pyo3(signature = (path_root, max_depth=None, concurrency_limit=None, timeout_ms=None, retries=None, fast_path_only=None, follow_links=None, search_hidden=None, no_ignore=None))]
+#[pyo3(signature = (path_root, max_depth=None, concurrency_limit=None, timeout_ms=None, retries=None, fast_path_only=None, follow_links=None, search_hidden=None, no_ignore=None, return_paths=None))]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn probe_directory_rust_async(
     path_root: &str,
@@ -369,6 +393,7 @@ pub(crate) fn probe_directory_rust_async(
     follow_links: Option<bool>,
     search_hidden: Option<bool>,
     no_ignore: Option<bool>,
+    return_paths: Option<bool>,
 ) -> PyResult<PyObject> {
     let root = PathBuf::from(path_root);
 
@@ -400,6 +425,7 @@ pub(crate) fn probe_directory_rust_async(
     let concurrency = concurrency_limit.unwrap_or(64);
     let op_timeout_ms = timeout_ms.unwrap_or(5000);
     let retries = retries.unwrap_or(0);
+    let collect_paths = return_paths.unwrap_or(false);
 
     // Build a runtime and block_on the async analysis
     let rt = tokio::runtime::Builder::new_multi_thread()
@@ -413,11 +439,26 @@ pub(crate) fn probe_directory_rust_async(
         })?;
 
     // Wrap the internal call to inject timeout/retry behavior into a config closure
-    let stats = rt.block_on(async move {
-        probe_directory_async_internal(root, config, concurrency, op_timeout_ms, retries).await
+    let result = rt.block_on(async move {
+        probe_directory_async_internal(
+            root,
+            config,
+            concurrency,
+            op_timeout_ms,
+            retries,
+            collect_paths,
+        )
+        .await
     });
 
-    let stats = stats.map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
+    let (stats, paths) = result.map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
 
-    Python::with_gil(|py| stats.to_py_dict(py, path_root))
+    Python::with_gil(|py| {
+        let dict = stats.to_py_dict(py, path_root)?;
+        if collect_paths {
+            dict.downcast_bound::<pyo3::types::PyDict>(py)?
+                .set_item("paths", paths)?;
+        }
+        Ok(dict)
+    })
 }

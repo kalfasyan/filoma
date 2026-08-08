@@ -37,6 +37,24 @@ configurable via `walker="dua-core" | "walkdir" | "auto"` in
 sequential scans, `follow_links=True`, and as the fallback when the
 dua-core engine is unavailable or fails.
 
+### Engine harmonization contract
+
+All backends (Rust engines, Python backend, fd) agree on these semantics:
+
+- **Symlinks** (`follow_links=False`, the default): symlinks are reported
+  but neither counted nor traversed — an entry is only a file or a
+  directory when its _lstat_ type says so. This matches `find`/`fd`/`du`
+  defaults. With `follow_links=True` (Rust engines only; dua-core falls
+  back to the walkdir engines) symlinks are followed.
+- **DataFrames match the probe**: when DataFrame building is enabled, the
+  rows come from the engine's own scan (each Rust engine returns its
+  counted paths), so `probe_to_df` never performs a second traversal and
+  the DataFrame contains exactly the counted entries minus the root.
+- **max_depth**: files at depth `max_depth + 1` are included;
+  directories at depth `> max_depth` are not counted.
+- **Empty directories**: a directory is empty iff `read_dir` yields no
+  entries — hidden-only children still make it non-empty.
+
 This is the **canonical extension pattern** for the codebase. The
 caller (`DirectoryProfiler`) depends on a `Probe` / `Scanner`
 abstraction — never on a concrete backend. A new backend only needs
