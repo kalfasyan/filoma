@@ -178,7 +178,7 @@ Filoma auto-detects the fastest available backend at runtime:
 
 <small>Measured on a MacBook Air M4 / local NVMe SSD (1M files) and a network NFS mount (200K files) — see [full methodology and hardware](docs/reference/benchmarks.md). Your results will vary by hardware, filesystem, and directory shape.</small>
 
-No configuration required — the fastest backend is selected for you.
+No configuration required — the fastest backend is selected for you. Inside Rust, the default local engine is the dua-core parallel walker (parallel `read_dir` + metadata); opt out with `walker="walkdir"` in `DirectoryProfilerConfig`.
 
 ---
 

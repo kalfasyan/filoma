@@ -35,6 +35,13 @@ from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
 DirectoryProfiler(DirectoryProfilerConfig(search_backend='fd')).probe('.')
 ```
 
+Choose the Rust traversal engine (default `auto` picks the dua-core parallel walker on local filesystems):
+
+```python
+DirectoryProfiler(DirectoryProfilerConfig(search_backend='rust', walker='dua-core'))
+DirectoryProfiler(DirectoryProfilerConfig(search_backend='rust', walker='walkdir'))
+```
+
 Fast path only (paths without metadata):
 
 ```python
@@ -52,8 +59,10 @@ Common flags:
 
 - `max_depth`: limit recursion.
 - `search_hidden`: include dotfiles.
-- `follow_links`: follow symlinks.
+- `follow_links`: follow symlinks (default `False` — symlinks are reported but not counted).
 - `fast_path_only`: skip metadata.
+- `walker`: `dua-core` / `walkdir` / `auto` (Rust engine selection).
+- `walker_threads`: worker count for the dua-core engine.
 
 Inspect raw structure (dict-like):
 

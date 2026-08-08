@@ -61,6 +61,9 @@ pandas_df = probe_to_df('.', to_pandas=True)
 
 Tips:
 
+- The DataFrame contains exactly the entries the probe counted (root and
+  symlinks excluded) — with the Rust backends the rows come from the
+  engine's scan, so `probe_to_df` never performs a second traversal.
 - Use `.add_file_stats_cols()` sparingly on huge trees (it touches filesystem for each path).
   Pandas conversions and caching
 

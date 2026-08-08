@@ -55,6 +55,13 @@ mkdocs serve
 - **Backend selection** follows the Rust → fd → Python fallback.
   Don't introduce a fourth path; extend the existing abstraction.
   See `docs/reference/architecture.md`.
+- **Traversal semantics are harmonized across engines** (symlinks not
+  counted when `follow_links=False`, `max_depth`, empty-dir, and
+  DataFrame-row semantics — see the "Engine harmonization contract"
+  in `docs/reference/architecture.md`). When changing any engine
+  (`src/dua_scan.rs`, `src/lib.rs`, `src/async_scan.rs`, the Python
+  backend), keep the others in parity and extend the parity tests in
+  `tests/test_rust_dua_core.py`.
 - **Tool definitions are duplicated** today across
   `src/filoma/filaraki/tools.py` and `src/filoma/mcp_server.py`. The
   Phase 2 roadmap consolidates these into one `ToolRegistry`. Until

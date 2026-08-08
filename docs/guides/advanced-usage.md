@@ -22,15 +22,17 @@ profiler.print_summary(result)
 Key arguments (what they do & which backend(s) support them):
 
 - `search_backend` — choose preferred backend. Supported values: `rust`, `fd`, `python`, `auto` (default). All profilers use this to decide implementation.
+- `walker` — choose the Rust traversal engine: `auto` (default; dua-core on local filesystems, walkdir otherwise), `dua-core`, or `walkdir`. Backend: Rust.
+- `walker_threads` — worker count for the dua-core engine (1–512). Backend: Rust (dua-core).
 - `use_async` — enable Rust async scanner (when `search_backend` allows Rust and tokio-enabled build). Backend: Rust (async only).
 - `use_parallel` / `parallel_threshold` — prefer parallel Rust scanning when available; adjusts parallel decision heuristics. Backend: Rust (parallel only).
-- `build_dataframe` — collect discovered paths into a Polars DataFrame for downstream analysis. Backend: works with any discovery backend; building is done in Python when using Rust/fd.
+- `build_dataframe` — collect discovered paths into a Polars DataFrame for downstream analysis. Backend: works with any discovery backend; the Rust engines return their paths directly (no second traversal), fd and Python collect during discovery.
 - `max_depth` — limit recursion depth. Honored by all backends.
-- `follow_links` — whether to follow symlinks. Backend support: Rust (explicit flag), fd (discovery flag), Python (depends on os.walk behaviour but passed through by the profiler).
+- `follow_links` — whether to follow symlinks. Default `False` (symlinks are reported but not counted); supported by Rust, fd, and Python (lstat semantics).
 - `search_hidden` — include hidden files/dirs. Backend support: Rust, fd, Python (profiler passes preference).
 - `no_ignore` — ignore .gitignore and similar ignore files (fd/Rust option). Backend support: fd, Rust.
 - `threads` — number of threads forwarded to `fd` (if used). Backend: fd.
-- `fast_path_only` — Rust-only mode to skip expensive metadata collection and only gather file paths (useful for very large trees).
+- `fast_path_only` — skip expensive metadata collection and only gather file paths (useful for very large trees). Backend: Rust.
 
 Notes: when `search_backend='auto'` filoma chooses the most efficient backend available and applies fd-like defaults (follow hidden, do not respect ignore files) unless you explicitly override flags.
 

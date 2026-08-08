@@ -1,6 +1,6 @@
 # Performance Benchmarks
 
-**Latest Benchmark Data**: Updated February 2026 with measurements on both local SSD and network storage.
+**Latest Benchmark Data**: Updated February 2026 with measurements on both local SSD and network storage. The tables below were measured with the walkdir-based Rust engine; the Rust backend now defaults to the dua-core walker (`rust-dua`), which measured ~6% faster on a 1.3M-file home directory in August 2026. Re-run `benchmarks/benchmark.py --backend profiling` on your hardware for current numbers.
 
 > ⚠️ **DISCLAIMER**: Benchmark results vary based on hardware, filesystem, and directory structure. Always run your own benchmarks on your target systems for accurate performance data specific to your use case.
 
@@ -149,7 +149,8 @@ The benchmark tool separates backends into groups to ensure fair performance com
 
 These backends perform full metadata collection (permissions, sizes, timestamps, etc.):
 
-- **Rust** - Rayon parallel scanner, most optimized for metadata collection
+- **Rust** - Default engine: dua-core walker (parallel `read_dir` + parallel metadata)
+- **Rust-dua** - Explicit dua-core walker (`walker="dua-core"`)
 - **Rust-seq** - Sequential Rust baseline for comparison
 - **Async** - Tokio async scanner, excellent for high-latency network operations
 - **fd** - External tool, traversal optimized but good reference point
@@ -168,6 +169,7 @@ These backends only discover file paths (fast-path mode - no metadata collection
 - **os.walk** - Python standard library baseline
 - **pathlib** - Python pathlib.Path.rglob
 - **rust-fast** - Rust with `fast_path_only=True` for pure discovery
+- **rust-dua-fast** - dua-core walker with `fast_path_only=True`
 - **async-fast** - Async with `fast_path_only=True` for pure discovery
 
 Use traversal backends to measure raw discovery performance:

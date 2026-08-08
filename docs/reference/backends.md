@@ -13,15 +13,15 @@
 ### 🦀 Rust Backend (Fastest for Local Storage)
 
 - **Best performance** - 2.5x+ faster than alternatives on local storage
-- **Parallel processing** - automatic multi-threading with rayon
+- **Parallel processing** - dua-core walker by default (parallel `read_dir` + parallel metadata); walkdir engines as fallback
 - **Auto-selected** - chosen by default when available for local filesystems
+- **Engine switch** - `walker="auto" | "dua-core" | "walkdir"` in `DirectoryProfilerConfig`; `walker_threads` tunes the worker count
 - **Same API** - drop-in replacement with identical output
 
 ### ⚡ Async Backend (Network-optimized)
 
-- **Network optimized** - tokio-based with bounded concurrency
-- **85% of Rust speed** - excellent for network filesystems (NFS, SMB, CIFS)
-- **Auto-selected** - automatically chosen for network mounts when available
+- **Network optimized** - tokio-based with bounded concurrency, timeouts, and retries
+- **Opt-in** - enabled with `use_async=True` (default `False`); useful for NFS, SMB, CIFS
 - **Tunable concurrency** - `network_concurrency`, `network_timeout_ms`, `network_retries` parameters
 
 ### 🔍 fd Backend (Competitive Alternative)
@@ -47,7 +47,7 @@ profiler.print_summary(result)
 
 ### 🦀 Rust Async (Network-optimized)
 
-- **When**: Automatically selected for network-mounted filesystems (NFS/CIFS/SMB/Gluster/SSHFS) when available.
+- **When**: Used for network-mounted filesystems (NFS/CIFS/SMB/Gluster/SSHFS) when `use_async=True` and the tokio build is available. Without it, network mounts use the regular Rust engines.
 - **Why**: Uses a tokio-based scanner with bounded concurrency to hide network latency and avoid overwhelming remote servers.
 - **Tuning**: `DirectoryProfiler` accepts network tuning parameters:
   - `network_concurrency` (int): maximum outstanding directory ops (default 64)
@@ -69,6 +69,10 @@ If the async Rust backend isn't compiled into your wheel, filoma will fall back 
 profiler_rust = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust"))
 profiler_fd = DirectoryProfiler(DirectoryProfilerConfig(search_backend="fd"))
 profiler_python = DirectoryProfiler(DirectoryProfilerConfig(search_backend="python"))
+
+# Force the traversal engine inside the Rust backend
+profiler_dua = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust", walker="dua-core"))
+profiler_walkdir = DirectoryProfiler(DirectoryProfilerConfig(search_backend="rust", walker="walkdir"))
 
 # Check availability
 print(f"Rust available: {profiler_rust.is_rust_available()}")
@@ -100,12 +104,12 @@ for backend in backends:
 | Use Case                       | Recommended Backend                    | Why                                                                |
 | ------------------------------ | -------------------------------------- | ------------------------------------------------------------------ |
 | **Large local directories**    | Auto (Rust preferred)                  | Best overall performance for local storage                         |
-| **Network filesystems (NFS)**  | Auto or explicit `async`               | Async backend handles high latency efficiently                     |
+| **Network filesystems (NFS)**  | Auto, or `use_async=True` for timeouts | Async backend handles high latency and flaky mounts                |
 | **CI/CD environments**         | Auto                                   | Reliable with graceful fallbacks                                   |
 | **Maximum compatibility**      | `python`                               | Always works, no dependencies                                      |
-| **DataFrame analysis**         | Auto (Rust on local, Async on network) | Fastest metadata collection                                        |
+| **DataFrame analysis**         | Auto (Rust)                            | Engine paths feed the DataFrame — no second traversal              |
 | **Pattern matching**           | `fd`                                   | Advanced regex/glob support                                        |
-| **Tuning network performance** | Explicit `async` with config           | Use `network_concurrency`, `network_timeout_ms`, `network_retries` |
+| **Tuning network performance** | `use_async=True` with config           | Use `network_concurrency`, `network_timeout_ms`, `network_retries` |
 
 ## Technical Details
 
