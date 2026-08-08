@@ -690,9 +690,11 @@ class DirectoryProfiler:
                 max_depth=max_depth,
                 absolute_paths=self.return_absolute_paths,
                 threads=threads,
-                search_hidden=True if self.search_backend == "auto" else False,
-                no_ignore=True if self.search_backend == "auto" else False,
-                follow_links=False,  # Don't follow symlinks by default
+                # Mirror the file search flags so hidden/ignore handling is
+                # consistent between the two discovery calls.
+                search_hidden=fd_find_kwargs.get("search_hidden", False),
+                no_ignore=fd_find_kwargs.get("no_ignore", False),
+                follow_links=fd_find_kwargs.get("follow_links", False),
             )
 
             # Convert to Path objects for analysis
@@ -1093,36 +1095,40 @@ class DirectoryProfiler:
             # so Python-side normalization is no longer necessary here.
 
             # If DataFrame building is enabled, we need to collect file paths
-            # since the Rust implementation doesn't return them
+            # since the Rust implementation doesn't return them. The dua-core
+            # engine can return them directly (no second traversal); other
+            # engines fall back to a Python pathlib scan.
             if self.build_dataframe and DATAFRAME_AVAILABLE:
                 if progress and task_id is not None:
                     progress.update(task_id, description="[bold yellow]Building DataFrame...")
 
-                root_path_obj = Path(path)
-                all_paths = []
+                all_paths = result.get("paths")
                 permission_errors_encountered = False
 
-                # Collect paths using Python (pathlib) with error handling for system directories
-                try:
-                    for current_path in root_path_obj.rglob("*"):
-                        try:
-                            # Calculate current depth
-                            depth = len(current_path.relative_to(root_path_obj).parts)
+                if not all_paths:
+                    # Collect paths using Python (pathlib) with error handling for system directories
+                    all_paths = []
+                    root_path_obj = Path(path)
+                    try:
+                        for current_path in root_path_obj.rglob("*"):
+                            try:
+                                # Calculate current depth
+                                depth = len(current_path.relative_to(root_path_obj).parts)
 
-                            # Skip if beyond max depth
-                            if max_depth is not None and depth > max_depth:
+                                # Skip if beyond max depth
+                                if max_depth is not None and depth > max_depth:
+                                    continue
+
+                                all_paths.append(str(current_path))
+                            except (ValueError, OSError, PermissionError):
+                                # Skip paths that can't be accessed or processed
+                                permission_errors_encountered = True
                                 continue
-
-                            all_paths.append(str(current_path))
-                        except (ValueError, OSError, PermissionError):
-                            # Skip paths that can't be accessed or processed
-                            permission_errors_encountered = True
-                            continue
-                except (OSError, PermissionError, FileNotFoundError):
-                    # If rglob fails entirely, provide DataFrame with whatever we collected
-                    self.console.print("[yellow]Warning: Some paths couldn't be accessed for DataFrame building[/yellow]")
-                    logger.warning(f"DataFrame building encountered permission errors on {path}, providing partial results")
-                    permission_errors_encountered = True
+                    except (OSError, PermissionError, FileNotFoundError):
+                        # If rglob fails entirely, provide DataFrame with whatever we collected
+                        self.console.print("[yellow]Warning: Some paths couldn't be accessed for DataFrame building[/yellow]")
+                        logger.warning(f"DataFrame building encountered permission errors on {path}, providing partial results")
+                        permission_errors_encountered = True
 
                 # Add DataFrame to the result (may be partial if there were permission errors)
                 result["dataframe"] = DataFrame(all_paths)
@@ -1154,6 +1160,7 @@ class DirectoryProfiler:
                 fast_path_only,
                 search_hidden=hidden,
                 walker_threads=self.walker_threads,
+                return_paths=self.build_dataframe,
             )
         except Exception as e:
             logger.warning(f"dua-core walker failed for '{path}': {e}, falling back to walkdir engine")

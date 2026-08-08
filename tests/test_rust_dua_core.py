@@ -199,6 +199,23 @@ class TestDuaCoreParity:
             with pytest.raises(Exception):
                 _probe_dua(f.name)
 
+    def test_return_paths(self, test_directory):
+        dua = _probe_dua(test_directory)
+        with_paths = _probe_dua(test_directory, return_paths=True)
+        # Root is excluded from paths (matches rglob-based DataFrame collection).
+        expected = dua["summary"]["total_files"] + dua["summary"]["total_folders"] - 1
+        assert len(with_paths["paths"]) == expected
+        assert len(set(with_paths["paths"])) == expected  # no duplicates
+        assert any(p.endswith("README.md") for p in with_paths["paths"])
+        assert not any(Path(p) == Path(test_directory) for p in with_paths["paths"])
+
+    def test_return_paths_max_depth(self, test_directory):
+        with_paths = _probe_dua(test_directory, max_depth=1, return_paths=True)
+        root = Path(test_directory)
+        for p in with_paths["paths"]:
+            rel = Path(p).relative_to(root).parts
+            assert len(rel) <= 2, p
+
 
 class TestDuaCoreSelection:
     """walker config routing in DirectoryProfiler."""
@@ -267,3 +284,23 @@ class TestDuaCoreSelection:
         info = profiler.get_implementation_info()
         assert info["walker"] == "auto"
         assert info["rust_dua_core_available"] is True
+
+
+class TestDuaCoreProbeToDf:
+    """probe_to_df must use the Rust-returned paths, not a second rglob."""
+
+    def test_probe_to_df_uses_dua_paths(self, test_directory):
+        import filoma as flm
+
+        df = flm.probe_to_df(test_directory, search_backend="rust", walker="dua-core", enrich=False)
+        probe = flm.probe(test_directory, search_backend="rust", walker="dua-core")
+        # Root is excluded from the DataFrame (rglob semantics).
+        expected = probe["summary"]["total_files"] + probe["summary"]["total_folders"] - 1
+        assert len(df) == expected
+
+    def test_probe_to_df_matches_walkdir_rows(self, test_directory):
+        import filoma as flm
+
+        df_dua = flm.probe_to_df(test_directory, search_backend="rust", walker="dua-core", enrich=False)
+        df_walkdir = flm.probe_to_df(test_directory, search_backend="rust", walker="walkdir", enrich=False)
+        assert len(df_dua) == len(df_walkdir)

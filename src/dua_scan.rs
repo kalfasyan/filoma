@@ -27,11 +27,16 @@ use crate::{
 };
 
 /// Parallel directory analysis using `dua-core`'s work-stealing walker.
+///
+/// When `collect_paths` is true, the paths of every counted entry (files and
+/// directories) are returned alongside the stats, so callers can build a
+/// DataFrame without a second traversal.
 pub fn probe_directory_dua_core_internal(
     path_root: &Path,
     config: &AnalysisConfig,
     threads: usize,
-) -> Result<DirectoryStats, String> {
+    collect_paths: bool,
+) -> Result<(DirectoryStats, Vec<String>), String> {
     let start_time = Instant::now();
     let stats = Arc::new(ParallelDirectoryStats::new());
     let root_abs = path_root
@@ -42,6 +47,8 @@ pub fn probe_directory_dua_core_internal(
     let all_dirs: DashSet<String> = DashSet::new();
     // Absolute paths of every directory that received at least one child.
     let parents_with_children: DashSet<String> = DashSet::new();
+    // Paths of every counted entry, collected on the consuming thread.
+    let mut paths: Vec<String> = Vec::new();
 
     // Count the root directory itself, mirroring `probe_root_directory`:
     // only when it has a file name (a bare "." probe has none), and its
@@ -53,6 +60,9 @@ pub fn probe_directory_dua_core_internal(
             path_root.to_string_lossy().to_string(),
             0,
         );
+        // The root is counted in the stats but excluded from the returned
+        // paths, matching the rglob-based DataFrame collection (rglob("*")
+        // never yields the root itself).
         all_dirs.insert(make_absolute_path_str(
             path_root, path_root, &root_abs, false,
         ));
@@ -126,12 +136,18 @@ pub fn probe_directory_dua_core_internal(
             let dir_abs = make_absolute_path_str(&path, path_root, &root_abs, false);
             if let Some(name) = entry.file_name.to_str() {
                 stats.add_folder(name.to_string(), false, dir_abs.clone(), entry.depth as u32);
-                all_dirs.insert(dir_abs);
+                all_dirs.insert(dir_abs.clone());
+                if collect_paths {
+                    paths.push(dir_abs);
+                }
             }
         } else {
             let ext = get_file_extension(&path);
             let file_size = if config.fast_path_only { 0 } else { size };
             stats.add_file(file_size, ext, parent_abs, config.fast_path_only);
+            if collect_paths {
+                paths.push(make_absolute_path_str(&path, path_root, &root_abs, false));
+            }
         }
     }
 
@@ -147,18 +163,19 @@ pub fn probe_directory_dua_core_internal(
     let mut result = stats.to_directory_stats();
     result.set_timing(elapsed.as_secs_f64());
 
-    Ok(result)
+    Ok((result, paths))
 }
 
 /// Python entry point for the dua-core walker.
 #[pyfunction]
-#[pyo3(signature = (path_root, max_depth=None, fast_path_only=None, search_hidden=None, walker_threads=None))]
+#[pyo3(signature = (path_root, max_depth=None, fast_path_only=None, search_hidden=None, walker_threads=None, return_paths=None))]
 pub(crate) fn probe_directory_rust_dua_core(
     path_root: &str,
     max_depth: Option<u32>,
     fast_path_only: Option<bool>,
     search_hidden: Option<bool>,
     walker_threads: Option<usize>,
+    return_paths: Option<bool>,
 ) -> PyResult<PyObject> {
     let root = PathBuf::from(path_root);
 
@@ -197,20 +214,27 @@ pub(crate) fn probe_directory_rust_dua_core(
         })
         .clamp(1, 512);
 
+    let collect_paths = return_paths.unwrap_or(false);
+
     Python::with_gil(|py| {
         // Release the GIL while walking (dua-core has no per-operation
         // timeouts; a slow mount must not block other Python threads) and
         // convert Rust panics into a typed error so the Python-side fallback
         // can catch them (PanicException does not subclass Exception).
-        let stats = py
+        let (stats, paths) = py
             .allow_threads(|| {
                 std::panic::catch_unwind(|| {
-                    probe_directory_dua_core_internal(&root, &config, threads)
+                    probe_directory_dua_core_internal(&root, &config, threads, collect_paths)
                 })
                 .map_err(|_| "dua-core walker panicked".to_string())
                 .and_then(|result| result)
             })
             .map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
-        stats.to_py_dict(py, path_root)
+        let dict = stats.to_py_dict(py, path_root)?;
+        if collect_paths {
+            dict.downcast_bound::<pyo3::types::PyDict>(py)?
+                .set_item("paths", paths)?;
+        }
+        Ok(dict)
     })
 }
