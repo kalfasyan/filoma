@@ -101,6 +101,12 @@ impl ParallelDirectoryStats {
         *self.depth_distribution.entry(depth).or_insert(0) += 1;
     }
 
+    fn add_empty_folders(&self, paths: Vec<String>) {
+        if let Ok(mut empty_folders) = self.empty_folders.lock() {
+            empty_folders.extend(paths);
+        }
+    }
+
     fn to_directory_stats(&self) -> DirectoryStats {
         let empty_folders = self
             .empty_folders
@@ -320,6 +326,10 @@ pub fn make_absolute_path_str(
 // Async scanner module
 mod async_scan;
 use async_scan::probe_directory_rust_async;
+
+// dua-core scanner module
+mod dua_scan;
+use dua_scan::probe_directory_rust_dua_core;
 
 /// Sequential directory analysis engine
 mod sequential {
@@ -721,5 +731,6 @@ fn filoma_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(probe_directory_rust, m)?)?;
     m.add_function(wrap_pyfunction!(probe_directory_rust_parallel, m)?)?;
     m.add_function(wrap_pyfunction!(probe_directory_rust_async, m)?)?;
+    m.add_function(wrap_pyfunction!(probe_directory_rust_dua_core, m)?)?;
     Ok(())
 }
