@@ -113,13 +113,30 @@ pub fn probe_directory_dua_core_internal(
         // mirroring the walkdir engines (is_dir/is_file both false -> skipped).
         let (is_dir, size) = match entry.metadata.as_ref() {
             Ok(metadata) => {
-                let file_type = metadata.file_type();
-                if file_type.is_dir() {
-                    (true, metadata.len())
-                } else if file_type.is_file() {
-                    (false, metadata.len())
-                } else {
-                    continue;
+                #[cfg(not(windows))]
+                {
+                    let file_type = metadata.file_type();
+                    if file_type.is_dir() {
+                        (true, metadata.len())
+                    } else if file_type.is_file() {
+                        (false, metadata.len())
+                    } else {
+                        continue;
+                    }
+                }
+                // On Windows, dua-core metadata comes from directory
+                // enumeration (no file_type()); entry.file_type is derived
+                // from file attributes and is authoritative there.
+                #[cfg(windows)]
+                {
+                    let file_type = entry.file_type;
+                    if file_type.is_dir() {
+                        (true, metadata.len())
+                    } else if file_type.is_file() {
+                        (false, metadata.len())
+                    } else {
+                        continue;
+                    }
                 }
             }
             Err(_) => {
