@@ -26,6 +26,17 @@ Filoma resolves a backend at runtime via a fixed priority chain:
 | 2        | `fd`    | `fd-find` available on `$PATH`      |
 | 3        | Python  | Always available (pure stdlib walk) |
 
+Within the Rust backend, the traversal engine is selected at runtime too.
+For local filesystems the default engine is a parallel walker built on the
+[`dua-core`](https://docs.rs/dua-core) crate (parallel `read_dir` and, on
+Unix, parallel metadata retrieval; efficient metadata handling on NTFS).
+For network filesystems (NFS/CIFS/SMB/…) the tokio async scanner is the
+default because it provides per-operation timeouts and retries. Both are
+configurable via `walker="dua-core" | "walkdir" | "auto"` in
+`DirectoryProfilerConfig`; the walkdir-based engines remain available for
+sequential scans, `follow_links=True`, and as the fallback when the
+dua-core engine is unavailable or fails.
+
 This is the **canonical extension pattern** for the codebase. The
 caller (`DirectoryProfiler`) depends on a `Probe` / `Scanner`
 abstraction — never on a concrete backend. A new backend only needs

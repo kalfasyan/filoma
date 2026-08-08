@@ -57,10 +57,10 @@ except ImportError:
 
 # Traversal-only backends (just visit files, no metadata)
 # Includes fast variants of rust backends that skip metadata collection
-TRAVERSAL_BACKENDS = ["os.walk", "pathlib", "rust-fast", "async-fast"]
+TRAVERSAL_BACKENDS = ["os.walk", "pathlib", "rust-fast", "rust-dua-fast", "async-fast"]
 
 # Full profiling backends (collect metadata, extensions, stats)
-PROFILING_BACKENDS = ["rust", "rust-seq", "async", "fd", "python"]
+PROFILING_BACKENDS = ["rust", "rust-dua", "rust-seq", "async", "fd", "python"]
 
 # All backends
 ALL_BACKENDS = TRAVERSAL_BACKENDS + PROFILING_BACKENDS
@@ -264,6 +264,56 @@ def benchmark_filoma(
                 True,  # search_hidden
                 True,  # no_ignore - always ignore .gitignore for consistent counts
             )
+            elapsed = time.perf_counter() - start
+            summary = result.get("summary", {})
+            return {
+                "elapsed": elapsed,
+                "files": summary.get("total_files", 0),
+                "dirs": summary.get("total_folders", 0),
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
+    # Handle dua-core (parallel walker) variants
+    if backend in ("rust-dua", "rust-dua-fast"):
+        fast_path = backend == "rust-dua-fast"
+        try:
+            config = DirectoryProfilerConfig(
+                use_rust=True,
+                use_parallel=True,
+                search_backend="rust",
+                walker="dua-core",
+                show_progress=False,
+                fast_path_only=fast_path,
+            )
+            profiler = DirectoryProfiler(config)
+            if not profiler.is_rust_available():
+                return {"error": "Rust not available"}
+            if not profiler.get_implementation_info().get("rust_dua_core_available"):
+                return {"error": "dua-core walker not available"}
+
+            start = time.perf_counter()
+            try:
+                from loguru import logger
+
+                logger.disable("filoma")
+            except ImportError:
+                pass
+
+            result = profiler.probe(path)
+
+            # _call_dua_core swallows runtime failures and falls back to the
+            # walkdir engines; do not label those runs as dua-core.
+            if profiler._rust_engine_used != "dua-core":
+                return {"error": "dua-core engine not used (fell back to walkdir)"}
+
+            try:
+                from loguru import logger
+
+                logger.enable("filoma")
+            except ImportError:
+                pass
+
             elapsed = time.perf_counter() - start
             summary = result.get("summary", {})
             return {
@@ -522,6 +572,8 @@ Examples:
             "rust",
             "rust-seq",
             "rust-fast",
+            "rust-dua",
+            "rust-dua-fast",
             "async",
             "async-fast",
             "fd",

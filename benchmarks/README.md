@@ -79,6 +79,19 @@ python benchmarks/benchmark.py \
     --dataset-size medium
 ```
 
+For an ext4/NTFS/network filesystem matrix (recommended when evaluating the
+`rust-dua` walker), label each mount and run the full backend set:
+
+```bash
+python benchmarks/benchmark.py \
+    --path ext4=/mnt/ssd/bench \
+    --path ntfs=/mnt/windows/bench \
+    --path nas=/mnt/nas/bench \
+    --dataset-size large \
+    --backend all \
+    --iterations 5
+```
+
 ### Cold-Cache Benchmark
 
 For accurate benchmarks, clear the filesystem cache between runs (requires sudo):
@@ -118,13 +131,14 @@ Backends are organized into groups based on what they measure:
 
 Full directory profiling with metadata collection, extension counting, and statistics.
 
-| Backend    | Description                                                             |
-| ---------- | ----------------------------------------------------------------------- |
-| `rust`     | Rust parallel scanner (rayon) - fastest for local storage               |
-| `rust-seq` | Rust sequential scanner                                                 |
-| `async`    | Rust async scanner (tokio) - optimized for high-latency network storage |
-| `fd`       | External fd tool with metadata enrichment                               |
-| `python`   | Pure Python implementation                                              |
+| Backend    | Description                                                                         |
+| ---------- | ----------------------------------------------------------------------------------- |
+| `rust`     | Rust parallel scanner (walkdir + rayon) - fast for local storage                    |
+| `rust-dua` | Rust parallel scanner on the dua-core walker (parallel readdir + parallel metadata) |
+| `rust-seq` | Rust sequential scanner                                                             |
+| `async`    | Rust async scanner (tokio) - optimized for high-latency network storage             |
+| `fd`       | External fd tool with metadata enrichment                                           |
+| `python`   | Pure Python implementation                                                          |
 
 ```bash
 # Profiling backends (default)
@@ -143,12 +157,13 @@ python benchmarks/benchmark.py \
 
 Fast file/directory traversal only - no metadata collection. Useful for measuring raw filesystem traversal speed.
 
-| Backend      | Description                                               |
-| ------------ | --------------------------------------------------------- |
-| `os.walk`    | Python standard library                                   |
-| `pathlib`    | Python pathlib.Path.rglob                                 |
-| `rust-fast`  | Rust parallel scanner with `fast_path_only` (no metadata) |
-| `async-fast` | Rust async scanner with `fast_path_only` (no metadata)    |
+| Backend         | Description                                               |
+| --------------- | --------------------------------------------------------- |
+| `os.walk`       | Python standard library                                   |
+| `pathlib`       | Python pathlib.Path.rglob                                 |
+| `rust-fast`     | Rust parallel scanner with `fast_path_only` (no metadata) |
+| `rust-dua-fast` | dua-core walker with `fast_path_only` (no metadata)       |
+| `async-fast`    | Rust async scanner with `fast_path_only` (no metadata)    |
 
 ```bash
 # Traversal backends only
