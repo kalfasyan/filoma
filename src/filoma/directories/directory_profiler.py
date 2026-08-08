@@ -41,6 +41,14 @@ try:
 except Exception:
     RUST_ASYNC_AVAILABLE = False
 
+# Optional dua-core (parallel walker) prober
+try:
+    from filoma.filoma_core import probe_directory_rust_dua_core  # type: ignore
+
+    RUST_DUA_CORE_AVAILABLE = True
+except Exception:
+    RUST_DUA_CORE_AVAILABLE = False
+
 # Import DataFrame for enhanced functionality
 try:
     from ..dataframe import DataFrame
@@ -76,6 +84,10 @@ class DirectoryProfilerConfig:
     use_fd: bool = False
     search_backend: str = "auto"  # 'rust' | 'fd' | 'python' | 'auto'
 
+    # Rust traversal engine selection ('walkdir' | 'dua-core' | 'auto')
+    walker: str = "auto"
+    walker_threads: Optional[int] = None
+
     # General tuning
     parallel_threshold: int = 1000
     build_dataframe: bool = False
@@ -102,6 +114,10 @@ class DirectoryProfilerConfig:
         # Basic validations
         if self.search_backend not in ("auto", "rust", "fd", "python"):
             raise ValueError("search_backend must be one of 'auto','rust','fd','python'")
+        if self.walker not in ("auto", "walkdir", "dua-core"):
+            raise ValueError("walker must be one of 'auto','walkdir','dua-core'")
+        if self.walker_threads is not None and (not isinstance(self.walker_threads, int) or not 1 <= self.walker_threads <= 512):
+            raise ValueError("walker_threads must be an integer between 1 and 512 when set")
         if not isinstance(self.parallel_threshold, int) or self.parallel_threshold < 0:
             raise ValueError("parallel_threshold must be a non-negative integer")
         if not isinstance(self.network_concurrency, int) or self.network_concurrency <= 0:
@@ -328,6 +344,11 @@ class DirectoryProfiler:
         self._fast_path_only = config.fast_path_only
         self.progress_callback = config.progress_callback
 
+        # Rust traversal engine selection (dua-core is the default engine when
+        # available and not explicitly disabled; falls back to walkdir engines)
+        self.walker = config.walker
+        self.walker_threads = config.walker_threads
+
         # Validate availability and enforce clear relationships
         # Use explicit booleans from the config
         if config.use_rust and not RUST_AVAILABLE:
@@ -456,15 +477,18 @@ class DirectoryProfiler:
             "rust_available": RUST_AVAILABLE,
             "rust_parallel_available": RUST_PARALLEL_AVAILABLE,
             "rust_async_available": RUST_ASYNC_AVAILABLE,
+            "rust_dua_core_available": RUST_DUA_CORE_AVAILABLE,
             "fd_available": FD_AVAILABLE,
             "dataframe_available": DATAFRAME_AVAILABLE,
             "using_rust": self.use_rust,
             "using_parallel": self.use_parallel,
             "using_async": bool(self.use_async and RUST_ASYNC_AVAILABLE),
+            "using_dua_core": bool(getattr(self, "_rust_engine_used", None) == "dua-core"),
             "using_fd": self.use_fd,
             "using_dataframe": self.build_dataframe,
             "return_absolute_paths": self.return_absolute_paths,
             "search_backend": self.search_backend,
+            "walker": self.walker,
             "python_fallback": not (self.use_rust or self.use_fd),
         }
 
@@ -504,6 +528,11 @@ class DirectoryProfiler:
             # Calculate and log timing
             elapsed_time = time.time() - start_time
             total_items = result["summary"]["total_files"] + result["summary"]["total_folders"]
+
+            # Refresh the display name after dispatch so the Rust engine that
+            # actually ran (e.g. dua-core vs walkdir) is reported.
+            if backend == "rust":
+                impl_type = self._get_impl_display_name(backend)
 
             logger.success(
                 f"Directory analysis completed in {elapsed_time:.2f}s - "
@@ -576,7 +605,9 @@ class DirectoryProfiler:
         if backend == "fd":
             return "🔍 fd"
         elif backend == "rust":
-            if self.use_parallel and RUST_PARALLEL_AVAILABLE:
+            if getattr(self, "_rust_engine_used", None) == "dua-core":
+                return "🦀 Rust (dua-core parallel)"
+            elif self.use_parallel and RUST_PARALLEL_AVAILABLE:
                 return "🦀 Rust (Parallel)"
             else:
                 return "🦀 Rust (Sequential)"
@@ -976,7 +1007,8 @@ class DirectoryProfiler:
             task_id = progress.add_task("Analyzing...", total=None)
 
         try:
-            # Choose Rust variant: async for network filesystems, sync otherwise
+            # Choose Rust variant: dua-core (parallel walker) for local filesystems,
+            # async for network filesystems, walkdir engines as the fallback.
             try:
                 fs_type = self._detect_filesystem_type(path)
             except Exception:
@@ -988,22 +1020,39 @@ class DirectoryProfiler:
                 if any(x in fs_type.lower() for x in ("nfs", "cifs", "smb", "ceph", "gluster", "sshfs")):
                     is_network_fs = True
 
-            # If network FS choose async Rust prober which limits concurrency and uses tokio
-            # Only use the async Rust variant when the path looks like a network
-            # filesystem AND the user explicitly enabled async via `use_async`.
-            if is_network_fs and self.use_async:
-                # Default concurrency limit can be tuned; use configured values
-                if RUST_ASYNC_AVAILABLE:
-                    # Decide Rust flag defaults: when search_backend is 'auto', scan hidden/ignored but don't follow symlinks
-                    if self.search_backend == "auto":
-                        follow = False
-                        hidden = True
-                        no_ignore = True
-                    else:
-                        follow = None
-                        hidden = None
-                        no_ignore = None
+            # Decide Rust flag defaults: when search_backend is 'auto', scan
+            # hidden/ignored but don't follow symlinks.
+            if self.search_backend == "auto":
+                follow = False
+                hidden = True
+                no_ignore = True
+            else:
+                follow = None
+                hidden = None
+                no_ignore = None
 
+            self._rust_engine_used = "walkdir"
+            result = None
+
+            # dua-core is the default engine for local filesystems; an explicit
+            # `walker='dua-core'` also overrides network handling (opt-in).
+            # `use_parallel=False` keeps the sequential walkdir engine, and the
+            # fast path routes to the walkdir engines, which skip metadata
+            # entirely (dua-core stats every entry regardless of fast_path_only).
+            use_dua = self.use_parallel and (self.walker == "dua-core" or (self.walker == "auto" and not is_network_fs and not fast_path_only))
+            if use_dua:
+                result = self._call_dua_core(
+                    path,
+                    max_depth,
+                    fast_path_only,
+                    hidden if hidden is not None else True,
+                )
+                if result is not None:
+                    self._rust_engine_used = "dua-core"
+
+            if result is None:
+                # Network + async: tokio engine with timeouts/retries.
+                if is_network_fs and self.use_async and RUST_ASYNC_AVAILABLE:
                     result = probe_directory_rust_async(
                         path,
                         max_depth,
@@ -1015,79 +1064,7 @@ class DirectoryProfiler:
                         search_hidden=hidden,
                         no_ignore=no_ignore,
                     )
-                else:
-                    # Async variant not available; fall back to parallel or sequential Rust
-                    if self.use_parallel and RUST_PARALLEL_AVAILABLE:
-                        if self.search_backend == "auto":
-                            follow = False
-                            hidden = True
-                            no_ignore = True
-                        else:
-                            follow = None
-                            hidden = None
-                            no_ignore = None
-
-                        result = probe_directory_rust_parallel(
-                            path,
-                            max_depth,
-                            self.parallel_threshold,
-                            fast_path_only,
-                            follow_links=follow,
-                            search_hidden=hidden,
-                            no_ignore=no_ignore,
-                        )
-                    else:
-                        result = probe_directory_rust(path, max_depth, fast_path_only)
-            elif is_network_fs and not self.use_async:
-                # User explicitly disabled async; prefer parallel or sequential Rust
-                if self.use_parallel and RUST_PARALLEL_AVAILABLE:
-                    if self.search_backend == "auto":
-                        follow = False
-                        hidden = True
-                        no_ignore = True
-                    else:
-                        follow = None
-                        hidden = None
-                        no_ignore = None
-
-                    result = probe_directory_rust_parallel(
-                        path,
-                        max_depth,
-                        self.parallel_threshold,
-                        fast_path_only,
-                        follow_links=follow,
-                        search_hidden=hidden,
-                        no_ignore=no_ignore,
-                    )
-                else:
-                    if self.search_backend == "auto":
-                        follow = False
-                        hidden = True
-                        no_ignore = True
-                    else:
-                        follow = None
-                        hidden = None
-                        no_ignore = None
-
-                    result = probe_directory_rust(
-                        path,
-                        max_depth,
-                        fast_path_only,
-                        follow_links=follow,
-                        search_hidden=hidden,
-                        no_ignore=no_ignore,
-                    )
-            else:
-                if self.search_backend == "auto":
-                    follow = False
-                    hidden = True
-                    no_ignore = True
-                else:
-                    follow = None
-                    hidden = None
-                    no_ignore = None
-
-                if self.use_parallel and RUST_PARALLEL_AVAILABLE:
+                elif self.use_parallel and RUST_PARALLEL_AVAILABLE:
                     result = probe_directory_rust_parallel(
                         path,
                         max_depth,
@@ -1161,6 +1138,26 @@ class DirectoryProfiler:
         finally:
             if progress:
                 progress.stop()
+
+    def _call_dua_core(self, path: str, max_depth: Optional[int], fast_path_only: bool, hidden: bool) -> Optional[Dict]:
+        """Run the dua-core walker engine.
+
+        Returns the probe result dict, or None when the engine is unavailable
+        or fails at runtime (callers fall back to the walkdir engines).
+        """
+        if not RUST_DUA_CORE_AVAILABLE:
+            return None
+        try:
+            return probe_directory_rust_dua_core(
+                path,
+                max_depth,
+                fast_path_only,
+                search_hidden=hidden,
+                walker_threads=self.walker_threads,
+            )
+        except Exception as e:
+            logger.warning(f"dua-core walker failed for '{path}': {e}, falling back to walkdir engine")
+            return None
 
     def _probe_python(self, path: str, max_depth: Optional[int] = None) -> Dict:
         """Pure Python implementation with enhanced DataFrame support and progress indication."""
