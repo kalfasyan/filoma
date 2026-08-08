@@ -128,6 +128,26 @@ class TestDuaCoreParity:
         assert dua["summary"]["total_folders"] == parallel["summary"]["total_folders"]
         assert all(".hidden" not in str(p) for p in dua["empty_folders"])
 
+    def test_symlink_parity(self):
+        # Symlinks are neither files nor dirs for the Rust engines
+        # (follow_links=False); both must skip them, not count them as files.
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            (tmp_path / "real.txt").write_text("x")
+            (tmp_path / "realdir").mkdir()
+            (tmp_path / "realdir" / "inner.txt").write_text("x")
+            try:
+                (tmp_path / "link_to_file").symlink_to(tmp_path / "real.txt")
+                (tmp_path / "link_to_dir").symlink_to(tmp_path / "realdir")
+            except OSError:
+                pytest.skip("symlinks not supported on this platform")
+
+            dua = _probe_dua(tmp_dir)
+            parallel = _probe_parallel(tmp_dir)
+            assert dua["summary"]["total_files"] == parallel["summary"]["total_files"] == 2
+            assert dua["summary"]["total_folders"] == parallel["summary"]["total_folders"] == 2
+            assert dua["summary"]["total_size_bytes"] == parallel["summary"]["total_size_bytes"]
+
     def test_hidden_only_children_not_empty(self):
         # A visible directory containing only hidden entries is NOT empty,
         # even when search_hidden=False (parity with the read_dir-based check).

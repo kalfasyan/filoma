@@ -108,9 +108,20 @@ pub fn probe_directory_dua_core_internal(
 
         // Classify using the parallelized metadata when available, falling
         // back to the readdir file type (which may be unknown on filesystems
-        // without d_type, e.g. some network mounts).
+        // without d_type, e.g. some network mounts). Entries that are neither
+        // file nor directory (symlinks, special files) are not counted,
+        // mirroring the walkdir engines (is_dir/is_file both false -> skipped).
         let (is_dir, size) = match entry.metadata.as_ref() {
-            Ok(metadata) => (metadata.file_type().is_dir(), metadata.len()),
+            Ok(metadata) => {
+                let file_type = metadata.file_type();
+                if file_type.is_dir() {
+                    (true, metadata.len())
+                } else if file_type.is_file() {
+                    (false, metadata.len())
+                } else {
+                    continue;
+                }
+            }
             Err(_) => {
                 let file_type = entry.file_type;
                 if file_type.is_dir() {
