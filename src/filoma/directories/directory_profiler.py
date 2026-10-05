@@ -139,6 +139,40 @@ class DirectoryProfilerConfig:
             raise ValueError("'threads' only applies when use_fd=True or search_backend='fd'")
 
 
+def _assemble_probe_result(
+    path_root: Path,
+    *,
+    file_count: int,
+    folder_count: int,
+    total_size: int,
+    depth_stats: Mapping,
+    empty_folders: List[str],
+    file_extensions: Counter,
+    folder_names: Counter,
+    files_per_folder: Mapping,
+) -> Dict:
+    """Build the result dict shared by the pure-Python probes (the Python walk and the fd path)."""
+    avg_files_per_folder = file_count / max(1, folder_count)
+    top_folders_by_file_count = sorted(files_per_folder.items(), key=lambda x: x[1], reverse=True)[:10]
+    return {
+        "path": str(path_root),
+        "summary": {
+            "total_files": file_count,
+            "total_folders": folder_count,
+            "total_size_bytes": total_size,
+            "total_size_mb": round(total_size / (1024 * 1024), 2),
+            "avg_files_per_folder": round(avg_files_per_folder, 2),
+            "max_depth": max(depth_stats.keys()) if depth_stats else 0,
+            "empty_folder_count": len(empty_folders),
+        },
+        "file_extensions": dict(file_extensions.most_common(20)),
+        "common_folder_names": dict(folder_names.most_common(20)),
+        "empty_folders": empty_folders,
+        "top_folders_by_file_count": top_folders_by_file_count,
+        "depth_distribution": dict(depth_stats),
+    }
+
+
 def _is_interactive_environment():
     """Detect if running in IPython/Jupyter or other interactive environment."""
     try:
@@ -947,30 +981,17 @@ class DirectoryProfiler:
             if progress and task_id is not None:
                 progress.update(task_id, completed=processed_items)
 
-            # Calculate summary statistics
-            avg_files_per_folder = file_count / max(1, folder_count)
-
-            # Find folders with most files
-            top_folders_by_file_count = sorted(files_per_folder.items(), key=lambda x: x[1], reverse=True)[:10]
-
-            # Build result dictionary
-            result = {
-                "path": str(path_root),
-                "summary": {
-                    "total_files": file_count,
-                    "total_folders": folder_count,
-                    "total_size_bytes": total_size,
-                    "total_size_mb": round(total_size / (1024 * 1024), 2),
-                    "avg_files_per_folder": round(avg_files_per_folder, 2),
-                    "max_depth": max(depth_stats.keys()) if depth_stats else 0,
-                    "empty_folder_count": len(empty_folders),
-                },
-                "file_extensions": dict(file_extensions.most_common(20)),
-                "common_folder_names": dict(folder_names.most_common(20)),
-                "empty_folders": empty_folders,
-                "top_folders_by_file_count": top_folders_by_file_count,
-                "depth_distribution": dict(depth_stats),
-            }
+            result = _assemble_probe_result(
+                path_root,
+                file_count=file_count,
+                folder_count=folder_count,
+                total_size=total_size,
+                depth_stats=depth_stats,
+                empty_folders=empty_folders,
+                file_extensions=file_extensions,
+                folder_names=folder_names,
+                files_per_folder=files_per_folder,
+            )
 
             # Add DataFrame if enabled
             if self.build_dataframe and DATAFRAME_AVAILABLE:
@@ -1340,30 +1361,17 @@ class DirectoryProfiler:
             if progress and task_id is not None:
                 progress.update(task_id, completed=processed_items)
 
-            # Calculate summary statistics
-            avg_files_per_folder = file_count / max(1, folder_count)
-
-            # Find folders with most files
-            top_folders_by_file_count = sorted(files_per_folder.items(), key=lambda x: x[1], reverse=True)[:10]
-
-            # Build result dictionary
-            result = {
-                "path": str(path_root),
-                "summary": {
-                    "total_files": file_count,
-                    "total_folders": folder_count,
-                    "total_size_bytes": total_size,
-                    "total_size_mb": round(total_size / (1024 * 1024), 2),
-                    "avg_files_per_folder": round(avg_files_per_folder, 2),
-                    "max_depth": max(depth_stats.keys()) if depth_stats else 0,
-                    "empty_folder_count": len(empty_folders),
-                },
-                "file_extensions": dict(file_extensions.most_common(20)),
-                "common_folder_names": dict(folder_names.most_common(20)),
-                "empty_folders": empty_folders,
-                "top_folders_by_file_count": top_folders_by_file_count,
-                "depth_distribution": dict(depth_stats),
-            }
+            result = _assemble_probe_result(
+                path_root,
+                file_count=file_count,
+                folder_count=folder_count,
+                total_size=total_size,
+                depth_stats=depth_stats,
+                empty_folders=empty_folders,
+                file_extensions=file_extensions,
+                folder_names=folder_names,
+                files_per_folder=files_per_folder,
+            )
 
             # Add DataFrame if enabled
             if self.build_dataframe and DATAFRAME_AVAILABLE:
