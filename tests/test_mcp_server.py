@@ -34,7 +34,8 @@ class TestMCPServerImports:
 
     def test_imports(self):
         """Test that MCP server module imports correctly."""
-        assert len(_MCP_TOOL_NAMES) == 29
+        registered = {spec.name for spec in tool_registry.list_specs()}
+        assert _MCP_TOOL_NAMES <= registered, f"MCP allowlist names not registered: {sorted(_MCP_TOOL_NAMES - registered)}"
 
     def test_all_tools_have_descriptions(self):
         """Verify all tools have descriptions and schemas."""
@@ -64,7 +65,7 @@ class TestToolRegistration:
     async def test_list_tools_returns_all_tools(self):
         """Test that list_tools returns all MCP tools."""
         tools = await list_tools()
-        assert len(tools) == 29
+        assert len(tools) == len(_MCP_TOOL_NAMES)
         assert all(isinstance(t, Tool) for t in tools)
 
     @pytest.mark.asyncio

@@ -5,7 +5,7 @@ Filoma Filaraki provides an intelligent AI agent for filesystem analysis using [
 ## Features
 
 - **Interactive Chat**: Have natural conversations about your filesystem
-- **30 Powerful Tools**: Directory analysis, file operations, data quality checks, image analysis, and more
+- **Powerful Tools**: Directory analysis, file operations, data quality checks, image analysis, and more
 - **Smart DataFrames**: Automatically build and manipulate file metadata DataFrames
 - **Read-Only Safety**: Safe analysis that never modifies your files (except export)
 - **Multiple Backends**: Uses Rust (fastest), `fd`, or Python (fallback) for operations
@@ -222,7 +222,7 @@ uv run python -m filoma.mcp_server
 - `FILOMA_MCP_TRANSPORT`: Transport type - `stdio` (default) or `sse`
 - `FILOMA_MCP_PORT`: Port for SSE transport (default: 8000)
 
-## Available Tools (24 via MCP)
+## Available Tools (exposed via MCP)
 
 ### Directory Analysis
 
@@ -246,9 +246,14 @@ uv run python -m filoma.mcp_server
 - **`sort_dataframe_by_size`** - Sort by file size (descending/ascending)
 - **`add_duplicate_cols`** - Flag exact duplicate rows (by SHA-256) as columns
 - **`add_corruption_cols`** - Flag corrupt/zero-byte rows as columns
+- **`add_embedding_cols`** - Add a semantic `embedding` column from file content (text/code only, never images)
+- **`add_image_embedding_cols`** - Add an `image_embedding` column from image pixel content (CLIP; auto-filters to images)
+- **`add_metadata_embedding_cols`** - Add a `metadata_embedding` column derived from structured file metadata
+- **`add_semantic_similarity_cols`** - Add nearest-neighbor columns using cosine similarity of embeddings
 - **`dataframe_head`** - Show first N rows
 - **`summarize_dataframe`** - Get summary statistics
 - **`export_dataframe`** - Export to CSV/JSON/Parquet (only write operation)
+- **`load_dataframe`** - Load a previously exported CSV/JSON/Parquet file back into the session
 
 ### Image Analysis
 
@@ -266,7 +271,7 @@ uv run python -m filoma.mcp_server
 
 - **`list_available_tools`** - Show all available tools with descriptions
 
-The interactive chat agent (`flm.ask()`, `filoma filaraki chat`) has 6 more tools beyond the MCP set above — `verify_integrity`, `run_quality_check`, `list_directory`, `list_directory_all`, `index_for_rag`, and `search_rag` — 30 tools in total.
+The interactive chat agent (`flm.ask()`, `filoma filaraki chat`) has more tools beyond the MCP set above — `verify_integrity`, `run_quality_check`, `list_directory`, `list_directory_all`, `index_for_rag`, and `search_rag`. `tests/test_docs_tool_coverage.py` fails if a registered tool is missing from this page.
 
 ## AI Model Configuration
 

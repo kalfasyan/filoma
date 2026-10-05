@@ -9,8 +9,12 @@ from filoma.tool_registry import ToolRegistry, ToolSpec, tool_registry
 class TestToolRegistrySize:
     """Test that all expected tools are registered."""
 
-    def test_registry_has_28_tools(self):
-        assert len(tool_registry) == 35
+    def test_registry_is_populated(self):
+        """Importing filoma.filaraki.tools registers every tool; the count is derived, not hard-coded."""
+        names = [spec.name for spec in tool_registry.list_specs()]
+        assert len(names) == len(set(names)), "duplicate tool names registered"
+        assert len(tool_registry) == len(names)
+        assert len(names) > 0
 
     def test_core_tools_registered(self):
         names = {spec.name for spec in tool_registry.list_specs()}
@@ -143,9 +147,9 @@ class TestRegistryAPI:
     def test_get_callable_nonexistent(self):
         assert tool_registry.get_callable("nonexistent") is None
 
-    def test_list_specs_returns_correct_count(self):
+    def test_list_specs_matches_registry_length(self):
         specs = tool_registry.list_specs()
-        assert len(specs) == 35
+        assert len(specs) == len(tool_registry)
         assert all(isinstance(s, ToolSpec) for s in specs)
 
 

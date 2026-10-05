@@ -154,30 +154,10 @@ async def call_tool(name: str, arguments: dict) -> List[Any]:
     return await _call_tool_impl(name, arguments)
 
 
-def _get_app() -> Any:
-    """Get or create the MCP server instance lazily."""
-    global _app
-    if _app is None:
-        mcp = _get_mcp_imports()
-        Server = mcp["Server"]
-
-        @asynccontextmanager
-        async def app_lifespan(server: Any) -> AsyncIterator[FilarakiDeps]:
-            """Manage application lifecycle with shared dependencies."""
-            deps = FilarakiDeps(working_dir=os.getcwd())
-            logger.info(f"Filoma MCP Server started. Working directory: {deps.working_dir}")
-            try:
-                yield deps
-            finally:
-                logger.info("Filoma MCP Server shutting down.")
-
-        _app = Server(
-            "filoma",
-            lifespan=app_lifespan,
-            instructions="""
+_SERVER_INSTRUCTIONS_TEMPLATE = """
 Filoma MCP Server - Powerful filesystem analysis tools for AI agents.
 
-This server provides 29 filesystem analysis capabilities organized into categories:
+This server provides {tool_count} filesystem analysis capabilities organized into categories:
 
 DIRECTORY ANALYSIS:
 - count_files: Full recursive scan counting all files/folders
@@ -221,7 +201,35 @@ UTILITIES:
 - list_available_tools: Show all available tools with descriptions
 
 All tools support path expansion (~ for home directory) and validation.
-""",
+"""
+
+
+def _server_instructions() -> str:
+    """Render the server instructions, deriving the tool count from ``_MCP_TOOL_NAMES``."""
+    return _SERVER_INSTRUCTIONS_TEMPLATE.format(tool_count=len(_MCP_TOOL_NAMES))
+
+
+def _get_app() -> Any:
+    """Get or create the MCP server instance lazily."""
+    global _app
+    if _app is None:
+        mcp = _get_mcp_imports()
+        Server = mcp["Server"]
+
+        @asynccontextmanager
+        async def app_lifespan(server: Any) -> AsyncIterator[FilarakiDeps]:
+            """Manage application lifecycle with shared dependencies."""
+            deps = FilarakiDeps(working_dir=os.getcwd())
+            logger.info(f"Filoma MCP Server started. Working directory: {deps.working_dir}")
+            try:
+                yield deps
+            finally:
+                logger.info("Filoma MCP Server shutting down.")
+
+        _app = Server(
+            "filoma",
+            lifespan=app_lifespan,
+            instructions=_server_instructions(),
         )
 
         # Register the tool handlers with the Server instance
