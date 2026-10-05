@@ -67,7 +67,7 @@ filaraki-advanced: filaraki-install  ## Run the Filaraki advanced workflows exam
 dev-install:  ## Install package in development mode with dev dependencies
 	uv sync --extra dev --extra all
 
-benchmark:  ## Run performance benchmark (Python vs Rust)
+benchmark:  ## Run performance benchmark (backends vs os.walk, find, fd)
 	uv run poe benchmark
 
 # Documentation targets
