@@ -15,7 +15,8 @@ def test_every_registered_tool_is_documented_in_filaraki_guide():
     if not _FILARAKI_GUIDE.exists():
         pytest.skip("docs/ not available (installed from sdist/wheel)")
     guide = _FILARAKI_GUIDE.read_text(encoding="utf-8")
-    undocumented = sorted(spec.name for spec in tool_registry.list_specs() if f"`{spec.name}`" not in guide)
+    plugins = tool_registry.plugin_tool_names()  # third-party tools document themselves (see docs/guides/plugins.md)
+    undocumented = sorted(spec.name for spec in tool_registry.list_specs() if spec.name not in plugins and f"`{spec.name}`" not in guide)
     assert not undocumented, f"Tools missing from docs/guides/filaraki.md: {undocumented}"
 
 

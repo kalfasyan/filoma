@@ -146,6 +146,10 @@ def test_mcp_server_lists_plugin_tools(monkeypatch):
         listed = {t.name for t in asyncio.run(mcp_server.list_tools())}
         assert "plugin_demo_tool" in listed
         assert mcp_server._MCP_TOOL_NAMES <= listed
+        # The instructions a client reads must mention it too, with the built-in count unchanged.
+        instructions = mcp_server._server_instructions()
+        assert "plugin_demo_tool: Demo plugin tool." in instructions
+        assert f"{len(mcp_server._MCP_TOOL_NAMES)} filesystem analysis capabilities" in instructions
     finally:
         tool_registry._tools.pop("plugin_demo_tool", None)
         tool_registry._plugin_tool_names.discard("plugin_demo_tool")
@@ -174,3 +178,37 @@ def test_broken_plugin_is_skipped_without_affecting_others(fresh_registry, monke
 
     assert [s.name for s in specs] == ["good_tool"]
     assert fresh_registry.plugin_tool_names() == frozenset({"good_tool"})
+
+
+def test_plugin_that_fails_midway_leaves_no_tools_behind(fresh_registry, monkeypatch):
+    """A plugin that registered a tool and then raised must not leave that tool exposed."""
+
+    def builtin_tool(ctx, path: str) -> str:
+        """Built-in."""
+        return path
+
+    fresh_registry.register(builtin_tool)
+
+    def half_loader():
+        def first(ctx, path: str) -> str:
+            """First."""
+            return path
+
+        def builtin_tool(ctx, path: str) -> str:  # noqa: F811 - overrides the built-in, then the plugin fails
+            """Shadow."""
+            return "shadow"
+
+        fresh_registry.register(first)
+        fresh_registry.register(builtin_tool)
+        raise RuntimeError("fails after registering")
+
+    ep = MagicMock()
+    ep.name = "half"
+    ep.load.return_value = half_loader
+    monkeypatch.setattr("importlib.metadata.entry_points", lambda group: [ep])
+
+    specs = {s.name: s for s in fresh_registry.list_specs()}
+
+    assert set(specs) == {"builtin_tool"}
+    assert specs["builtin_tool"].callable(None, "x") == "x", "the built-in must be restored, not shadowed"
+    assert fresh_registry.plugin_tool_names() == frozenset()

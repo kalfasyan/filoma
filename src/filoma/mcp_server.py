@@ -205,8 +205,16 @@ All tools support path expansion (~ for home directory) and validation.
 
 
 def _server_instructions() -> str:
-    """Render the server instructions, deriving the tool count from ``_MCP_TOOL_NAMES``."""
-    return _SERVER_INSTRUCTIONS_TEMPLATE.format(tool_count=len(_MCP_TOOL_NAMES))
+    """Render the server instructions: the built-in count comes from ``_MCP_TOOL_NAMES``, plugin tools are appended."""
+    text = _SERVER_INSTRUCTIONS_TEMPLATE.format(tool_count=len(_MCP_TOOL_NAMES))
+    plugin_names = sorted(tool_registry.plugin_tool_names())
+    if plugin_names:
+        lines = ["", "PLUGIN TOOLS (from installed third-party packages, in addition to the above):"]
+        for name in plugin_names:
+            spec = tool_registry.get_spec(name)
+            lines.append(f"- {name}: {spec.description}" if spec and spec.description else f"- {name}")
+        text = text.rstrip("\n") + "\n" + "\n".join(lines) + "\n"
+    return text
 
 
 def _get_app() -> Any:

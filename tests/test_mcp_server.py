@@ -65,7 +65,8 @@ class TestToolRegistration:
     async def test_list_tools_returns_all_tools(self):
         """Test that list_tools returns all MCP tools."""
         tools = await list_tools()
-        assert len(tools) == len(_MCP_TOOL_NAMES)
+        # Installed plugins (for example examples/plugin_example) are listed in addition to the built-ins.
+        assert len(tools) == len(_MCP_TOOL_NAMES | tool_registry.plugin_tool_names())
         assert all(isinstance(t, Tool) for t in tools)
 
     @pytest.mark.asyncio
@@ -73,7 +74,7 @@ class TestToolRegistration:
         """Verify tool names match schema definitions."""
         tools = await list_tools()
         tool_names = {t.name for t in tools}
-        assert tool_names == _MCP_TOOL_NAMES
+        assert tool_names == _MCP_TOOL_NAMES | tool_registry.plugin_tool_names()
 
     @pytest.mark.asyncio
     async def test_expected_tools_present(self):

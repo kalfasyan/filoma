@@ -65,17 +65,21 @@ class ToolRegistry:
         self._plugins_loaded = True
         entry_points = importlib.metadata.entry_points(group="filoma.tools")
         for ep in entry_points:
-            before = set(self._tools)
+            before = dict(self._tools)
             try:
                 _ = ep.load()()
             except Exception as exc:  # a broken third-party plugin must not take the agent/MCP server down
                 from loguru import logger
 
+                # Undo whatever the plugin registered before it failed, so the agent and
+                # the MCP server never see half of a plugin that was reported as skipped.
+                self._tools.clear()
+                self._tools.update(before)
                 logger.warning(f"Skipping filoma plugin {getattr(ep, 'name', ep)!r}: {type(exc).__name__}: {exc}")
                 continue
             # Remember which tools came from plugins so surfaces with an allowlist
             # (the MCP server) can still expose them.
-            self._plugin_tool_names.update(set(self._tools) - before)
+            self._plugin_tool_names.update(name for name, spec in self._tools.items() if before.get(name) is not spec)
 
     # ------------------------------------------------------------------
     # Registration
