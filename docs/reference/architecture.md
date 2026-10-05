@@ -54,6 +54,28 @@ All backends (Rust engines, Python backend, fd) agree on these semantics:
   directories at depth `> max_depth` are not counted.
 - **Empty directories**: a directory is empty iff `read_dir` yields no
   entries — hidden-only children still make it non-empty.
+- **The root folder is always counted**, including for relative paths
+  such as `.` (which has no file name), so `flm.probe(".")` reports what
+  `flm.probe("/abs/path")` does.
+- **Root-level files** are counted like any other file, whichever engine
+  runs (the walkdir parallel engine walks subdirectories separately and
+  must handle the root's own files explicitly).
+- **Hidden entries**: with `search_hidden=False` dot-entries are skipped
+  _together with everything beneath dot-directories_ (like `fd`). The
+  profiler always scans with `search_hidden=True`; the option is reachable
+  by calling the low-level `filoma_core` functions directly.
+- **Summary fields**: `max_depth` and `depth_distribution` describe the
+  counted _folders_ (root = depth 0), and the root folder appears exactly
+  once, without a trailing separator, in the per-folder file counts.
+
+These rules are enforced by `tests/test_engine_parity_generative.py`, which
+builds random trees (nested/empty/hidden-only dirs, zero-byte files, odd
+names, file/dir/broken/looping symlinks, files in the root) and checks every
+engine — walkdir sequential and parallel, dua-core, async, the Python
+backend, and fd on hidden-free trees — against an independent `os.scandir`
+oracle. Known gaps: `follow_links=True` (not reachable through
+`DirectoryProfiler`) is only covered for loop-free trees, and the parallel
+walkdir engine can disagree with the sequential one on symlink loops there.
 
 This is the **canonical extension pattern** for the codebase. The
 caller (`DirectoryProfiler`) depends on a `Probe` / `Scanner`

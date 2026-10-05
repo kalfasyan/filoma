@@ -230,15 +230,13 @@ class RagStore:
             current_files[rel] = mtime
             files_to_index.append(filepath)
 
-        # 2. Load existing table (if any) to compute delta
+        # 2. Load existing table (if any) to compute delta. pyarrow only: the "rag" extra
+        # does not install pandas.
         existing_paths: set[str] = set()
         try:
             table = self._db.open_table(self._table_name)
-            rows = table.search().limit(0).to_arrow()  # type: ignore[union-attr]
-            del rows
-            existing = table.to_pandas()
-            existing["_lookup"] = existing["path"] + "::" + existing["mtime"].astype(str)
-            existing_paths = set(existing["_lookup"].tolist())
+            existing = table.to_arrow()
+            existing_paths = {f"{p}::{m}" for p, m in zip(existing.column("path").to_pylist(), existing.column("mtime").to_pylist())}
         except Exception:
             existing = None
 
@@ -280,6 +278,7 @@ class RagStore:
         if new_chunks or existing is not None:
             if new_chunks:
                 import pyarrow as pa
+                import pyarrow.compute as pc
 
                 new_table = pa.table(
                     {
@@ -294,9 +293,10 @@ class RagStore:
                 if existing is None:
                     self._db.create_table(self._table_name, new_table)
                 else:
-                    table = self._db.open_table(self._table_name)
-                    table.delete("1 = 1")  # type: ignore[union-attr]
-                    rematerialized = pa.concat_tables([existing, new_table])  # type: ignore[union-attr]
+                    # Re-indexed files replace their old rows instead of duplicating them.
+                    reindexed = pa.array(sorted({c["path"] for c in new_chunks}), type=pa.string())
+                    existing = existing.filter(pc.invert(pc.is_in(existing.column("path"), value_set=reindexed)))
+                    rematerialized = pa.concat_tables([existing, new_table.cast(existing.schema)])
                     self._db.drop_table(self._table_name)
                     self._db.create_table(self._table_name, rematerialized)
 

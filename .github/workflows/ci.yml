@@ -47,9 +47,77 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install ruff pytest pytest-asyncio
-      - name: Install package
-        run: pip install -e .
+      - name: Install package with all optional extras
+        run: pip install -e ".[all]"
       - name: Run ruff
         run: ruff check .
+      - name: Check bundled skills reference real commands and tools
+        run: python scripts/check_skills.py
+        env:
+          PYTHONPATH: src
       - name: Run pytest
-        run: pytest tests/
+        run: pytest tests/ -m "not integration"
+
+  # The base install (no extras) must keep working: this is what `pip install filoma`
+  # and the filoma-audit GitHub Action give users. Tests that need the agent / RAG /
+  # pandas extras skip themselves via pytest.importorskip.
+  minimal-install:
+    name: minimal install (no extras)
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.head_commit.message, 'Bump version') }}
+    needs: pre-commit
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install package without extras
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio
+          pip install -e .
+      - name: Smoke-test the core CLI
+        run: |
+          filoma --version
+          mkdir -p smoke-data
+          echo hello > smoke-data/a.txt
+          echo hello > smoke-data/b.txt
+          printf 'gates:\n  corrupted_files: 0\n  zero_byte_files: 0\n' > smoke-gates.yml
+          filoma audit smoke-data --gates smoke-gates.yml --export smoke-report.json --format json
+          python -c "import filoma as flm; flm.probe('smoke-data'); flm.probe_to_df('smoke-data')"
+      - name: Agent commands explain the missing extra
+        run: |
+          if filoma ask "hi"; then echo "expected a non-zero exit without the agent extra"; exit 1; fi
+      - name: Run pytest
+        run: pytest tests/ -m "not integration"
+
+  # Traversal semantics (symlinks, hidden files, NTFS handling) are the most
+  # platform-sensitive part of filoma, and wheels are already built for these
+  # platforms in publish.yml. Non-blocking until the suite is confirmed green
+  # there; drop `continue-on-error` once it is.
+  cross-platform:
+    name: ${{ matrix.os }} (non-blocking)
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    if: ${{ !contains(github.event.head_commit.message, 'Bump version') }}
+    needs: pre-commit
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install package without extras
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio
+          pip install -e .
+      - name: Run pytest
+        run: pytest tests/ -m "not integration"

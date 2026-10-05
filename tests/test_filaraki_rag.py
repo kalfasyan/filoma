@@ -1,9 +1,13 @@
 import importlib
 from pathlib import Path
 
-import filoma.filaraki.tools  # noqa: F401 — triggers @tool_registry.register
-from filoma.filaraki.agent import FilarakiDeps
-from filoma.tool_registry import tool_registry
+import pytest
+
+pytest.importorskip("pydantic_ai", reason="needs the optional 'agent' extra")
+
+import filoma.filaraki.tools  # noqa: E402, F401 — triggers @tool_registry.register
+from filoma.filaraki.agent import FilarakiDeps  # noqa: E402
+from filoma.tool_registry import tool_registry  # noqa: E402
 
 
 class FakeContext:

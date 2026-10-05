@@ -199,7 +199,7 @@ Narrow the DataFrame first (e.g. `filter_by_extension(".md")`, `filter_by_patter
 
 ## Image embeddings
 
-`add_embedding_cols()` only handles text/code files — images get a null embedding. For images, use `DataFrame.add_image_embedding_cols()` instead, which uses a CLIP vision encoder (via sentence-transformers, already a core filoma dependency — no extra install needed):
+`add_embedding_cols()` only handles text/code files — images get a null embedding. For images, use `DataFrame.add_image_embedding_cols()` instead, which uses a CLIP vision encoder (via sentence-transformers — needs the `rag` extra, `pip install "filoma[rag]"`):
 
 ```python
 import filoma as flm

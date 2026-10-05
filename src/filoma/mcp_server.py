@@ -29,6 +29,7 @@ Configuration (nanobot):
 
 import asyncio
 import errno
+import inspect
 import io
 import os
 import sys
@@ -141,7 +142,8 @@ async def list_tools() -> List[Any]:
     """
     mcp = _get_mcp_imports()
     Tool = mcp["Tool"]
-    return [Tool(name=spec.name, description=spec.description, inputSchema=spec.param_schema) for spec in tool_registry.list_specs() if spec.name in _MCP_TOOL_NAMES]
+    exposed = _MCP_TOOL_NAMES | tool_registry.plugin_tool_names()
+    return [Tool(name=spec.name, description=spec.description, inputSchema=spec.param_schema) for spec in tool_registry.list_specs() if spec.name in exposed]
 
 
 async def call_tool(name: str, arguments: dict) -> List[Any]:
@@ -153,30 +155,10 @@ async def call_tool(name: str, arguments: dict) -> List[Any]:
     return await _call_tool_impl(name, arguments)
 
 
-def _get_app() -> Any:
-    """Get or create the MCP server instance lazily."""
-    global _app
-    if _app is None:
-        mcp = _get_mcp_imports()
-        Server = mcp["Server"]
-
-        @asynccontextmanager
-        async def app_lifespan(server: Any) -> AsyncIterator[FilarakiDeps]:
-            """Manage application lifecycle with shared dependencies."""
-            deps = FilarakiDeps(working_dir=os.getcwd())
-            logger.info(f"Filoma MCP Server started. Working directory: {deps.working_dir}")
-            try:
-                yield deps
-            finally:
-                logger.info("Filoma MCP Server shutting down.")
-
-        _app = Server(
-            "filoma",
-            lifespan=app_lifespan,
-            instructions="""
+_SERVER_INSTRUCTIONS_TEMPLATE = """
 Filoma MCP Server - Powerful filesystem analysis tools for AI agents.
 
-This server provides 29 filesystem analysis capabilities organized into categories:
+This server provides {tool_count} filesystem analysis capabilities organized into categories:
 
 DIRECTORY ANALYSIS:
 - count_files: Full recursive scan counting all files/folders
@@ -220,7 +202,43 @@ UTILITIES:
 - list_available_tools: Show all available tools with descriptions
 
 All tools support path expansion (~ for home directory) and validation.
-""",
+"""
+
+
+def _server_instructions() -> str:
+    """Render the server instructions: the built-in count comes from ``_MCP_TOOL_NAMES``, plugin tools are appended."""
+    text = _SERVER_INSTRUCTIONS_TEMPLATE.format(tool_count=len(_MCP_TOOL_NAMES))
+    plugin_names = sorted(tool_registry.plugin_tool_names())
+    if plugin_names:
+        lines = ["", "PLUGIN TOOLS (from installed third-party packages, in addition to the above):"]
+        for name in plugin_names:
+            spec = tool_registry.get_spec(name)
+            lines.append(f"- {name}: {spec.description}" if spec and spec.description else f"- {name}")
+        text = text.rstrip("\n") + "\n" + "\n".join(lines) + "\n"
+    return text
+
+
+def _get_app() -> Any:
+    """Get or create the MCP server instance lazily."""
+    global _app
+    if _app is None:
+        mcp = _get_mcp_imports()
+        Server = mcp["Server"]
+
+        @asynccontextmanager
+        async def app_lifespan(server: Any) -> AsyncIterator[FilarakiDeps]:
+            """Manage application lifecycle with shared dependencies."""
+            deps = FilarakiDeps(working_dir=os.getcwd())
+            logger.info(f"Filoma MCP Server started. Working directory: {deps.working_dir}")
+            try:
+                yield deps
+            finally:
+                logger.info("Filoma MCP Server shutting down.")
+
+        _app = Server(
+            "filoma",
+            lifespan=app_lifespan,
+            instructions=_server_instructions(),
         )
 
         # Register the tool handlers with the Server instance
@@ -275,11 +293,13 @@ async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
     mcp = _get_mcp_imports()
     TextContent = mcp["TextContent"]
 
-    def _run_guarded_stdout(func: Any, *args: Any, **kwargs: Any) -> Any:
+    async def _run_guarded_stdout(func: Any, *args: Any, **kwargs: Any) -> Any:
         """Run a tool while capturing accidental stdout writes."""
         buf = io.StringIO()
         with redirect_stdout(buf):
             result = func(*args, **kwargs)
+            if inspect.isawaitable(result):
+                result = await result
 
         leaked = buf.getvalue()
         if leaked:
@@ -296,9 +316,9 @@ async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
     filtered_args = {k: v for k, v in arguments.items() if k in known_params}
 
     try:
-        result = _run_guarded_stdout(spec.callable, ctx=ctx, **filtered_args)
+        result = await _run_guarded_stdout(spec.callable, ctx=ctx, **filtered_args)
 
-        if name in _DATAFRAME_TOOLS:
+        if name in _DATAFRAME_TOOLS or name in tool_registry.plugin_tool_names():
             _save_context(ctx)
 
         return [TextContent(type="text", text=result)]

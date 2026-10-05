@@ -143,7 +143,7 @@ class DatasetVerifier:
         """Check class balance from CSV files."""
         from collections import Counter
 
-        import pandas as pd
+        import polars as pl
 
         counts = Counter()
 
@@ -153,13 +153,14 @@ class DatasetVerifier:
                 if path.suffix.lower() != ".csv":
                     continue
                 try:
-                    df = pd.read_csv(path)
+                    df = pl.read_csv(path, infer_schema_length=None)
                     # Check for common column names: 'label', 'class', etc.
                     # In Weeds-3, it's 'filename, Weeds' where 'Weeds' is the class
                     cols = [c for c in df.columns if c.strip() != "filename"]
                     if cols:
                         target_col = cols[0]
-                        counts.update(df[target_col].value_counts().to_dict())
+                        for label, count in df[target_col].drop_nulls().drop_nans().value_counts().iter_rows():
+                            counts[label] += count
                 except (ImportError, Exception):
                     pass
 

@@ -5,6 +5,7 @@ Validates parity with the walkdir-based parallel engine, config validation,
 and backend selection behavior for the ``walker`` option.
 """
 
+import os
 import tempfile
 from pathlib import Path
 
@@ -91,6 +92,18 @@ class TestDuaCoreParity:
         assert dua["summary"]["max_depth"] == parallel["summary"]["max_depth"]
         assert dua["file_extensions"] == parallel["file_extensions"]
         assert dua["depth_distribution"] == parallel["depth_distribution"]
+
+    @pytest.mark.skipif(os.name == "nt", reason="Windows filenames are Unicode")
+    def test_hidden_filtering_handles_invalid_utf8_names(self, tmp_path):
+        """Hidden invalid-UTF-8 directory names are pruned with search_hidden=False."""
+        hidden_dir = os.fsencode(tmp_path) + b"/.cache\xff"
+        os.mkdir(hidden_dir)
+        with open(hidden_dir + b"/visible.txt", "wb") as handle:
+            handle.write(b"content")
+
+        result = probe_directory_rust(str(tmp_path), search_hidden=False)
+
+        assert result["summary"]["total_files"] == 0
 
     def test_empty_folder_detection(self, test_directory):
         dua = _probe_dua(test_directory)

@@ -1,6 +1,6 @@
 """:command:`filoma mcp` — MCP server for external agent integration."""
 
-from ._app import console, mcp_app
+from ._app import console, mcp_app, require_extra
 
 
 @mcp_app.command("serve")
@@ -24,6 +24,7 @@ def mcp_serve() -> None:
     import asyncio
     import os
 
+    require_extra("agent", "mcp", "pydantic_ai")
     from filoma.mcp_server import main
 
     transport = os.getenv("FILOMA_MCP_TRANSPORT", "stdio")

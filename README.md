@@ -7,7 +7,7 @@
 <p align="center">
 <a href="https://pypi.python.org/pypi/filoma"><img src="https://img.shields.io/pypi/v/filoma.svg" alt="PyPI version"></a>
 <a href="https://pypi.python.org/pypi/filoma"><img src="https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue" alt="Python versions"></a>
-<a href="https://github.com/kalfasyan/filoma/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-CC--BY--4.0-lightgrey" alt="License"></a>
+<a href="https://github.com/kalfasyan/filoma/blob/main/LICENSE.txt"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
 <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff"></a>
 <a href="https://github.com/kalfasyan/filoma/actions/workflows/ci.yml"><img src="https://github.com/kalfasyan/filoma/actions/workflows/ci.yml/badge.svg" alt="Actions status"></a>
 <a href="https://filoma.readthedocs.io/en/latest/"><img src="https://readthedocs.org/projects/filoma/badge/?version=latest" alt="Documentation Status"></a>
@@ -52,12 +52,15 @@ uv add filoma
 
 **Note**: The Rust extension (fastest backend) is bundled automatically by `pip`/`uv` above — no separate build step needed. See the [Installation guide](docs/getting-started/installation.md#optimization-optional) if filoma falls back to the fd/Python backend on your platform.
 
-Optional extras:
+The base install is deliberately small (scanning, DataFrames, integrity checks, `filoma audit` and quality gates). Everything heavier is opt-in:
 
 ```bash
+pip install "filoma[agent]"   # flm.ask(), `filoma ask`/`chat`, MCP server (pydantic-ai, mcp)
+pip install "filoma[rag]"     # LanceDB vector search + embeddings (pulls in PyTorch)
+pip install "filoma[pandas]"  # DataFrame.to_pandas() interop
 pip install "filoma[dedup]"   # near-duplicate detection
-pip install "filoma[rag]"     # LanceDB vector search
 pip install "filoma[stats]"   # statistical analysis extras
+pip install "filoma[all]"     # all of the above
 ```
 
 ---
@@ -109,10 +112,10 @@ filoma skills install --scope vscode   # writes ./.github/skills/filoma-*/SKILL.
 **MCP server** — gives Copilot real, callable tools (`probe_directory`, `audit_dataset`, `search_files`, and more):
 
 ```bash
-copilot mcp add filoma -- uvx -p 3.11 filoma mcp serve
+copilot mcp add filoma -- uvx -p 3.11 --from "filoma[agent]" filoma mcp serve
 ```
 
-Both work via `uvx` — no `pip install filoma` needed to try them out. See the [Filaraki guide](docs/guides/filaraki.md#using-filoma-with-github-copilot) for VS Code chat setup, nanobot, and other MCP clients.
+Both work via `uvx` — no `pip install filoma` needed to try them out (the MCP command pulls in the `agent` extra for you). See the [Filaraki guide](docs/guides/filaraki.md#using-filoma-with-github-copilot) for VS Code chat setup, nanobot, and other MCP clients.
 
 ---
 
@@ -134,6 +137,8 @@ filoma audit ./data --export report.html --format html
 This produces an HTML audit report with file counts, type breakdowns, integrity status, and warnings.
 
 ### Talk to your filesystem
+
+Requires the agent extra: `pip install "filoma[agent]"`.
 
 ```python
 import filoma as flm
@@ -221,4 +226,4 @@ Filoma stands on the shoulders of:
 
 ## License
 
-This project is licensed under the terms of the Creative Commons Attribution 4.0 International ([CC BY 4.0](http://creativecommons.org/licenses/by/4.0/)).
+This project is licensed under the [MIT License](LICENSE.txt). Versions published to PyPI before the change to MIT were released under CC BY 4.0.

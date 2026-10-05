@@ -22,8 +22,8 @@ use dua_core::{walk, Entry, Order};
 use pyo3::prelude::*;
 
 use crate::{
-    analysis::get_file_extension, make_absolute_path_str, AnalysisConfig, DirectoryStats,
-    ParallelDirectoryStats,
+    analysis::{get_file_extension, is_hidden_name, root_folder_name},
+    make_absolute_path_str, AnalysisConfig, DirectoryStats, ParallelDirectoryStats,
 };
 
 /// Parallel directory analysis using `dua-core`'s work-stealing walker.
@@ -50,28 +50,31 @@ pub fn probe_directory_dua_core_internal(
     // Paths of every counted entry, collected on the consuming thread.
     let mut paths: Vec<String> = Vec::new();
 
-    // Count the root directory itself, mirroring `probe_root_directory`:
-    // only when it has a file name (a bare "." probe has none), and its
-    // emptiness is resolved below from the children we observe.
-    if let Some(name) = path_root.file_name().and_then(|n| n.to_str()) {
-        stats.add_folder(
-            name.to_string(),
-            false,
-            path_root.to_string_lossy().to_string(),
-            0,
-        );
-        // The root is counted in the stats but excluded from the returned
-        // paths, matching the rglob-based DataFrame collection (rglob("*")
-        // never yields the root itself).
-        all_dirs.insert(make_absolute_path_str(
-            path_root, path_root, &root_abs, false,
-        ));
-    }
+    // Count the root directory itself, mirroring `probe_root_directory`: always, even
+    // when the path is a bare "." that has no file name. Its emptiness is resolved
+    // below from the children we observe.
+    stats.add_folder(
+        root_folder_name(path_root, &root_abs),
+        false,
+        make_absolute_path_str(path_root, path_root, &root_abs, false),
+        0,
+    );
+    // The root is counted in the stats but excluded from the returned
+    // paths, matching the rglob-based DataFrame collection (rglob("*")
+    // never yields the root itself).
+    all_dirs.insert(make_absolute_path_str(
+        path_root, path_root, &root_abs, false,
+    ));
 
     // Files at depth `max_depth + 1` are included, so descend into
     // directories up to depth `max_depth` (exclusive upper bound).
     let max_depth = config.max_depth.map(|d| d as usize);
+    let search_hidden = config.search_hidden;
     let descend = move |entry: &Entry| -> bool {
+        // `search_hidden=false` prunes dot-directories (their contents are hidden too).
+        if !search_hidden && entry.depth > 0 && is_hidden_name(&entry.file_name) {
+            return false;
+        }
         match max_depth {
             Some(limit) => entry.depth < limit + 1,
             None => true,
@@ -204,7 +207,7 @@ pub(crate) fn probe_directory_rust_dua_core(
     search_hidden: Option<bool>,
     walker_threads: Option<usize>,
     return_paths: Option<bool>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let root = PathBuf::from(path_root);
 
     if !root.exists() {
@@ -244,13 +247,13 @@ pub(crate) fn probe_directory_rust_dua_core(
 
     let collect_paths = return_paths.unwrap_or(false);
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // Release the GIL while walking (dua-core has no per-operation
         // timeouts; a slow mount must not block other Python threads) and
         // convert Rust panics into a typed error so the Python-side fallback
         // can catch them (PanicException does not subclass Exception).
         let (stats, paths) = py
-            .allow_threads(|| {
+            .detach(|| {
                 std::panic::catch_unwind(|| {
                     probe_directory_dua_core_internal(&root, &config, threads, collect_paths)
                 })
@@ -260,7 +263,7 @@ pub(crate) fn probe_directory_rust_dua_core(
             .map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
         let dict = stats.to_py_dict(py, path_root)?;
         if collect_paths {
-            dict.downcast_bound::<pyo3::types::PyDict>(py)?
+            dict.cast_bound::<pyo3::types::PyDict>(py)?
                 .set_item("paths", paths)?;
         }
         Ok(dict)

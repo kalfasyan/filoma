@@ -14,6 +14,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+pytest.importorskip("pydantic_ai", reason="needs the optional 'agent' extra")
+
 # Skip all tests in CI where external API access is not available
 CI = os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true"
 pytestmark = pytest.mark.skipif(CI, reason="Skip in CI where real API keys are not available")

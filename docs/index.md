@@ -75,6 +75,8 @@ uv add filoma          # recommended
 pip install filoma     # classic pip works too
 ```
 
+Want the natural-language agent? `pip install "filoma[agent]"` (see [Installation](getting-started/installation.md#optional-extras) for all extras).
+
 Want performance? Install Rust (for fastest backend) or fd.
 
 ---

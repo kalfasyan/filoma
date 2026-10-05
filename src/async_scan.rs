@@ -101,18 +101,17 @@ pub async fn probe_directory_async_internal(
     // Paths of every counted entry (root excluded), shared across workers
     let paths: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
 
-    // Count the root directory only if it is non-empty
-    if let Some(name) = path_root.file_name().and_then(|n| n.to_str()) {
-        let is_empty = crate::analysis::estimate_directory_size(&path_root, 1) == 0;
-        if !is_empty {
-            stats.add_folder(
-                name.to_string(),
-                false,
-                path_root.to_string_lossy().to_string(),
-                0,
-            );
-        }
-    }
+    // Count the root directory exactly once (even a bare "." that has no file name); if
+    // it turns out to be empty, `process_directory` flags it via `add_empty_folders`.
+    let root_abs = path_root
+        .canonicalize()
+        .unwrap_or_else(|_| path_root.clone());
+    stats.add_folder(
+        crate::analysis::root_folder_name(&path_root, &root_abs),
+        false,
+        path_root.to_string_lossy().to_string(),
+        0,
+    );
 
     // Create work queue channel for distributing directory scanning work
     let (tx, rx) = mpsc::channel::<WorkItem>(WORK_QUEUE_CAPACITY);
@@ -297,7 +296,12 @@ async fn process_directory(
     let mut subdirs: Vec<PathBuf> = Vec::new();
 
     while let Ok(Some(entry)) = entries.next_entry().await {
+        // Any entry (even a hidden one that is filtered out below) makes the
+        // directory non-empty, matching the read_dir-based engines.
         is_empty = false;
+        if !config.search_hidden && crate::analysis::is_hidden_name(&entry.file_name()) {
+            continue;
+        }
         let path = entry.path();
 
         // Metadata with timeout & retries
@@ -330,13 +334,21 @@ async fn process_directory(
 
         if let Some(md) = metadata {
             if md.is_dir() {
-                // Record the folder
+                // Folders deeper than max_depth are not counted or descended into
+                // (files one level deeper are counted by their parent's scan).
+                let child_depth = current_depth + 1;
+                if let Some(max_d) = config.max_depth {
+                    if child_depth > max_d {
+                        continue;
+                    }
+                }
+                // Record the folder once, at its own depth
                 if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                     stats.add_folder(
                         name.to_string(),
                         false,
                         path.to_string_lossy().to_string(),
-                        current_depth,
+                        child_depth,
                     );
                 }
                 if collect_paths {
@@ -365,16 +377,10 @@ async fn process_directory(
         }
     }
 
-    // Record empty directory
+    // Flag empty directories (the folder itself was already counted when it was
+    // discovered by its parent, or up front for the root).
     if is_empty {
-        if let Some(name) = dir.file_name().and_then(|n| n.to_str()) {
-            stats.add_folder(
-                name.to_string(),
-                true,
-                dir.to_string_lossy().to_string(),
-                current_depth,
-            );
-        }
+        stats.add_empty_folders(vec![dir.to_string_lossy().to_string()]);
     }
 
     subdirs
@@ -394,7 +400,7 @@ pub(crate) fn probe_directory_rust_async(
     search_hidden: Option<bool>,
     no_ignore: Option<bool>,
     return_paths: Option<bool>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let root = PathBuf::from(path_root);
 
     if !root.exists() {
@@ -453,10 +459,10 @@ pub(crate) fn probe_directory_rust_async(
 
     let (stats, paths) = result.map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let dict = stats.to_py_dict(py, path_root)?;
         if collect_paths {
-            dict.downcast_bound::<pyo3::types::PyDict>(py)?
+            dict.cast_bound::<pyo3::types::PyDict>(py)?
                 .set_item("paths", paths)?;
         }
         Ok(dict)
