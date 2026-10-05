@@ -6,6 +6,7 @@ an actual MCP client connection. Tests are designed to run quickly.
 
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -714,6 +715,30 @@ class TestContextHelpers:
         monkeypatch.setattr(mcp_module, "_session_key", lambda: session_a)
         ctx_a = mcp_module._get_context(FilarakiDeps(working_dir="/tmp"))
         assert ctx_a.deps.current_df is not None
+
+    @pytest.mark.asyncio
+    async def test_plugin_tools_await_and_save_dataframe_state(self, monkeypatch):
+        """Async plugins run under stdout protection and persist dataframe replacements."""
+        import polars as pl
+
+        import filoma.mcp_server as mcp_module
+        from filoma.filaraki.agent import FilarakiDeps
+
+        async def plugin_tool(ctx):
+            print("plugin output")
+            await __import__("asyncio").sleep(0)
+            ctx.deps.current_df = pl.DataFrame({"path": ["/tmp/plugin"]})
+            return "complete"
+
+        spec = SimpleNamespace(callable=plugin_tool, param_schema={"properties": {}})
+        monkeypatch.setattr(mcp_module.tool_registry, "get_spec", lambda _name: spec)
+        monkeypatch.setattr(mcp_module.tool_registry, "plugin_tool_names", lambda: frozenset({"plugin_tool"}))
+        monkeypatch.setattr(mcp_module, "_get_lifespan_deps", lambda: FilarakiDeps(working_dir="/tmp"))
+
+        result = await mcp_module.call_tool("plugin_tool", {})
+
+        assert result[0].text == "complete"
+        assert _dataframe_state[_NO_SESSION]["current_df"].item(0, "path") == "/tmp/plugin"
 
 
 class TestLifespan:

@@ -304,7 +304,15 @@ mod analysis {
 
     /// True for dot-prefixed (hidden) names.
     pub fn is_hidden_name(name: &std::ffi::OsStr) -> bool {
-        name.to_str().map(|n| n.starts_with('.')).unwrap_or(false)
+        #[cfg(unix)]
+        {
+            use std::os::unix::ffi::OsStrExt;
+            name.as_bytes().starts_with(b".")
+        }
+        #[cfg(not(unix))]
+        {
+            name.to_string_lossy().starts_with('.')
+        }
     }
 
     /// Get normalized file extension

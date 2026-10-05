@@ -1,5 +1,6 @@
 """Smoke tests for ``benchmarks/benchmark.py`` and the task runners that invoke it."""
 
+import importlib.util
 import re
 import shutil
 import subprocess
@@ -11,6 +12,15 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 BENCHMARK = ROOT / "benchmarks" / "benchmark.py"
+
+
+@pytest.fixture(scope="module")
+def benchmark_module():
+    spec = importlib.util.spec_from_file_location("filoma_benchmark", BENCHMARK)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
 
 
 def _run(path: Path, *backends: str) -> subprocess.CompletedProcess:
@@ -49,6 +59,19 @@ def test_benchmark_flags_backends_that_disagree_on_file_count(tiny_tree):
     proc = _run(tiny_tree, "os.walk", "cli-find")
     assert proc.returncode == 0, proc.stderr
     assert "disagree on the file count" in proc.stdout
+
+
+def test_cli_baselines_report_failed_commands(benchmark_module, monkeypatch):
+    """Failed CLI scans are excluded from benchmark timing comparisons."""
+
+    def fail(_cmd):
+        raise subprocess.CalledProcessError(7, "tool")
+
+    monkeypatch.setattr(benchmark_module.shutil, "which", lambda _name: "tool")
+    monkeypatch.setattr(benchmark_module, "_count_cli_lines", fail)
+
+    assert "error" in benchmark_module.benchmark_cli_find("/tmp")
+    assert "error" in benchmark_module.benchmark_cli_fd("/tmp")
 
 
 @pytest.mark.skipif(not (ROOT / "scripts").is_dir(), reason="repository scripts/ not available (sdist or partial checkout)")

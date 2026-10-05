@@ -36,6 +36,8 @@ def register(registry: Optional[Any] = None) -> None:
             max_bytes: Read at most this many bytes, to keep the tool cheap on huge files.
 
         """
+        if max_bytes < 0:
+            raise ValueError("max_bytes must be non-negative")
         file_path = Path(path).expanduser().resolve()
         if not file_path.is_file():
             return f"Error: '{path}' is not a file."

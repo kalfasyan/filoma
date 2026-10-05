@@ -29,6 +29,7 @@ Configuration (nanobot):
 
 import asyncio
 import errno
+import inspect
 import io
 import os
 import sys
@@ -292,11 +293,13 @@ async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
     mcp = _get_mcp_imports()
     TextContent = mcp["TextContent"]
 
-    def _run_guarded_stdout(func: Any, *args: Any, **kwargs: Any) -> Any:
+    async def _run_guarded_stdout(func: Any, *args: Any, **kwargs: Any) -> Any:
         """Run a tool while capturing accidental stdout writes."""
         buf = io.StringIO()
         with redirect_stdout(buf):
             result = func(*args, **kwargs)
+            if inspect.isawaitable(result):
+                result = await result
 
         leaked = buf.getvalue()
         if leaked:
@@ -313,9 +316,9 @@ async def _call_tool_impl(name: str, arguments: dict) -> List[Any]:
     filtered_args = {k: v for k, v in arguments.items() if k in known_params}
 
     try:
-        result = _run_guarded_stdout(spec.callable, ctx=ctx, **filtered_args)
+        result = await _run_guarded_stdout(spec.callable, ctx=ctx, **filtered_args)
 
-        if name in _DATAFRAME_TOOLS:
+        if name in _DATAFRAME_TOOLS or name in tool_registry.plugin_tool_names():
             _save_context(ctx)
 
         return [TextContent(type="text", text=result)]

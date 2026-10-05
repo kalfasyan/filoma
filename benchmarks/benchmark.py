@@ -241,6 +241,8 @@ def _count_cli_lines(cmd: List[str]) -> Tuple[float, int]:
         for _line in proc.stdout:
             count += 1
     elapsed = time.perf_counter() - start
+    if proc.returncode:
+        raise subprocess.CalledProcessError(proc.returncode, cmd)
     return elapsed, count
 
 
@@ -249,7 +251,10 @@ def benchmark_cli_find(path: str) -> Optional[Dict]:
     exe = shutil.which("find")
     if not exe:
         return {"error": "find not installed"}
-    elapsed, files = _count_cli_lines([exe, path, "-type", "f"])
+    try:
+        elapsed, files = _count_cli_lines([exe, path, "-type", "f"])
+    except (OSError, subprocess.CalledProcessError) as exc:
+        return {"error": f"find failed: {exc}"}
     return {"elapsed": elapsed, "files": files, "dirs": 0}
 
 
@@ -258,7 +263,10 @@ def benchmark_cli_fd(path: str) -> Optional[Dict]:
     exe = shutil.which("fd") or shutil.which("fdfind")
     if not exe:
         return {"error": "fd not installed"}
-    elapsed, files = _count_cli_lines([exe, "--type", "f", "--hidden", "--no-ignore", ".", path])
+    try:
+        elapsed, files = _count_cli_lines([exe, "--type", "f", "--hidden", "--no-ignore", ".", path])
+    except (OSError, subprocess.CalledProcessError) as exc:
+        return {"error": f"fd failed: {exc}"}
     return {"elapsed": elapsed, "files": files, "dirs": 0}
 
 

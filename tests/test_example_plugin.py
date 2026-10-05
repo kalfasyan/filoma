@@ -51,6 +51,8 @@ def test_tool_counts_words_and_reports_errors(plugin_module, tmp_path):
     assert count_words(None, str(tmp_path / "note.txt")) == "note.txt: 4 words"
     assert count_words(None, str(tmp_path / "note.txt"), max_bytes=3) == "note.txt: 1 words"
     assert count_words(None, str(tmp_path / "missing.txt")).startswith("Error:")
+    with pytest.raises(ValueError, match="max_bytes must be non-negative"):
+        count_words(None, str(tmp_path / "note.txt"), max_bytes=-1)
 
 
 def test_discovered_through_the_entry_point_group(plugin_module, monkeypatch):
