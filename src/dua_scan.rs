@@ -22,8 +22,8 @@ use dua_core::{walk, Entry, Order};
 use pyo3::prelude::*;
 
 use crate::{
-    analysis::get_file_extension, make_absolute_path_str, AnalysisConfig, DirectoryStats,
-    ParallelDirectoryStats,
+    analysis::{get_file_extension, is_hidden_name},
+    make_absolute_path_str, AnalysisConfig, DirectoryStats, ParallelDirectoryStats,
 };
 
 /// Parallel directory analysis using `dua-core`'s work-stealing walker.
@@ -57,7 +57,7 @@ pub fn probe_directory_dua_core_internal(
         stats.add_folder(
             name.to_string(),
             false,
-            path_root.to_string_lossy().to_string(),
+            make_absolute_path_str(path_root, path_root, &root_abs, false),
             0,
         );
         // The root is counted in the stats but excluded from the returned
@@ -71,7 +71,12 @@ pub fn probe_directory_dua_core_internal(
     // Files at depth `max_depth + 1` are included, so descend into
     // directories up to depth `max_depth` (exclusive upper bound).
     let max_depth = config.max_depth.map(|d| d as usize);
+    let search_hidden = config.search_hidden;
     let descend = move |entry: &Entry| -> bool {
+        // `search_hidden=false` prunes dot-directories (their contents are hidden too).
+        if !search_hidden && entry.depth > 0 && is_hidden_name(&entry.file_name) {
+            return false;
+        }
         match max_depth {
             Some(limit) => entry.depth < limit + 1,
             None => true,
