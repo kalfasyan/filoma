@@ -480,7 +480,7 @@ def run_benchmark_suite(
                     elapsed = result["elapsed"]
                     last_result = {"files": result["files"], "dirs": result["dirs"]}
                 else:
-                    print(f"✗ {result.get('error', 'Unknown error') if result else 'Failed'}")
+                    print(f"unavailable: {result.get('error', 'Unknown error') if result else 'Failed'}")
                     results[method] = {"error": (result.get("error", "Unknown error") if result else "Failed")}
                     break
             else:
@@ -565,7 +565,7 @@ def print_results(results: Dict[str, Dict], title: str = "Benchmark Results"):
     for method, data in valid_results.items():
         file_counts.setdefault(data["files"], []).append(method)
     if len(file_counts) > 1:
-        print("\n⚠️  Backends disagree on the file count (symlink/hidden/ignore semantics, or a bug):")
+        print("\nWARNING: backends disagree on the file count (symlink/hidden/ignore semantics, or a bug):")
         for count, methods in sorted(file_counts.items()):
             print(f"   {count:>12,}  {', '.join(sorted(methods))}")
 
