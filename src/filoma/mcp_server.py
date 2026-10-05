@@ -141,7 +141,8 @@ async def list_tools() -> List[Any]:
     """
     mcp = _get_mcp_imports()
     Tool = mcp["Tool"]
-    return [Tool(name=spec.name, description=spec.description, inputSchema=spec.param_schema) for spec in tool_registry.list_specs() if spec.name in _MCP_TOOL_NAMES]
+    exposed = _MCP_TOOL_NAMES | tool_registry.plugin_tool_names()
+    return [Tool(name=spec.name, description=spec.description, inputSchema=spec.param_schema) for spec in tool_registry.list_specs() if spec.name in exposed]
 
 
 async def call_tool(name: str, arguments: dict) -> List[Any]:
