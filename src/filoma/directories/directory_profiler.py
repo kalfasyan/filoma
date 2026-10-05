@@ -353,8 +353,9 @@ class DirectoryProfiler:
         # Use explicit booleans from the config
         if config.use_rust and not RUST_AVAILABLE:
             raise RuntimeError("Rust implementation requested but not available in this build")
-        if config.use_parallel and not RUST_PARALLEL_AVAILABLE:
-            raise RuntimeError("Parallel Rust requested but not available")
+        # ``use_parallel`` defaults to True and is only a preference ("prefer parallel Rust
+        # scanning when available"): it must not make the default config fail on installs
+        # without the compiled extension. It is resolved against availability below.
         if config.use_async and not RUST_ASYNC_AVAILABLE:
             raise RuntimeError("Async Rust prober requested but not available in this build")
         if config.use_fd and not FD_AVAILABLE:
