@@ -207,7 +207,7 @@ pub(crate) fn probe_directory_rust_dua_core(
     search_hidden: Option<bool>,
     walker_threads: Option<usize>,
     return_paths: Option<bool>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let root = PathBuf::from(path_root);
 
     if !root.exists() {
@@ -247,13 +247,13 @@ pub(crate) fn probe_directory_rust_dua_core(
 
     let collect_paths = return_paths.unwrap_or(false);
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         // Release the GIL while walking (dua-core has no per-operation
         // timeouts; a slow mount must not block other Python threads) and
         // convert Rust panics into a typed error so the Python-side fallback
         // can catch them (PanicException does not subclass Exception).
         let (stats, paths) = py
-            .allow_threads(|| {
+            .detach(|| {
                 std::panic::catch_unwind(|| {
                     probe_directory_dua_core_internal(&root, &config, threads, collect_paths)
                 })
@@ -263,7 +263,7 @@ pub(crate) fn probe_directory_rust_dua_core(
             .map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
         let dict = stats.to_py_dict(py, path_root)?;
         if collect_paths {
-            dict.downcast_bound::<pyo3::types::PyDict>(py)?
+            dict.cast_bound::<pyo3::types::PyDict>(py)?
                 .set_item("paths", paths)?;
         }
         Ok(dict)

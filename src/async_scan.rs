@@ -400,7 +400,7 @@ pub(crate) fn probe_directory_rust_async(
     search_hidden: Option<bool>,
     no_ignore: Option<bool>,
     return_paths: Option<bool>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let root = PathBuf::from(path_root);
 
     if !root.exists() {
@@ -459,10 +459,10 @@ pub(crate) fn probe_directory_rust_async(
 
     let (stats, paths) = result.map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let dict = stats.to_py_dict(py, path_root)?;
         if collect_paths {
-            dict.downcast_bound::<pyo3::types::PyDict>(py)?
+            dict.cast_bound::<pyo3::types::PyDict>(py)?
                 .set_item("paths", paths)?;
         }
         Ok(dict)

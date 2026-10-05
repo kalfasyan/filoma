@@ -180,7 +180,7 @@ impl DirectoryStats {
         self.elapsed_seconds = elapsed_seconds;
     }
 
-    fn to_py_dict(&self, py: Python, path_root: &str) -> PyResult<PyObject> {
+    fn to_py_dict(&self, py: Python, path_root: &str) -> PyResult<Py<PyAny>> {
         let dict = PyDict::new(py);
 
         // Return the probed path under the key 'path' for Python consistency
@@ -783,7 +783,7 @@ fn probe_directory_rust(
     search_hidden: Option<bool>,
     no_ignore: Option<bool>,
     return_paths: Option<bool>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     probe_directory_rust_with_config(
         path_root,
         max_depth,
@@ -808,7 +808,7 @@ fn probe_directory_rust_parallel(
     search_hidden: Option<bool>,
     no_ignore: Option<bool>,
     return_paths: Option<bool>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     probe_directory_rust_with_config(
         path_root,
         max_depth,
@@ -831,7 +831,7 @@ fn probe_directory_rust_with_config(
     search_hidden: Option<bool>,
     no_ignore: Option<bool>,
     return_paths: Option<bool>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let root = Path::new(path_root);
 
     // Validate input
@@ -878,10 +878,10 @@ fn probe_directory_rust_with_config(
 
     let (stats, paths) = stats.map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let dict = stats.to_py_dict(py, root_for_output.to_string_lossy().as_ref())?;
         if collect_paths {
-            dict.downcast_bound::<pyo3::types::PyDict>(py)?
+            dict.cast_bound::<pyo3::types::PyDict>(py)?
                 .set_item("paths", paths)?;
         }
         Ok(dict)
