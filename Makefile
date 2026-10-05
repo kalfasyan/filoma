@@ -48,8 +48,8 @@ clean:  ## Clean build artifacts
 	rm -rf dist/ build/ *.egg-info/
 
 # Filaraki / AI tasks
-filaraki-install:  ## Install filaraki dependencies
-	uv sync --extra filaraki
+filaraki-install:  ## Install filaraki (agent + MCP) dependencies
+	uv sync --extra agent
 
 filaraki-poc: filaraki-install  ## Run the Filaraki POC
 	uv run poe filaraki-poc
@@ -65,7 +65,7 @@ filaraki-advanced: filaraki-install  ## Run the Filaraki advanced workflows exam
 
 # Quick development tasks
 dev-install:  ## Install package in development mode with dev dependencies
-	uv sync --extra dev
+	uv sync --extra dev --extra all
 
 benchmark:  ## Run performance benchmark (Python vs Rust)
 	uv run poe benchmark

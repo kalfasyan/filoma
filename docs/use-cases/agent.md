@@ -12,7 +12,7 @@ filoma ask "find corrupted images in ./data"
 filoma ask "what are the 5 largest files in this project?"
 ```
 
-Each `filoma ask` invocation starts a fresh agent, runs your query, prints the answer, and exits. No setup beyond installing filoma.
+Each `filoma ask` invocation starts a fresh agent, runs your query, prints the answer, and exits. No setup beyond installing filoma with the agent extra (`pip install "filoma[agent]"`) and having a model provider available.
 
 ## Interactive chat: `filoma filaraki chat`
 
@@ -69,7 +69,7 @@ filoma mcp serve
 ### Connect to Copilot CLI
 
 ```bash
-copilot mcp add filoma -- uvx -p 3.11 filoma mcp serve
+copilot mcp add filoma -- uvx -p 3.11 --from "filoma[agent]" filoma mcp serve
 ```
 
 One command, no config file to write. See [Using Filoma with GitHub Copilot](../guides/filaraki.md#using-filoma-with-github-copilot) in the Filaraki guide for VS Code chat and Copilot coding agent setup too.
@@ -82,7 +82,7 @@ Add to `~/.nanobot/config.json`:
 "mcpServers": {
   "filoma": {
     "command": "uvx",
-    "args": ["--python", "3.11", "filoma", "mcp", "serve"]
+    "args": ["--python", "3.11", "--from", "filoma[agent]", "filoma", "mcp", "serve"]
   }
 }
 ```

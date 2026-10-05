@@ -872,19 +872,6 @@ wheels = [
 ]
 
 [[package]]
-name = "detect-secrets"
-version = "1.5.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pyyaml" },
-    { name = "requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/69/67/382a863fff94eae5a0cf05542179169a1c49a4c8784a9480621e2066ca7d/detect_secrets-1.5.0.tar.gz", hash = "sha256:6bb46dcc553c10df51475641bb30fd69d25645cc12339e46c824c1e0c388898a", size = 97351, upload-time = "2024-05-06T17:46:19.721Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4e/5e/4f5fe4b89fde1dc3ed0eb51bd4ce4c0bca406246673d370ea2ad0c58d747/detect_secrets-1.5.0-py3-none-any.whl", hash = "sha256:e24e7b9b5a35048c313e983f76c4bd09dad89f045ff059e354f9943bf45aa060", size = 120341, upload-time = "2024-05-06T17:46:16.628Z" },
-]
-
-[[package]]
 name = "diskcache"
 version = "5.6.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1101,25 +1088,37 @@ name = "filoma"
 version = "1.12.10"
 source = { editable = "." }
 dependencies = [
-    { name = "detect-secrets" },
-    { name = "ipython" },
-    { name = "lancedb" },
     { name = "loguru" },
-    { name = "mcp" },
     { name = "numpy" },
-    { name = "pandas" },
     { name = "pillow" },
     { name = "polars" },
-    { name = "pyarrow" },
-    { name = "pydantic-ai" },
-    { name = "python-dotenv" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
     { name = "questionary" },
     { name = "rich" },
-    { name = "sentence-transformers" },
     { name = "typer" },
 ]
 
 [package.optional-dependencies]
+agent = [
+    { name = "mcp" },
+    { name = "pydantic-ai" },
+    { name = "python-dotenv" },
+]
+all = [
+    { name = "datasketch" },
+    { name = "lancedb" },
+    { name = "mcp" },
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "pillow" },
+    { name = "pyarrow" },
+    { name = "pydantic-ai" },
+    { name = "python-dotenv" },
+    { name = "scikit-learn" },
+    { name = "scipy" },
+    { name = "sentence-transformers" },
+]
 dedup = [
     { name = "datasketch" },
     { name = "pillow" },
@@ -1149,6 +1148,10 @@ docs = [
     { name = "nbformat" },
     { name = "pyarrow" },
     { name = "pymdown-extensions" },
+]
+pandas = [
+    { name = "pandas" },
+    { name = "pyarrow" },
 ]
 pd = [
     { name = "ipykernel" },
@@ -1187,22 +1190,20 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "datasketch", marker = "extra == 'dedup'", specifier = ">=1.5.3" },
-    { name = "detect-secrets", specifier = ">=1.5.0" },
+    { name = "filoma", extras = ["agent", "rag", "pandas", "stats", "dedup"], marker = "extra == 'all'" },
     { name = "ipykernel", marker = "extra == 'dev'", specifier = ">=6.30.1" },
     { name = "ipykernel", marker = "extra == 'docs'", specifier = ">=6.30.1" },
     { name = "ipykernel", marker = "extra == 'pd'", specifier = ">=6.30.1" },
-    { name = "ipython", specifier = ">=9.4.0" },
     { name = "ipython", marker = "extra == 'dev'", specifier = ">=9.4.0" },
     { name = "ipython", marker = "extra == 'docs'", specifier = ">=9.4.0" },
     { name = "ipython", marker = "extra == 'pd'", specifier = ">=9.4.0" },
     { name = "jupyterlab", marker = "extra == 'docs'", specifier = ">=4.0.0" },
     { name = "jupyterlab", marker = "extra == 'pd'", specifier = ">=4.0.0" },
-    { name = "lancedb", specifier = ">=0.34.0" },
-    { name = "lancedb", marker = "extra == 'rag'" },
+    { name = "lancedb", marker = "extra == 'rag'", specifier = ">=0.34.0" },
     { name = "loguru", specifier = ">=0.7.0" },
     { name = "loguru", marker = "extra == 'docs'", specifier = ">=0.7.0" },
     { name = "maturin", marker = "extra == 'dev'", specifier = ">=1.9.0" },
-    { name = "mcp", specifier = ">=1.6.0" },
+    { name = "mcp", marker = "extra == 'agent'", specifier = ">=1.6.0" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.5.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.0.0" },
     { name = "mkdocstrings", marker = "extra == 'docs'", specifier = ">=0.23.0" },
@@ -1211,34 +1212,35 @@ requires-dist = [
     { name = "nbformat", marker = "extra == 'docs'", specifier = ">=5.7.0" },
     { name = "numpy", specifier = ">=1.26.0" },
     { name = "numpy", marker = "extra == 'stats'", specifier = ">=1.26.0" },
-    { name = "pandas", specifier = ">=2.0.0" },
+    { name = "pandas", marker = "extra == 'pandas'", specifier = ">=2.0.0" },
     { name = "pandas", marker = "extra == 'pd'", specifier = ">=2.0.0" },
     { name = "pillow", specifier = ">=10.0.0" },
     { name = "pillow", marker = "extra == 'dedup'", specifier = ">=10.0.0" },
     { name = "poethepoet", marker = "extra == 'dev'", specifier = ">=0.24.0" },
     { name = "polars", specifier = ">=1.0.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.2.0" },
-    { name = "pyarrow", specifier = ">=22.0.0" },
     { name = "pyarrow", marker = "extra == 'docs'", specifier = ">=12.0.0" },
+    { name = "pyarrow", marker = "extra == 'pandas'", specifier = ">=12.0.0" },
     { name = "pyarrow", marker = "extra == 'pd'", specifier = ">=12.0.0" },
-    { name = "pyarrow", marker = "extra == 'rag'" },
-    { name = "pydantic-ai", specifier = ">=0.0.1" },
+    { name = "pyarrow", marker = "extra == 'rag'", specifier = ">=22.0.0" },
+    { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "pydantic-ai", marker = "extra == 'agent'", specifier = ">=0.0.1" },
     { name = "pymdown-extensions", marker = "extra == 'docs'" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.5" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.2.0" },
-    { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "python-dotenv", marker = "extra == 'agent'", specifier = ">=1.0.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "questionary", specifier = ">=2.0.0" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
     { name = "scikit-learn", marker = "extra == 'stats'", specifier = ">=1.3.0" },
     { name = "scipy", marker = "extra == 'stats'", specifier = ">=1.10.0" },
-    { name = "sentence-transformers", specifier = ">=5.6.0" },
-    { name = "sentence-transformers", marker = "extra == 'rag'", specifier = ">=2.2.0" },
+    { name = "sentence-transformers", marker = "extra == 'rag'", specifier = ">=5.6.0" },
     { name = "twine", marker = "extra == 'dev'", specifier = ">=6.1.0" },
     { name = "typer", specifier = ">=0.12.0" },
 ]
-provides-extras = ["stats", "dev", "pd", "docs", "dedup", "rag"]
+provides-extras = ["agent", "rag", "pandas", "stats", "dedup", "all", "dev", "pd", "docs"]
 
 [package.metadata.requires-dev]
 dev = [

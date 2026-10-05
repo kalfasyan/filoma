@@ -10,10 +10,23 @@ from typing import TYPE_CHECKING, Any, List, Optional, Union
 
 from loguru import logger
 from pydantic import BaseModel
-from pydantic_ai import RunContext
 
 if TYPE_CHECKING:
     pass
+
+try:
+    from pydantic_ai import RunContext
+except ImportError:  # pragma: no cover - exercised via tests/test_core_without_optional_extras.py
+    # pydantic-ai ships in the optional "agent" extra. Tool functions are plain
+    # callables (``filoma audit`` calls ``audit_dataset(None, ...)`` directly),
+    # so a minimal stand-in keeps this module importable without it.
+    from typing import Generic, TypeVar
+
+    _DepsT = TypeVar("_DepsT")
+
+    class RunContext(Generic[_DepsT]):  # type: ignore[no-redef]
+        """Fallback for ``pydantic_ai.RunContext`` when the "agent" extra is not installed."""
+
 
 import filoma
 from filoma.tool_registry import tool_registry

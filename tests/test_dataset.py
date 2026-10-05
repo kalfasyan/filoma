@@ -6,7 +6,6 @@ import pytest
 import filoma
 from filoma import Dataset
 from filoma.filaraki import get_agent
-from filoma.filaraki.agent import FilarakiAgent
 
 
 @pytest.fixture
@@ -46,6 +45,9 @@ def test_dataset_invalid_path():
 
 
 def test_dataset_get_filaraki(temp_dataset):
+    pytest.importorskip("pydantic_ai", reason="needs the optional 'agent' extra")
+    from filoma.filaraki.agent import FilarakiAgent
+
     ds = Dataset(temp_dataset)
 
     agent = ds.get_filaraki()
@@ -55,6 +57,9 @@ def test_dataset_get_filaraki(temp_dataset):
 
 
 def test_get_agent_working_dir(temp_dataset):
+    pytest.importorskip("pydantic_ai", reason="needs the optional 'agent' extra")
+    from filoma.filaraki.agent import FilarakiAgent
+
     agent = get_agent(working_dir=temp_dataset)
     assert isinstance(agent, FilarakiAgent)
     # Check resolved paths to handle macOS symlink (/var/folders -> /private/var/folders)

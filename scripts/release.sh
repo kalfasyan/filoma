@@ -19,7 +19,7 @@ fi
 
 # Install dev dependencies
 echo "📦 Installing dev dependencies..."
-uv sync --extra dev
+uv sync --extra dev --extra all
 
 # Bump version
 echo "📝 Bumping version..."
@@ -39,11 +39,11 @@ echo "✅ New version: $NEW_VERSION"
 
 # Run tests
 echo "🧪 Running tests..."
-uv run --extra dev pytest tests/
+uv run --extra dev --extra all pytest tests/
 
 # Run linting
 echo "🔍 Running linting..."
-uv run --extra dev ruff check .
+uv run --extra dev --extra all ruff check .
 
 # Build package
 echo "📦 Building package..."

@@ -13,6 +13,10 @@ Filoma Filaraki provides an intelligent AI agent for filesystem analysis using [
 
 ## Quick Start
 
+> **Installation:** the agent and the MCP server live in an optional extra — `pip install "filoma[agent]"` (or `uv add "filoma[agent]"`). The base `pip install filoma` covers scanning, DataFrames, `filoma audit` and quality gates without it. `filoma ask`, `filoma chat` and `filoma mcp serve` tell you when the extra is missing.
+
+<!-- -->
+
 > **Which AI service should I use?**
 >
 > | Provider                                        | Requires                                      | Privacy       |
@@ -90,7 +94,7 @@ Commit `.github/skills/` to your repo and it's picked up automatically for every
 **Copilot CLI — one command, nothing to write:**
 
 ```bash
-copilot mcp add filoma -- uvx -p 3.11 filoma mcp serve
+copilot mcp add filoma -- uvx -p 3.11 --from "filoma[agent]" filoma mcp serve
 ```
 
 That's it. `copilot mcp list` immediately shows `filoma`, and Copilot can call `probe_directory`, `search_files`, `audit_dataset`, and the rest of the toolset right away — no restart needed. Remove it any time with `copilot mcp remove filoma`.
@@ -102,7 +106,15 @@ That's it. `copilot mcp list` immediately shows `filoma`, and Copilot can call `
   "servers": {
     "filoma": {
       "command": "uvx",
-      "args": ["--python", "3.11", "filoma", "mcp", "serve"]
+      "args": [
+        "--python",
+        "3.11",
+        "--from",
+        "filoma[agent]",
+        "filoma",
+        "mcp",
+        "serve"
+      ]
     }
   }
 }
@@ -114,7 +126,7 @@ That's it. `copilot mcp list` immediately shows `filoma`, and Copilot can call `
 
 <!-- -->
 
-> This filoma repo ships its own `.vscode/mcp.json`, pointed at the local development build (`uv run filoma mcp serve`) instead of `uvx`, so contributors get the in-progress MCP server automatically when they open this workspace in Copilot Chat.
+> This filoma repo ships its own `.vscode/mcp.json`, pointed at the local development build (`uv run --extra agent filoma mcp serve`) instead of `uvx`, so contributors get the in-progress MCP server automatically when they open this workspace in Copilot Chat.
 
 <!-- -->
 
@@ -172,7 +184,7 @@ In `~/.nanobot/config.json`, find `"mcpServers": {}` and replace it with:
 "mcpServers": {
   "filoma": {
     "command": "uvx",
-    "args": ["--python", "3.11", "filoma", "mcp", "serve"]
+    "args": ["--python", "3.11", "--from", "filoma[agent]", "filoma", "mcp", "serve"]
   }
 }
 ```

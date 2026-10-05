@@ -52,12 +52,15 @@ uv add filoma
 
 **Note**: The Rust extension (fastest backend) is bundled automatically by `pip`/`uv` above — no separate build step needed. See the [Installation guide](docs/getting-started/installation.md#optimization-optional) if filoma falls back to the fd/Python backend on your platform.
 
-Optional extras:
+The base install is deliberately small (scanning, DataFrames, integrity checks, `filoma audit` and quality gates). Everything heavier is opt-in:
 
 ```bash
+pip install "filoma[agent]"   # flm.ask(), `filoma ask`/`chat`, MCP server (pydantic-ai, mcp)
+pip install "filoma[rag]"     # LanceDB vector search + embeddings (pulls in PyTorch)
+pip install "filoma[pandas]"  # DataFrame.to_pandas() interop
 pip install "filoma[dedup]"   # near-duplicate detection
-pip install "filoma[rag]"     # LanceDB vector search
 pip install "filoma[stats]"   # statistical analysis extras
+pip install "filoma[all]"     # all of the above
 ```
 
 ---
@@ -109,10 +112,10 @@ filoma skills install --scope vscode   # writes ./.github/skills/filoma-*/SKILL.
 **MCP server** — gives Copilot real, callable tools (`probe_directory`, `audit_dataset`, `search_files`, and more):
 
 ```bash
-copilot mcp add filoma -- uvx -p 3.11 filoma mcp serve
+copilot mcp add filoma -- uvx -p 3.11 --from "filoma[agent]" filoma mcp serve
 ```
 
-Both work via `uvx` — no `pip install filoma` needed to try them out. See the [Filaraki guide](docs/guides/filaraki.md#using-filoma-with-github-copilot) for VS Code chat setup, nanobot, and other MCP clients.
+Both work via `uvx` — no `pip install filoma` needed to try them out (the MCP command pulls in the `agent` extra for you). See the [Filaraki guide](docs/guides/filaraki.md#using-filoma-with-github-copilot) for VS Code chat setup, nanobot, and other MCP clients.
 
 ---
 
@@ -134,6 +137,8 @@ filoma audit ./data --export report.html --format html
 This produces an HTML audit report with file counts, type breakdowns, integrity status, and warnings.
 
 ### Talk to your filesystem
+
+Requires the agent extra: `pip install "filoma[agent]"`.
 
 ```python
 import filoma as flm

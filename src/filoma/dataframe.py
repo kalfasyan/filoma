@@ -1305,7 +1305,7 @@ class DataFrame:
         current Polars DataFrame and update the cache.
         """
         if pd is None:
-            raise ImportError("pandas is not installed. Please install it to use to_pandas().")
+            raise ImportError("pandas is not installed. Install it with: pip install 'filoma[pandas]'")
         # Convert and cache on first access or when forced
         if force or self._pd_cache is None:
             # Use Polars' to_pandas conversion for consistency
@@ -1332,7 +1332,7 @@ class DataFrame:
 
         """
         if pd is None:
-            raise ImportError("pandas is not installed. Please install it to use pandas property.")
+            raise ImportError("pandas is not installed. Install it with: pip install 'filoma[pandas]'")
         return self._df.to_pandas()
 
     @property

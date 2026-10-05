@@ -9,6 +9,8 @@ uv add filoma          # recommended
 pip install filoma     # classic pip works too
 ```
 
+The base install covers scanning, DataFrames, `filoma audit` and quality gates. For the natural-language agent (`filoma ask`, `flm.ask`) add the agent extra: `pip install "filoma[agent]"`. See [Installation](installation.md#optional-extras) for the other extras.
+
 Want the fastest scanning? Install Rust or `fd` on your system — filoma auto-detects both and falls back to pure Python if neither is available.
 
 ## Choose your path
