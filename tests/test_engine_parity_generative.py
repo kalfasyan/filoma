@@ -374,3 +374,59 @@ def test_sequential_max_depth_counts_leaf_folders(tmp_path):
 
     for engine in ("walkdir-sequential", "dua-core"):
         assert RUST_ENGINES[engine](str(tmp_path), None, True)["summary"]["max_depth"] == 3, engine
+
+
+@pytest.mark.skipif(not RUST_AVAILABLE, reason="Rust extension not available")
+@pytest.mark.parametrize("engine", sorted(RUST_ENGINES))
+def test_relative_root_counts_the_root_folder(engine, root_files_tree, monkeypatch):
+    """`.` has no file name; dua-core, parallel and async skipped the root folder for it (flm.probe('.') was one folder short)."""
+    monkeypatch.chdir(root_files_tree)
+    summary = RUST_ENGINES[engine](".", None, True)["summary"]
+    assert summary["total_folders"] == 5  # the root and four subdirectories
+    assert summary["total_files"] == 6
+
+
+@pytest.mark.skipif(not RUST_AVAILABLE, reason="Rust extension not available")
+@pytest.mark.parametrize("seed", SEEDS[:8])
+@pytest.mark.parametrize("engine", sorted(RUST_ENGINES))
+def test_relative_root_matches_oracle(engine, seed, tmp_path, monkeypatch):
+    """Scanning `.` gives the same answer as scanning the absolute path."""
+    build_random_tree(tmp_path, random.Random(seed))
+    expected = reference_scan(tmp_path, max_depth=None, search_hidden=True)
+    monkeypatch.chdir(tmp_path)
+    try:
+        assert_matches(normalize(Path("."), RUST_ENGINES[engine](".", None, True)), expected)
+    except AssertionError as exc:
+        raise AssertionError(f"engine={engine} seed={seed} root='.': {exc}") from None
+
+
+@pytest.mark.skipif(not RUST_AVAILABLE, reason="Rust extension not available")
+def test_profiler_probe_dot_matches_absolute_path(root_files_tree, monkeypatch):
+    """The README's own example: flm.probe('.') must report what probe('/abs/path') does, on the default backend."""
+    config = DirectoryProfilerConfig(show_progress=False)
+    absolute = DirectoryProfiler(config).probe(str(root_files_tree)).to_dict()["summary"]
+    monkeypatch.chdir(root_files_tree)
+    relative = DirectoryProfiler(config).probe(".").to_dict()["summary"]
+    for key in ("total_files", "total_folders", "total_size_bytes", "empty_folder_count"):
+        assert relative[key] == absolute[key], key
+
+
+@pytest.mark.skipif(not RUST_AVAILABLE, reason="Rust extension not available")
+def test_follow_links_classifies_root_entries_by_target(tmp_path):
+    """With follow_links=True the parallel engine must treat root-level symlinks like the sequential one (no loops here)."""
+    for name in ("a", "b", "c", "d"):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "x.txt").write_text("1")
+    (tmp_path / "real").mkdir()
+    (tmp_path / "real" / "y.txt").write_text("22")
+    (tmp_path / "root.txt").write_text("333")
+    try:
+        (tmp_path / "link_dir").symlink_to(tmp_path / "real")
+        (tmp_path / "link_file").symlink_to(tmp_path / "a" / "x.txt")
+    except OSError:
+        pytest.skip("symlinks not supported on this platform")
+
+    sequential = probe_directory_rust(str(tmp_path), follow_links=True)["summary"]
+    parallel = probe_directory_rust_parallel(str(tmp_path), parallel_threshold=0, follow_links=True)["summary"]
+    for key in ("total_files", "total_folders", "total_size_bytes"):
+        assert parallel[key] == sequential[key], key

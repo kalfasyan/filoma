@@ -101,16 +101,17 @@ pub async fn probe_directory_async_internal(
     // Paths of every counted entry (root excluded), shared across workers
     let paths: Arc<std::sync::Mutex<Vec<String>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
 
-    // Count the root directory exactly once; if it turns out to be empty,
-    // `process_directory` flags it via `add_empty_folders`.
-    if let Some(name) = path_root.file_name().and_then(|n| n.to_str()) {
-        stats.add_folder(
-            name.to_string(),
-            false,
-            path_root.to_string_lossy().to_string(),
-            0,
-        );
-    }
+    // Count the root directory exactly once (even a bare "." that has no file name); if
+    // it turns out to be empty, `process_directory` flags it via `add_empty_folders`.
+    let root_abs = path_root
+        .canonicalize()
+        .unwrap_or_else(|_| path_root.clone());
+    stats.add_folder(
+        crate::analysis::root_folder_name(&path_root, &root_abs),
+        false,
+        path_root.to_string_lossy().to_string(),
+        0,
+    );
 
     // Create work queue channel for distributing directory scanning work
     let (tx, rx) = mpsc::channel::<WorkItem>(WORK_QUEUE_CAPACITY);

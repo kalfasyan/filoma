@@ -52,7 +52,7 @@ The Rust crate is `filoma-core`, built by maturin as the Python module `filoma.f
 
 `walker="dua-core" | "walkdir" | "auto"` in the config picks the engine. The profiler always scans with `search_hidden=True` and never passes `follow_links=True`; those options are only reachable by calling the low-level `filoma_core` functions directly.
 
-The engines, the Python backend and fd must return identical results. The contract is in `docs/reference/architecture.md` ("Engine harmonization contract": symlinks, `max_depth`, empty folders, hidden pruning, `max_depth`/`depth_distribution` as folder-only stats, the root keyed once). `tests/test_engine_parity_generative.py` is the authority: it builds random trees and compares every engine to an independent `os.scandir` oracle. When you change any engine, keep that test green and extend it. `follow_links=True` is not covered, and the sequential and parallel walkdir engines differ on symlink loops there.
+The engines, the Python backend and fd must return identical results. The contract is in `docs/reference/architecture.md` ("Engine harmonization contract": symlinks, `max_depth`, empty folders, hidden pruning, `max_depth`/`depth_distribution` as folder-only stats, the root always counted, even for a relative path like `.`, and keyed once). `tests/test_engine_parity_generative.py` is the authority: it builds random trees and compares every engine to an independent `os.scandir` oracle. When you change any engine, keep that test green and extend it. `follow_links=True` is only covered for loop-free trees, and the sequential and parallel walkdir engines differ on symlink loops there.
 
 ### Data layer
 

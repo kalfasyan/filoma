@@ -22,7 +22,7 @@ use dua_core::{walk, Entry, Order};
 use pyo3::prelude::*;
 
 use crate::{
-    analysis::{get_file_extension, is_hidden_name},
+    analysis::{get_file_extension, is_hidden_name, root_folder_name},
     make_absolute_path_str, AnalysisConfig, DirectoryStats, ParallelDirectoryStats,
 };
 
@@ -50,23 +50,21 @@ pub fn probe_directory_dua_core_internal(
     // Paths of every counted entry, collected on the consuming thread.
     let mut paths: Vec<String> = Vec::new();
 
-    // Count the root directory itself, mirroring `probe_root_directory`:
-    // only when it has a file name (a bare "." probe has none), and its
-    // emptiness is resolved below from the children we observe.
-    if let Some(name) = path_root.file_name().and_then(|n| n.to_str()) {
-        stats.add_folder(
-            name.to_string(),
-            false,
-            make_absolute_path_str(path_root, path_root, &root_abs, false),
-            0,
-        );
-        // The root is counted in the stats but excluded from the returned
-        // paths, matching the rglob-based DataFrame collection (rglob("*")
-        // never yields the root itself).
-        all_dirs.insert(make_absolute_path_str(
-            path_root, path_root, &root_abs, false,
-        ));
-    }
+    // Count the root directory itself, mirroring `probe_root_directory`: always, even
+    // when the path is a bare "." that has no file name. Its emptiness is resolved
+    // below from the children we observe.
+    stats.add_folder(
+        root_folder_name(path_root, &root_abs),
+        false,
+        make_absolute_path_str(path_root, path_root, &root_abs, false),
+        0,
+    );
+    // The root is counted in the stats but excluded from the returned
+    // paths, matching the rglob-based DataFrame collection (rglob("*")
+    // never yields the root itself).
+    all_dirs.insert(make_absolute_path_str(
+        path_root, path_root, &root_abs, false,
+    ));
 
     // Files at depth `max_depth + 1` are included, so descend into
     // directories up to depth `max_depth` (exclusive upper bound).
