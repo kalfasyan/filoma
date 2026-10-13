@@ -7,7 +7,7 @@ import pytest
 
 core = pytest.importorskip("filoma.filoma_core")
 
-pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="non-UTF-8 file names are a Unix concept")
+pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="only Linux filesystems accept arbitrary non-UTF-8 names")
 
 
 def test_dua_core_skips_hidden_non_utf8_file_when_search_hidden_is_off(tmp_path):

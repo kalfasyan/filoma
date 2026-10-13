@@ -6,6 +6,7 @@ and backend selection behavior for the ``walker`` option.
 """
 
 import os
+import sys
 import tempfile
 from pathlib import Path
 
@@ -93,7 +94,7 @@ class TestDuaCoreParity:
         assert dua["file_extensions"] == parallel["file_extensions"]
         assert dua["depth_distribution"] == parallel["depth_distribution"]
 
-    @pytest.mark.skipif(os.name == "nt", reason="Windows filenames are Unicode")
+    @pytest.mark.skipif(sys.platform != "linux", reason="only Linux filesystems accept arbitrary non-UTF-8 names")
     def test_hidden_filtering_handles_invalid_utf8_names(self, tmp_path):
         """Hidden invalid-UTF-8 directory names are pruned with search_hidden=False."""
         hidden_dir = os.fsencode(tmp_path) + b"/.cache\xff"
