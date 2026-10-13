@@ -5,9 +5,7 @@ to represent file metadata collected from the filesystem.
 """
 
 import datetime
-import grp
 import os
-import pwd
 import stat
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
@@ -19,6 +17,16 @@ from rich.table import Table
 
 from filoma import dedup as _dedup
 from filoma.core.hashes import compute_full_hash
+
+# grp and pwd are Unix-only. Elsewhere, owner and group fall back to numeric ids.
+try:
+    import grp
+except ImportError:
+    grp = None
+try:
+    import pwd
+except ImportError:
+    pwd = None
 
 
 class FileProfiler:
@@ -75,8 +83,8 @@ class FileProfiler:
             "path": full_path,
             "size": st.st_size,
             "mode": oct(st.st_mode),
-            "owner": (pwd.getpwuid(st.st_uid).pw_name if hasattr(pwd, "getpwuid") else st.st_uid),
-            "group": (grp.getgrgid(st.st_gid).gr_name if hasattr(grp, "getgrgid") else st.st_gid),
+            "owner": (pwd.getpwuid(st.st_uid).pw_name if pwd is not None else None),
+            "group": (grp.getgrgid(st.st_gid).gr_name if grp is not None else None),
             "created": datetime.datetime.fromtimestamp(st.st_ctime).strftime("%Y-%m-%d %H:%M:%S"),
             "modified": datetime.datetime.fromtimestamp(st.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
             "accessed": datetime.datetime.fromtimestamp(st.st_atime).strftime("%Y-%m-%d %H:%M:%S"),
