@@ -101,12 +101,8 @@ pub fn probe_directory_dua_core_internal(
         parents_with_children.insert(parent_abs.clone());
 
         // Skip hidden entries unless search_hidden is enabled.
-        if !config.search_hidden {
-            if let Some(name) = entry.file_name.to_str() {
-                if name.starts_with('.') {
-                    continue;
-                }
-            }
+        if !config.search_hidden && is_hidden_name(&entry.file_name) {
+            continue;
         }
 
         // Classify using the parallelized metadata when available, falling
