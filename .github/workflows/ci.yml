@@ -47,6 +47,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install ruff pytest pytest-asyncio
+      # The fd parity tests only run when the fd binary is on PATH (Ubuntu ships it as fdfind).
+      # minimal-install deliberately runs without it, which covers the Python fallback.
+      - name: Install fd
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fd-find
+          sudo ln -sf "$(command -v fdfind)" /usr/local/bin/fd
       - name: Install package with all optional extras
         run: pip install -e ".[all]"
       - name: Run ruff

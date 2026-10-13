@@ -27,8 +27,11 @@ from typing import Dict, List, Optional, Set
 
 import pytest
 
+from filoma.core import FdIntegration
 from filoma.directories import DirectoryProfiler, DirectoryProfilerConfig
-from filoma.directories.directory_profiler import FD_AVAILABLE
+
+# The Python package can import without the fd binary, so check the binary itself.
+FD_BINARY_INSTALLED = FdIntegration().is_available()
 
 try:
     from filoma.filoma_core import (
@@ -280,7 +283,7 @@ def test_python_backend_matches_oracle(seed, tmp_path):
             raise AssertionError(f"python backend seed={seed} max_depth={max_depth}: {exc}") from None
 
 
-@pytest.mark.skipif(not FD_AVAILABLE, reason="fd is not installed")
+@pytest.mark.skipif(not FD_BINARY_INSTALLED, reason="fd binary is not installed")
 @pytest.mark.parametrize("seed", SEEDS)
 def test_fd_backend_matches_oracle(seed, tmp_path):
     """fd agrees with the oracle on trees without hidden entries (fd hides dot-entries by design)."""
