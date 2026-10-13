@@ -28,7 +28,7 @@ filoma = "filoma.cli:cli"
 
 [project.optional-dependencies]
 # Natural-language agent (`filoma ask`/`chat`, `flm.ask`) and the MCP server (`filoma mcp serve`).
-agent = ["pydantic-ai>=0.0.1", "mcp>=1.6.0", "python-dotenv>=1.0.0"]
+agent = ["pydantic-ai>=0.0.1", "mcp>=1.6.0,<2", "python-dotenv>=1.0.0"]
 
 # RAG: LanceDB vector store plus sentence-transformers (text embeddings fallback and
 # CLIP image embeddings). Default text embedding path uses Ollama
