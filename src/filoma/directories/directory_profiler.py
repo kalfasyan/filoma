@@ -65,6 +65,11 @@ try:
 except ImportError:
     FD_AVAILABLE = False
 
+
+class _FdUnavailableError(RuntimeError):
+    """The fd backend was selected, but the fd binary cannot be used on this system."""
+
+
 # Sentinel to detect when optional boolean flags are omitted by callers.
 # Define at module scope so it's always available regardless of fd import outcome.
 _NOT_SET = object()
@@ -465,6 +470,9 @@ class DirectoryProfiler:
         # Threads forwarded to fd if using fd backend
         self.threads = config.threads if self.use_fd else None
 
+        # Explicit fd requests must fail loudly; automatic selection may fall back to Python
+        self._fd_requested = bool(config.use_fd or config.search_backend == "fd")
+
         # Defer fd integration initialization until actually used
         self.fd_integration = None
 
@@ -554,7 +562,17 @@ class DirectoryProfiler:
             if backend == "fd":
                 # threads param overrides instance threads when provided
                 chosen_threads = threads if threads is not None else self.threads
-                result = self._probe_fd(path, max_depth, threads=chosen_threads)
+                try:
+                    result = self._probe_fd(path, max_depth, threads=chosen_threads)
+                except _FdUnavailableError:
+                    if self._fd_requested:
+                        raise
+                    # Auto-selection picked fd, but the binary is missing or unusable:
+                    # continue down the Rust -> fd -> Python chain instead of failing.
+                    logger.debug("fd is not usable on this system, using the Python backend")
+                    backend = "python"
+                    impl_type = self._get_impl_display_name(backend)
+                    result = self._probe_python(path, max_depth)
             elif backend == "rust":
                 result = self._probe_rust(path, max_depth, fast_path_only=self._fast_path_only)
             else:
@@ -663,16 +681,16 @@ class DirectoryProfiler:
             # If the fd integration package wasn't importable at module
             # import time, reflect that now.
             if not FD_AVAILABLE:
-                raise RuntimeError("fd integration not available")
+                raise _FdUnavailableError("fd integration not available")
             try:
                 self.fd_integration = FdIntegration()
                 if not self.fd_integration.is_available():
                     # fd binary is not usable on this system
                     self.fd_integration = None
-                    raise RuntimeError("fd integration not available")
+                    raise _FdUnavailableError("fd integration not available")
             except Exception:
                 self.fd_integration = None
-                raise RuntimeError("fd integration not available")
+                raise _FdUnavailableError("fd integration not available")
 
         progress = None
         task_id = None
