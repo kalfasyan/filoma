@@ -1085,7 +1085,7 @@ wheels = [
 
 [[package]]
 name = "filoma"
-version = "1.12.10"
+version = "1.13.0"
 source = { editable = "." }
 dependencies = [
     { name = "loguru" },
