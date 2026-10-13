@@ -45,6 +45,7 @@ class ToolRegistry:
     def __init__(self) -> None:  # noqa: D107
         self._tools: dict[str, ToolSpec] = {}
         self._plugins_loaded: bool = False
+        self._plugin_tool_names: set[str] = set()
 
     # ------------------------------------------------------------------
     # Plugin discovery
@@ -56,14 +57,29 @@ class ToolRegistry:
         Scans the ``filoma.tools`` entry-point group once per process.
         Each entry-point callable is expected to call
         ``tool_registry.register(...)`` to register one or more tools.
-        Plugins must not perform filesystem I/O or heavy imports at load time.
+        Plugins must not perform filesystem I/O or heavy imports at load time. A plugin
+        whose entry point raises is skipped with a warning; it does not affect the others.
         """
         if self._plugins_loaded:
             return
         self._plugins_loaded = True
         entry_points = importlib.metadata.entry_points(group="filoma.tools")
         for ep in entry_points:
-            _ = ep.load()()
+            before = dict(self._tools)
+            try:
+                _ = ep.load()()
+            except Exception as exc:  # a broken third-party plugin must not take the agent/MCP server down
+                from loguru import logger
+
+                # Undo whatever the plugin registered before it failed, so the agent and
+                # the MCP server never see half of a plugin that was reported as skipped.
+                self._tools.clear()
+                self._tools.update(before)
+                logger.warning(f"Skipping filoma plugin {getattr(ep, 'name', ep)!r}: {type(exc).__name__}: {exc}")
+                continue
+            # Remember which tools came from plugins so surfaces with an allowlist
+            # (the MCP server) can still expose them.
+            self._plugin_tool_names.update(name for name, spec in self._tools.items() if before.get(name) is not spec)
 
     # ------------------------------------------------------------------
     # Registration
@@ -99,6 +115,11 @@ class ToolRegistry:
         """Get a single tool spec by name."""
         self._discover_plugins()
         return self._tools.get(name)
+
+    def plugin_tool_names(self) -> frozenset[str]:
+        """Return the names of tools registered by third-party plugins (``filoma.tools`` entry points)."""
+        self._discover_plugins()
+        return frozenset(self._plugin_tool_names)
 
     def get_callable(self, name: str) -> Optional[Callable[..., Any]]:
         """Get a tool callable by name."""

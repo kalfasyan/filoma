@@ -180,7 +180,7 @@ impl DirectoryStats {
         self.elapsed_seconds = elapsed_seconds;
     }
 
-    fn to_py_dict(&self, py: Python, path_root: &str) -> PyResult<PyObject> {
+    fn to_py_dict(&self, py: Python, path_root: &str) -> PyResult<Py<PyAny>> {
         let dict = PyDict::new(py);
 
         // Return the probed path under the key 'path' for Python consistency
@@ -257,6 +257,64 @@ mod analysis {
         }
     }
 
+    /// Name recorded for the root folder. A bare `.` or `..` has no file name, so fall
+    /// back to the canonical path's name: the root must be counted whatever it is called.
+    pub fn root_folder_name(path_root: &Path, root_abs: &Path) -> String {
+        path_root
+            .file_name()
+            .or_else(|| root_abs.file_name())
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_string()
+    }
+
+    /// What a directory entry is for traversal purposes.
+    pub enum EntryKind {
+        File,
+        Dir,
+        Other,
+    }
+
+    /// Classify an entry. Without `follow_links` symlinks are neither files nor
+    /// directories (`DirEntry::file_type` does not follow them); with it they are
+    /// classified by their target, like the walkdir engines do.
+    pub fn classify_entry(entry: &std::fs::DirEntry, follow_links: bool) -> EntryKind {
+        let file_type = if follow_links {
+            std::fs::metadata(entry.path()).map(|m| m.file_type())
+        } else {
+            entry.file_type()
+        };
+        match file_type {
+            Ok(ft) if ft.is_dir() => EntryKind::Dir,
+            Ok(ft) if ft.is_file() => EntryKind::File,
+            _ => EntryKind::Other,
+        }
+    }
+
+    /// Size in bytes of an entry already classified as a file (0 if unreadable).
+    pub fn entry_size(entry: &std::fs::DirEntry, follow_links: bool) -> u64 {
+        if follow_links {
+            std::fs::metadata(entry.path())
+                .map(|m| m.len())
+                .unwrap_or(0)
+        } else {
+            entry.metadata().map(|m| m.len()).unwrap_or(0)
+        }
+    }
+
+    /// True for dot-prefixed (hidden) names.
+    pub fn is_hidden_name(name: &std::ffi::OsStr) -> bool {
+        #[cfg(unix)]
+        {
+            use std::os::unix::ffi::OsStrExt;
+            name.as_bytes().starts_with(b".")
+        }
+        #[cfg(not(unix))]
+        {
+            name.to_string_lossy().starts_with('.')
+        }
+    }
+
     /// Get normalized file extension
     pub fn get_file_extension(path: &Path) -> String {
         match path.extension() {
@@ -281,12 +339,15 @@ mod analysis {
     }
 
     /// Get immediate subdirectories for parallel processing
-    pub fn get_subdirectories(path: &Path, _config: &AnalysisConfig) -> Vec<PathBuf> {
+    pub fn get_subdirectories(path: &Path, config: &AnalysisConfig) -> Vec<PathBuf> {
         let mut subdirs = Vec::new();
 
         if let Ok(entries) = std::fs::read_dir(path) {
             for entry in entries.flatten() {
-                if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
+                if !config.search_hidden && is_hidden_name(&entry.file_name()) {
+                    continue;
+                }
+                if matches!(classify_entry(&entry, config.follow_links), EntryKind::Dir) {
                     subdirs.push(entry.path());
                 }
             }
@@ -318,6 +379,9 @@ pub fn make_absolute_path_str(
     // When not following links, use the original root to avoid canonicalization
     let base = if follow_links { root_abs } else { root };
     match entry_path.strip_prefix(root) {
+        // The root itself: avoid the trailing separator `join("")` would add, so
+        // every engine keys the root folder identically.
+        Ok(rel) if rel.as_os_str().is_empty() => base.to_string_lossy().to_string(),
         Ok(rel) => base.join(rel).to_string_lossy().to_string(),
         Err(_) => entry_path.to_string_lossy().to_string(),
     }
@@ -354,6 +418,13 @@ mod sequential {
             walker = walker.max_depth((max_d + 1) as usize);
         }
 
+        // `search_hidden=false` prunes dot-entries together with everything beneath
+        // them (the root itself is never filtered).
+        let search_hidden = config.search_hidden;
+        let walker = walker.into_iter().filter_entry(move |e| {
+            search_hidden || e.depth() == 0 || !is_hidden_name(e.file_name())
+        });
+
         for entry in walker {
             let entry = match entry {
                 Ok(entry) => entry,
@@ -372,14 +443,13 @@ mod sequential {
                 }
             }
 
-            // Adjust depth to match Python implementation
-            let adjusted_depth = if depth == 0 { 0 } else { depth - 1 };
-
-            stats.max_depth = stats.max_depth.max(adjusted_depth);
-            *stats.depth_distribution.entry(adjusted_depth).or_insert(0) += 1;
-
             if entry.file_type().is_dir() {
                 stats.total_folders += 1;
+
+                // max_depth / depth_distribution describe *folders* (root = depth 0),
+                // matching the Python backend and the other Rust engines.
+                stats.max_depth = stats.max_depth.max(depth);
+                *stats.depth_distribution.entry(depth).or_insert(0) += 1;
 
                 // Check if empty
                 if is_empty_directory(&entry) {
@@ -469,11 +539,18 @@ mod parallel {
         let root_abs = path_root
             .canonicalize()
             .unwrap_or_else(|_| path_root.to_path_buf());
-        // Probe the root directory itself
-        probe_root_directory(path_root, &stats, config)?;
-
-        // Get immediate subdirectories for parallel processing
-        let subdirs = get_subdirectories(path_root, config);
+        // Probe the root directory itself. A single read of the root then counts the files
+        // that sit directly in it (the subdirectory walks below never see them) and returns
+        // the immediate subdirectories to process, in parallel when it is worth it.
+        probe_root_directory(path_root, &root_abs, &stats, config)?;
+        let subdirs = probe_root_entries(
+            path_root,
+            &root_abs,
+            &stats,
+            config,
+            collect_paths,
+            &mut paths,
+        );
 
         // Decide whether to use parallel processing
         let should_parallelize =
@@ -527,20 +604,75 @@ mod parallel {
 
     fn probe_root_directory(
         path_root: &Path,
+        root_abs: &Path,
         stats: &Arc<ParallelDirectoryStats>,
-        _config: &AnalysisConfig,
+        config: &AnalysisConfig,
     ) -> Result<(), String> {
-        // Count the root directory itself
-        if let Some(name) = path_root.file_name().and_then(|n| n.to_str()) {
-            let is_empty = estimate_directory_size(path_root, 1) == 0;
-            stats.add_folder(
-                name.to_string(),
-                is_empty,
-                path_root.to_string_lossy().to_string(),
-                0,
-            );
-        }
+        // Count the root directory itself (always: `.` has no file name but is a folder)
+        let is_empty = estimate_directory_size(path_root, 1) == 0;
+        stats.add_folder(
+            root_folder_name(path_root, root_abs),
+            is_empty,
+            make_absolute_path_str(path_root, path_root, root_abs, config.follow_links),
+            0,
+        );
         Ok(())
+    }
+
+    /// Read the root directory once: count the files that live directly in it and
+    /// return its immediate subdirectories.
+    ///
+    /// `probe_subdirectory_recursive` only walks subdirectories, so without counting
+    /// root-level files here the parallel engine silently dropped every one of them
+    /// (and its size) whenever the root had enough subdirectories to engage it.
+    fn probe_root_entries(
+        path_root: &Path,
+        root_abs: &Path,
+        stats: &Arc<ParallelDirectoryStats>,
+        config: &AnalysisConfig,
+        collect_paths: bool,
+        paths: &mut Vec<String>,
+    ) -> Vec<PathBuf> {
+        let mut subdirs = Vec::new();
+        let entries = match std::fs::read_dir(path_root) {
+            Ok(entries) => entries,
+            Err(_) => return subdirs,
+        };
+        let parent_path =
+            make_absolute_path_str(path_root, path_root, root_abs, config.follow_links);
+
+        for entry in entries.flatten() {
+            if !config.search_hidden && is_hidden_name(&entry.file_name()) {
+                continue;
+            }
+            match classify_entry(&entry, config.follow_links) {
+                EntryKind::Dir => subdirs.push(entry.path()),
+                EntryKind::File => {
+                    let path = entry.path();
+                    let size = if config.fast_path_only {
+                        0
+                    } else {
+                        entry_size(&entry, config.follow_links)
+                    };
+                    stats.add_file(
+                        size,
+                        get_file_extension(&path),
+                        parent_path.clone(),
+                        config.fast_path_only,
+                    );
+                    if collect_paths {
+                        paths.push(make_absolute_path_str(
+                            &path,
+                            path_root,
+                            root_abs,
+                            config.follow_links,
+                        ));
+                    }
+                }
+                EntryKind::Other => {}
+            }
+        }
+        subdirs
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -571,6 +703,12 @@ mod parallel {
             walker = walker.max_depth(remaining_depth as usize + 1);
         }
 
+        // `search_hidden=false` prunes dot-entries together with everything beneath them.
+        let search_hidden = config.search_hidden;
+        let walker = walker.into_iter().filter_entry(move |e| {
+            search_hidden || e.depth() == 0 || !is_hidden_name(e.file_name())
+        });
+
         for entry in walker {
             let entry = match entry {
                 Ok(entry) => entry,
@@ -580,16 +718,14 @@ mod parallel {
             let relative_depth = entry.depth() as u32;
             let absolute_depth = current_depth + relative_depth;
 
-            // Skip hidden entries unless search_hidden is enabled
-            if !config.search_hidden {
-                if let Some(name) = entry.file_name().to_str() {
-                    if name.starts_with('.') {
+            if entry.file_type().is_dir() {
+                // Folders deeper than max_depth are not counted (files one level
+                // deeper are; the walker's own depth limit allows both through).
+                if let Some(max_d) = config.max_depth {
+                    if absolute_depth > max_d {
                         continue;
                     }
                 }
-            }
-
-            if entry.file_type().is_dir() {
                 let is_empty = is_empty_directory(&entry);
 
                 if let Some(name) = entry.file_name().to_str() {
@@ -607,15 +743,6 @@ mod parallel {
                 } else {
                     entry.metadata().map(|m| m.len()).unwrap_or(0)
                 };
-                // Skip hidden files unless requested
-                if !config.search_hidden {
-                    if let Some(fname) = entry.file_name().to_str() {
-                        if fname.starts_with('.') {
-                            continue;
-                        }
-                    }
-                }
-
                 let parent_path = entry
                     .path()
                     .parent()
@@ -656,7 +783,7 @@ fn probe_directory_rust(
     search_hidden: Option<bool>,
     no_ignore: Option<bool>,
     return_paths: Option<bool>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     probe_directory_rust_with_config(
         path_root,
         max_depth,
@@ -681,7 +808,7 @@ fn probe_directory_rust_parallel(
     search_hidden: Option<bool>,
     no_ignore: Option<bool>,
     return_paths: Option<bool>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     probe_directory_rust_with_config(
         path_root,
         max_depth,
@@ -704,7 +831,7 @@ fn probe_directory_rust_with_config(
     search_hidden: Option<bool>,
     no_ignore: Option<bool>,
     return_paths: Option<bool>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let root = Path::new(path_root);
 
     // Validate input
@@ -751,10 +878,10 @@ fn probe_directory_rust_with_config(
 
     let (stats, paths) = stats.map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let dict = stats.to_py_dict(py, root_for_output.to_string_lossy().as_ref())?;
         if collect_paths {
-            dict.downcast_bound::<pyo3::types::PyDict>(py)?
+            dict.cast_bound::<pyo3::types::PyDict>(py)?
                 .set_item("paths", paths)?;
         }
         Ok(dict)

@@ -65,6 +65,11 @@ try:
 except ImportError:
     FD_AVAILABLE = False
 
+
+class _FdUnavailableError(RuntimeError):
+    """The fd backend was selected, but the fd binary cannot be used on this system."""
+
+
 # Sentinel to detect when optional boolean flags are omitted by callers.
 # Define at module scope so it's always available regardless of fd import outcome.
 _NOT_SET = object()
@@ -137,6 +142,40 @@ class DirectoryProfilerConfig:
         is_using_fd = self.use_fd or self.search_backend == "fd"
         if self.threads is not None and not is_using_fd:
             raise ValueError("'threads' only applies when use_fd=True or search_backend='fd'")
+
+
+def _assemble_probe_result(
+    path_root: Path,
+    *,
+    file_count: int,
+    folder_count: int,
+    total_size: int,
+    depth_stats: Mapping,
+    empty_folders: List[str],
+    file_extensions: Counter,
+    folder_names: Counter,
+    files_per_folder: Mapping,
+) -> Dict:
+    """Build the result dict shared by the pure-Python probes (the Python walk and the fd path)."""
+    avg_files_per_folder = file_count / max(1, folder_count)
+    top_folders_by_file_count = sorted(files_per_folder.items(), key=lambda x: x[1], reverse=True)[:10]
+    return {
+        "path": str(path_root),
+        "summary": {
+            "total_files": file_count,
+            "total_folders": folder_count,
+            "total_size_bytes": total_size,
+            "total_size_mb": round(total_size / (1024 * 1024), 2),
+            "avg_files_per_folder": round(avg_files_per_folder, 2),
+            "max_depth": max(depth_stats.keys()) if depth_stats else 0,
+            "empty_folder_count": len(empty_folders),
+        },
+        "file_extensions": dict(file_extensions.most_common(20)),
+        "common_folder_names": dict(folder_names.most_common(20)),
+        "empty_folders": empty_folders,
+        "top_folders_by_file_count": top_folders_by_file_count,
+        "depth_distribution": dict(depth_stats),
+    }
 
 
 def _is_interactive_environment():
@@ -353,8 +392,9 @@ class DirectoryProfiler:
         # Use explicit booleans from the config
         if config.use_rust and not RUST_AVAILABLE:
             raise RuntimeError("Rust implementation requested but not available in this build")
-        if config.use_parallel and not RUST_PARALLEL_AVAILABLE:
-            raise RuntimeError("Parallel Rust requested but not available")
+        # ``use_parallel`` defaults to True and is only a preference ("prefer parallel Rust
+        # scanning when available"): it must not make the default config fail on installs
+        # without the compiled extension. It is resolved against availability below.
         if config.use_async and not RUST_ASYNC_AVAILABLE:
             raise RuntimeError("Async Rust prober requested but not available in this build")
         if config.use_fd and not FD_AVAILABLE:
@@ -429,6 +469,9 @@ class DirectoryProfiler:
 
         # Threads forwarded to fd if using fd backend
         self.threads = config.threads if self.use_fd else None
+
+        # Explicit fd requests must fail loudly; automatic selection may fall back to Python
+        self._fd_requested = bool(config.use_fd or config.search_backend == "fd")
 
         # Defer fd integration initialization until actually used
         self.fd_integration = None
@@ -519,7 +562,17 @@ class DirectoryProfiler:
             if backend == "fd":
                 # threads param overrides instance threads when provided
                 chosen_threads = threads if threads is not None else self.threads
-                result = self._probe_fd(path, max_depth, threads=chosen_threads)
+                try:
+                    result = self._probe_fd(path, max_depth, threads=chosen_threads)
+                except _FdUnavailableError:
+                    if self._fd_requested:
+                        raise
+                    # Auto-selection picked fd, but the binary is missing or unusable:
+                    # continue down the Rust -> fd -> Python chain instead of failing.
+                    logger.debug("fd is not usable on this system, using the Python backend")
+                    backend = "python"
+                    impl_type = self._get_impl_display_name(backend)
+                    result = self._probe_python(path, max_depth)
             elif backend == "rust":
                 result = self._probe_rust(path, max_depth, fast_path_only=self._fast_path_only)
             else:
@@ -628,16 +681,16 @@ class DirectoryProfiler:
             # If the fd integration package wasn't importable at module
             # import time, reflect that now.
             if not FD_AVAILABLE:
-                raise RuntimeError("fd integration not available")
+                raise _FdUnavailableError("fd integration not available")
             try:
                 self.fd_integration = FdIntegration()
                 if not self.fd_integration.is_available():
                     # fd binary is not usable on this system
                     self.fd_integration = None
-                    raise RuntimeError("fd integration not available")
+                    raise _FdUnavailableError("fd integration not available")
             except Exception:
                 self.fd_integration = None
-                raise RuntimeError("fd integration not available")
+                raise _FdUnavailableError("fd integration not available")
 
         progress = None
         task_id = None
@@ -946,30 +999,17 @@ class DirectoryProfiler:
             if progress and task_id is not None:
                 progress.update(task_id, completed=processed_items)
 
-            # Calculate summary statistics
-            avg_files_per_folder = file_count / max(1, folder_count)
-
-            # Find folders with most files
-            top_folders_by_file_count = sorted(files_per_folder.items(), key=lambda x: x[1], reverse=True)[:10]
-
-            # Build result dictionary
-            result = {
-                "path": str(path_root),
-                "summary": {
-                    "total_files": file_count,
-                    "total_folders": folder_count,
-                    "total_size_bytes": total_size,
-                    "total_size_mb": round(total_size / (1024 * 1024), 2),
-                    "avg_files_per_folder": round(avg_files_per_folder, 2),
-                    "max_depth": max(depth_stats.keys()) if depth_stats else 0,
-                    "empty_folder_count": len(empty_folders),
-                },
-                "file_extensions": dict(file_extensions.most_common(20)),
-                "common_folder_names": dict(folder_names.most_common(20)),
-                "empty_folders": empty_folders,
-                "top_folders_by_file_count": top_folders_by_file_count,
-                "depth_distribution": dict(depth_stats),
-            }
+            result = _assemble_probe_result(
+                path_root,
+                file_count=file_count,
+                folder_count=folder_count,
+                total_size=total_size,
+                depth_stats=depth_stats,
+                empty_folders=empty_folders,
+                file_extensions=file_extensions,
+                folder_names=folder_names,
+                files_per_folder=files_per_folder,
+            )
 
             # Add DataFrame if enabled
             if self.build_dataframe and DATAFRAME_AVAILABLE:
@@ -1339,30 +1379,17 @@ class DirectoryProfiler:
             if progress and task_id is not None:
                 progress.update(task_id, completed=processed_items)
 
-            # Calculate summary statistics
-            avg_files_per_folder = file_count / max(1, folder_count)
-
-            # Find folders with most files
-            top_folders_by_file_count = sorted(files_per_folder.items(), key=lambda x: x[1], reverse=True)[:10]
-
-            # Build result dictionary
-            result = {
-                "path": str(path_root),
-                "summary": {
-                    "total_files": file_count,
-                    "total_folders": folder_count,
-                    "total_size_bytes": total_size,
-                    "total_size_mb": round(total_size / (1024 * 1024), 2),
-                    "avg_files_per_folder": round(avg_files_per_folder, 2),
-                    "max_depth": max(depth_stats.keys()) if depth_stats else 0,
-                    "empty_folder_count": len(empty_folders),
-                },
-                "file_extensions": dict(file_extensions.most_common(20)),
-                "common_folder_names": dict(folder_names.most_common(20)),
-                "empty_folders": empty_folders,
-                "top_folders_by_file_count": top_folders_by_file_count,
-                "depth_distribution": dict(depth_stats),
-            }
+            result = _assemble_probe_result(
+                path_root,
+                file_count=file_count,
+                folder_count=folder_count,
+                total_size=total_size,
+                depth_stats=depth_stats,
+                empty_folders=empty_folders,
+                file_extensions=file_extensions,
+                folder_names=folder_names,
+                files_per_folder=files_per_folder,
+            )
 
             # Add DataFrame if enabled
             if self.build_dataframe and DATAFRAME_AVAILABLE:

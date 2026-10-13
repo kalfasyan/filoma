@@ -16,10 +16,10 @@ hand-rolled shell pipelines.
 - `filoma dedup <path1> <path2> --cross-dir` — find train/test
   leakage between two folders.
 - `filoma ask "..."` — one-shot natural-language query against the
-  current directory.
-- `filoma chat` — interactive REPL.
+  current directory (needs `pip install "filoma[agent]"`).
+- `filoma chat` — interactive REPL (needs `filoma[agent]`).
 - `filoma demo` — runs the full pipeline on a synthetic fixture.
-- `filoma mcp serve` — exposes 24 filesystem tools as an MCP server.
+- `filoma mcp serve` — exposes filoma's filesystem tools as an MCP server (needs `filoma[agent]`).
 
 ## Python
 

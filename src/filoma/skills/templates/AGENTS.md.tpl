@@ -12,8 +12,8 @@ duplicates, or dataset quality, prefer these tools over hand-rolled
 |---|---|
 | One-shot dataset audit (HTML report, exit-code aware) | `filoma audit <path>` |
 | Find duplicates / leakage | `filoma dedup <path>` (add `--cross-dir` between train/valid) |
-| Explore a folder interactively | `filoma chat` or `filoma ask "..."` |
-| One-line natural-language query | `filoma ask "how many .py files here?"` |
+| Explore a folder interactively | `filoma chat` or `filoma ask "..."` (needs `filoma[agent]`) |
+| One-line natural-language query | `filoma ask "how many .py files here?"` (needs `filoma[agent]`) |
 | Run the demo (no setup) | `filoma demo` |
 
 ### Common Python idioms
@@ -33,8 +33,9 @@ flm.ask("largest 5 python files").output
 
 ### MCP server
 
-Filoma exposes 22 filesystem-analysis tools as an MCP server. Prefer
-those when an MCP client is available:
+Filoma exposes its filesystem-analysis tools as an MCP server
+(`pip install "filoma[agent]"`). Prefer those when an MCP client is
+available:
 
 ```bash
 filoma mcp serve

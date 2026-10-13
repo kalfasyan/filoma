@@ -43,6 +43,16 @@ def test_check_integrity_can_exclude_hidden_dirs(tmp_path: Path):
     assert not any(".hidden" in p for p in found_paths)
 
 
+def test_check_class_balance_reads_mixed_labels_and_excludes_nan(tmp_path: Path):
+    """CSV class counts include late string labels but exclude missing values."""
+    (tmp_path / "mixed.csv").write_text("filename,label\n" + "\n".join(f"image_{index},1" for index in range(100)) + "\nimage_100,weed")
+    (tmp_path / "numeric.csv").write_text("filename,label\n" + "\n".join(f"image_{index},1" for index in range(100)) + "\nimage_100,NaN")
+
+    result = DatasetVerifier(str(tmp_path)).check_class_balance("csv")
+
+    assert result["class_distribution"] == {"1": 100, 1.0: 100, "weed": 1}
+
+
 @pytest.mark.skip(reason="Too slow, needs optimization")
 def test_verifier_on_weeds_dataset():
     dataset_path = Path("notebooks/Weeds-3/")

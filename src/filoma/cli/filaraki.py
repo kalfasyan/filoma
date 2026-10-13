@@ -4,7 +4,7 @@ from typing import Optional
 
 import typer
 
-from ._app import filaraki_app
+from ._app import filaraki_app, require_extra
 
 
 @filaraki_app.command("chat")
@@ -12,6 +12,7 @@ def filaraki_chat(
     model: Optional[str] = typer.Option(None, "--model", "-m", help="AI model to use"),
 ) -> None:
     """Start an interactive chat session with Filaraki."""
+    require_extra("agent", "pydantic_ai")
     from filoma.filaraki.cli import chat as start_chat
 
     start_chat(model=model)

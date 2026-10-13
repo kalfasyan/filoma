@@ -6,6 +6,8 @@
         "run",
         "--directory",
         "${workspaceFolder}",
+        "--extra",
+        "agent",
         "filoma",
         "mcp",
         "serve"

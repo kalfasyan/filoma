@@ -15,9 +15,24 @@ uv pip install filoma
 pip install filoma
 ```
 
+## Optional extras
+
+The base install is intentionally small: scanning, DataFrames, integrity checks, `filoma audit` and quality gates all work out of the box. Heavier features are opt-in so a CI job that only runs `filoma audit` does not download PyTorch:
+
+| Extra            | Adds                                                                      | Install                        |
+| ---------------- | ------------------------------------------------------------------------- | ------------------------------ |
+| `filoma[agent]`  | `flm.ask()`, `filoma ask` / `chat`, `filoma mcp serve` (pydantic-ai, mcp) | `pip install "filoma[agent]"`  |
+| `filoma[rag]`    | LanceDB vector search and text/image embeddings (pulls in PyTorch)        | `pip install "filoma[rag]"`    |
+| `filoma[pandas]` | `DataFrame.to_pandas()` interop                                           | `pip install "filoma[pandas]"` |
+| `filoma[dedup]`  | MinHash near-duplicate detection                                          | `pip install "filoma[dedup]"`  |
+| `filoma[stats]`  | scipy / scikit-learn statistics                                           | `pip install "filoma[stats]"`  |
+| `filoma[all]`    | all of the above                                                          | `pip install "filoma[all]"`    |
+
+Commands that need a missing extra exit with the exact `pip install` line to run.
+
 > 💡 New to `uv`? Install it once with
 > `curl -LsSf https://astral.sh/uv/install.sh | sh`. After that,
-> `uv add filoma` and `uv run filoma demo` give you the whole package
+> `uv add filoma` and `uv run filoma demo` give you the core package
 >
 > - a working dev shell with no virtualenv juggling.
 

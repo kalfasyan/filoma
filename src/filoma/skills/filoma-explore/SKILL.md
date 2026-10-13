@@ -34,6 +34,9 @@ Do **not** use this skill for:
 
 ### 1. Natural language (most ergonomic)
 
+Needs the agent extra: `pip install "filoma[agent]"` (the base install
+covers everything else on this page).
+
 ```bash
 filoma ask "how many python files are here, and what's the largest?"
 filoma chat                       # interactive REPL
@@ -138,8 +141,8 @@ analysis rather than whole-filesystem scans. Both are also exposed as
 MCP/Filaraki tools (`add_embedding_cols`, `add_semantic_similarity_cols`)
 for agentic use via `filoma ask` or the MCP server.
 For images, use `add_image_embedding_cols()` instead — it runs a CLIP
-vision encoder (via sentence-transformers, already a core filoma
-dependency) to turn each image's pixels into a general-purpose
+vision encoder (via sentence-transformers; needs the `rag` extra,
+`pip install "filoma[rag]"`) to turn each image's pixels into a general-purpose
 visual-semantic vector (subject/scene/composition), not just a pixel
 or perceptual hash:
 

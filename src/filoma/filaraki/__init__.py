@@ -19,6 +19,9 @@ def get_agent(model: Optional[Any] = None, working_dir: Optional[str] = None) ->
         working_dir: Default working directory for the agent's tools. Defaults to current working directory.
 
     """
-    from .agent import FilarakiAgent
+    try:
+        from .agent import FilarakiAgent
+    except ImportError as exc:
+        raise ImportError("The Filaraki agent needs the optional 'agent' dependencies. Install them with: pip install 'filoma[agent]'") from exc
 
     return FilarakiAgent(model=model, working_dir=working_dir)

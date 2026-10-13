@@ -11,7 +11,7 @@ from loguru import logger
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from ._app import app, console
+from ._app import app, console, require_extra
 
 
 @app.command("ask")
@@ -31,6 +31,8 @@ def ask_command(
 
     """
     import filoma as flm
+
+    require_extra("agent", "pydantic_ai")
 
     question = " ".join(prompt).strip()
     if not question:
@@ -85,6 +87,7 @@ def chat(
     model: Optional[str] = typer.Option(None, "--model", "-m", help="AI model to use"),
 ) -> None:
     """Start an interactive Filaraki chat (shorthand for ``filoma filaraki chat``)."""
+    require_extra("agent", "pydantic_ai")
     from filoma.filaraki.cli import chat as start_chat
 
     start_chat(model=model)

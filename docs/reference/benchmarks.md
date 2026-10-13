@@ -171,12 +171,18 @@ These backends only discover file paths (fast-path mode - no metadata collection
 - **rust-fast** - Rust with `fast_path_only=True` for pure discovery
 - **rust-dua-fast** - dua-core walker with `fast_path_only=True`
 - **async-fast** - Async with `fast_path_only=True` for pure discovery
+- **cli-find** - Raw `find PATH -type f`, including process start-up (regular files only)
+- **cli-fd** - Raw `fd --type f --hidden --no-ignore`, including process start-up (regular files only)
+
+The two `cli-*` rows are there so you can check filoma's numbers against the standard tools on your own hardware. They are skipped when the tool is not installed. After each table the script warns if backends disagree on the file count: that can be legitimate on real data (symlinks and hidden or ignored files are treated differently by different tools) but on generated data it points at a bug.
 
 Use traversal backends to measure raw discovery performance:
 
 ```bash
 python benchmarks/benchmark.py /path -n 3 --backend traversal
 ```
+
+`poe benchmark` runs the same script and forwards options as-is, e.g. `poe benchmark /path -n 3 --backend traversal` (`make benchmark` runs it with defaults).
 
 This separation is important because:
 

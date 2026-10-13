@@ -3,7 +3,16 @@
     "filoma-dev": {
       "type": "local",
       "command": "uv",
-      "args": ["run", "--directory", ".", "filoma", "mcp", "serve"],
+      "args": [
+        "run",
+        "--directory",
+        ".",
+        "--extra",
+        "agent",
+        "filoma",
+        "mcp",
+        "serve"
+      ],
       "tools": ["*"]
     }
   }

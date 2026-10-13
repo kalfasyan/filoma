@@ -57,7 +57,7 @@ except ImportError:
 
 # Traversal-only backends (just visit files, no metadata)
 # Includes fast variants of rust backends that skip metadata collection
-TRAVERSAL_BACKENDS = ["os.walk", "pathlib", "rust-fast", "rust-dua-fast", "async-fast"]
+TRAVERSAL_BACKENDS = ["os.walk", "pathlib", "rust-fast", "rust-dua-fast", "async-fast", "cli-find", "cli-fd"]
 
 # Full profiling backends (collect metadata, extensions, stats)
 PROFILING_BACKENDS = ["rust", "rust-dua", "rust-seq", "async", "fd", "python"]
@@ -226,6 +226,48 @@ def benchmark_pathlib(path: str) -> Tuple[float, int, int]:
     elapsed = time.perf_counter() - start
 
     return elapsed, file_count, dir_count
+
+
+def _count_cli_lines(cmd: List[str]) -> Tuple[float, int]:
+    """Run ``cmd`` and return (elapsed seconds, number of output lines).
+
+    Wall time includes process start-up, which is part of what a user pays when
+    shelling out to the tool. Output is streamed so large trees do not sit in memory.
+    """
+    start = time.perf_counter()
+    count = 0
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL) as proc:
+        assert proc.stdout is not None
+        for _line in proc.stdout:
+            count += 1
+    elapsed = time.perf_counter() - start
+    if proc.returncode:
+        raise subprocess.CalledProcessError(proc.returncode, cmd)
+    return elapsed, count
+
+
+def benchmark_cli_find(path: str) -> Optional[Dict]:
+    """Baseline: ``find PATH -type f`` (regular files only, symlinks not followed)."""
+    exe = shutil.which("find")
+    if not exe:
+        return {"error": "find not installed"}
+    try:
+        elapsed, files = _count_cli_lines([exe, path, "-type", "f"])
+    except (OSError, subprocess.CalledProcessError) as exc:
+        return {"error": f"find failed: {exc}"}
+    return {"elapsed": elapsed, "files": files, "dirs": 0}
+
+
+def benchmark_cli_fd(path: str) -> Optional[Dict]:
+    """Baseline: raw ``fd`` including hidden and git-ignored files (regular files only)."""
+    exe = shutil.which("fd") or shutil.which("fdfind")
+    if not exe:
+        return {"error": "fd not installed"}
+    try:
+        elapsed, files = _count_cli_lines([exe, "--type", "f", "--hidden", "--no-ignore", ".", path])
+    except (OSError, subprocess.CalledProcessError) as exc:
+        return {"error": f"fd failed: {exc}"}
+    return {"elapsed": elapsed, "files": files, "dirs": 0}
 
 
 def benchmark_filoma(
@@ -440,6 +482,15 @@ def run_benchmark_suite(
             elif method == "pathlib":
                 elapsed, files, dirs = benchmark_pathlib(path)
                 last_result = {"files": files, "dirs": dirs}
+            elif method in ("cli-find", "cli-fd"):
+                result = benchmark_cli_find(path) if method == "cli-find" else benchmark_cli_fd(path)
+                if result and "error" not in result:
+                    elapsed = result["elapsed"]
+                    last_result = {"files": result["files"], "dirs": result["dirs"]}
+                else:
+                    print(f"unavailable: {result.get('error', 'Unknown error') if result else 'Failed'}")
+                    results[method] = {"error": (result.get("error", "Unknown error") if result else "Failed")}
+                    break
             else:
                 result = benchmark_filoma(path, method, no_ignore=no_ignore)
                 if result and "error" not in result:
@@ -515,6 +566,17 @@ def print_results(results: Dict[str, Dict], title: str = "Benchmark Results"):
 
     print("\n(Results sorted by median time - execution order shown during benchmark)")
 
+    # Backends scanning the same tree should report the same number of files. A
+    # disagreement can be legitimate on real data (symlinks, hidden or ignored files are
+    # treated differently by different tools) but on generated data it points at a bug.
+    file_counts: Dict[int, List[str]] = {}
+    for method, data in valid_results.items():
+        file_counts.setdefault(data["files"], []).append(method)
+    if len(file_counts) > 1:
+        print("\nWARNING: backends disagree on the file count (symlink/hidden/ignore semantics, or a bug):")
+        for count, methods in sorted(file_counts.items()):
+            print(f"   {count:>12,}  {', '.join(sorted(methods))}")
+
     # Show errors
     if error_results:
         print("\n⚠️  Unavailable backends:")
@@ -569,6 +631,8 @@ Examples:
         choices=[
             "os.walk",
             "pathlib",
+            "cli-find",
+            "cli-fd",
             "rust",
             "rust-seq",
             "rust-fast",
@@ -582,7 +646,7 @@ Examples:
             "profiling",
             "traversal",
         ],
-        help="Backends to test. Groups: 'profiling' (full metadata), 'traversal' (fast path only). Default: profiling",
+        help=("Backends to test. Groups: 'profiling' (full metadata), 'traversal' (fast path only, incl. the raw 'cli-find'/'cli-fd' tool baselines). Default: profiling"),
     )
     parser.add_argument(
         "-n",

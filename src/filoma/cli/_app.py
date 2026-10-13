@@ -56,3 +56,20 @@ skills_app = typer.Typer(
 app.add_typer(skills_app)
 
 console = Console()
+
+
+def require_extra(extra: str, *modules: str) -> None:
+    """Exit with an install hint when an optional dependency group is not installed.
+
+    Args:
+        extra: Name of the ``filoma[<extra>]`` extra that provides the modules.
+        *modules: Top-level module names that must be importable.
+
+    """
+    import importlib.util
+
+    missing = [m for m in modules if importlib.util.find_spec(m) is None]
+    if missing:
+        console.print(f"[red]This command needs the optional '{extra}' dependencies (missing: {', '.join(missing)}).[/red]")
+        console.print(f"Install them with: pip install 'filoma[{extra}]'", markup=False)
+        raise typer.Exit(1)

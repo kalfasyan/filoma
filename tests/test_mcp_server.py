@@ -6,6 +6,7 @@ an actual MCP client connection. Tests are designed to run quickly.
 
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -34,7 +35,8 @@ class TestMCPServerImports:
 
     def test_imports(self):
         """Test that MCP server module imports correctly."""
-        assert len(_MCP_TOOL_NAMES) == 29
+        registered = {spec.name for spec in tool_registry.list_specs()}
+        assert _MCP_TOOL_NAMES <= registered, f"MCP allowlist names not registered: {sorted(_MCP_TOOL_NAMES - registered)}"
 
     def test_all_tools_have_descriptions(self):
         """Verify all tools have descriptions and schemas."""
@@ -64,7 +66,8 @@ class TestToolRegistration:
     async def test_list_tools_returns_all_tools(self):
         """Test that list_tools returns all MCP tools."""
         tools = await list_tools()
-        assert len(tools) == 29
+        # Installed plugins (for example examples/plugin_example) are listed in addition to the built-ins.
+        assert len(tools) == len(_MCP_TOOL_NAMES | tool_registry.plugin_tool_names())
         assert all(isinstance(t, Tool) for t in tools)
 
     @pytest.mark.asyncio
@@ -72,7 +75,7 @@ class TestToolRegistration:
         """Verify tool names match schema definitions."""
         tools = await list_tools()
         tool_names = {t.name for t in tools}
-        assert tool_names == _MCP_TOOL_NAMES
+        assert tool_names == _MCP_TOOL_NAMES | tool_registry.plugin_tool_names()
 
     @pytest.mark.asyncio
     async def test_expected_tools_present(self):
@@ -712,6 +715,30 @@ class TestContextHelpers:
         monkeypatch.setattr(mcp_module, "_session_key", lambda: session_a)
         ctx_a = mcp_module._get_context(FilarakiDeps(working_dir="/tmp"))
         assert ctx_a.deps.current_df is not None
+
+    @pytest.mark.asyncio
+    async def test_plugin_tools_await_and_save_dataframe_state(self, monkeypatch):
+        """Async plugins run under stdout protection and persist dataframe replacements."""
+        import polars as pl
+
+        import filoma.mcp_server as mcp_module
+        from filoma.filaraki.agent import FilarakiDeps
+
+        async def plugin_tool(ctx):
+            print("plugin output")
+            await __import__("asyncio").sleep(0)
+            ctx.deps.current_df = pl.DataFrame({"path": ["/tmp/plugin"]})
+            return "complete"
+
+        spec = SimpleNamespace(callable=plugin_tool, param_schema={"properties": {}})
+        monkeypatch.setattr(mcp_module.tool_registry, "get_spec", lambda _name: spec)
+        monkeypatch.setattr(mcp_module.tool_registry, "plugin_tool_names", lambda: frozenset({"plugin_tool"}))
+        monkeypatch.setattr(mcp_module, "_get_lifespan_deps", lambda: FilarakiDeps(working_dir="/tmp"))
+
+        result = await mcp_module.call_tool("plugin_tool", {})
+
+        assert result[0].text == "complete"
+        assert _dataframe_state[_NO_SESSION]["current_df"].item(0, "path") == "/tmp/plugin"
 
 
 class TestLifespan:

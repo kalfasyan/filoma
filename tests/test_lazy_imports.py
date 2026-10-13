@@ -1,6 +1,9 @@
+import importlib.util
 import json
 import subprocess
 import sys
+
+import pytest
 
 # Heavy / agentic dependencies that must NOT be loaded just by ``import filoma``.
 # Roadmap reference: docs/roadmap/adoption.md §2.5 ("Lazy imports").
@@ -60,6 +63,7 @@ def test_import_filoma_filaraki_subpackage_stays_lazy():
         assert not present.get(dep), f"{dep!r} should not be imported by `import filoma.filaraki`"
 
 
+@pytest.mark.skipif(importlib.util.find_spec("pydantic_ai") is None, reason="needs the optional 'agent' extra")
 def test_get_agent_loads_pydantic_ai():
     """Importing ``filoma.filaraki.agent`` *does* pull in pydantic-ai.
 

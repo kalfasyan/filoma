@@ -18,10 +18,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 import pytest
 from PIL import Image
 
-from filoma.core.verifier import DatasetVerifier
-from filoma.filaraki.agent import FilarakiDeps
-from filoma.filaraki.tools import _extract_json_payload, audit_dataset, generate_hygiene_report
-from filoma.mcp_server import SimpleRunContext
+pytest.importorskip("pydantic_ai", reason="needs the optional 'agent' extra")
+pytest.importorskip("mcp", reason="needs the optional 'agent' extra")
+
+from filoma.core.verifier import DatasetVerifier  # noqa: E402
+from filoma.filaraki.agent import FilarakiDeps  # noqa: E402
+from filoma.filaraki.tools import _extract_json_payload, audit_dataset, generate_hygiene_report  # noqa: E402
+from filoma.mcp_server import SimpleRunContext  # noqa: E402
 
 N_DUPLICATE_GROUPS = 8  # deliberately > the 5-group evidence sample size
 
