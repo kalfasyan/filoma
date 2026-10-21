@@ -224,6 +224,12 @@ Filoma stands on the shoulders of:
 
 ---
 
+## Support
+
+If filoma is useful to you, you can [buy me a coffee](https://buymeacoffee.com/kalfasyan) ☕
+
+---
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE.txt). Versions published to PyPI before the change to MIT were released under CC BY 4.0.
